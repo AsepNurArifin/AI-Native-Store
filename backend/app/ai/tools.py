@@ -37,6 +37,7 @@ class ToolExecutor:
         "analyze_inventory": "analyze_inventory",
         "channel_distribution": "channel_distribution",
         "create_promotion_draft": "create_promotion_draft",
+        "create_stock_adjustment_draft": "create_stock_adjustment_draft",
     }
 
     async def call(self, name: str, args: dict) -> dict:
@@ -160,6 +161,23 @@ class ToolExecutor:
                     "discount_percentage": discount_percentage,
                     "start_date": start_date,
                     "end_date": end_date,
+                },
+            }
+        }
+
+    async def create_stock_adjustment_draft(self, product_id: str, movement: str, quantity: int) -> dict:
+        """FR-AA-06 — draft penyesuaian stok (dieksekusi via approval flow).
+
+        movement: IN = tambah stok, OUT = kurangi stok. quantity selalu positif —
+        arah perubahan ditentukan movement, bukan tanda quantity.
+        """
+        return {
+            "draft": {
+                "action_type": "ADJUST_STOCK",
+                "payload": {
+                    "product_id": product_id,
+                    "movement": movement,
+                    "quantity": quantity,
                 },
             }
         }

@@ -161,6 +161,40 @@ export interface AnalystResponse {
   disclaimer: string | null
 }
 
+export interface SalesAnalyticsRow {
+  key: string
+  units: number
+  revenue: number
+}
+
+export interface SalesAnalytics {
+  period: { from: string; to: string }
+  group_by: string
+  data: SalesAnalyticsRow[]
+  product_names?: Record<string, string>
+}
+
+export interface InventoryRiskRow {
+  product_id: string
+  name: string
+  category: string
+  current_stock: number
+  avg_daily_sales_30d: number
+  estimated_days_left: string
+  stockout_risk: boolean
+}
+
+export interface InventoryAnalytics {
+  threshold_days: number
+  data: InventoryRiskRow[]
+}
+
+export interface ChannelAnalytics {
+  period: { from: string; to: string }
+  total_orders: number
+  by_channel: { channel: string; orders: number; percent: number }[]
+}
+
 export interface AIActionOut {
   id: string
   action_type: string

@@ -173,3 +173,83 @@ async def test_reject_draft(client: AsyncClient, db):
     r = await client.post(f"/api/v1/ai-actions/{str(action.id)}/reject", headers=h, json={"note": "tidak jadi"})
     assert r.status_code == 200
     assert r.json()["status"] == "REJECTED"
+
+
+# ==================== ADJUST_STOCK (FR-AA-06) ====================
+
+@pytest.mark.asyncio
+async def test_stock_adjustment_draft_and_approve(client: AsyncClient, db, monkeypatch):
+    """FR-AA-06 — instruksi 'tambahkan stok...' -> DRAFT ADJUST_STOCK -> approve -> stok bertambah."""
+    owner, owner_id = await _login(client, db, "owner-stock@t.dev", "OWNER")
+    h = {"Authorization": f"Bearer {owner}"}
+    r = await client.post(
+        "/api/v1/products", headers=h,
+        json={"name": "Smartphone G066", "category": "Elektronik", "price": 500000},
+    )
+    pid = r.json()["id"]
+
+    import app.ai.action_agent as aa
+    from app.ai.llm import LLMResponse, LLMToolCall
+
+    class _ScriptedLLM:
+        async def complete(self, *, system, messages, tools=None):
+            return LLMResponse("", [LLMToolCall("create_stock_adjustment_draft", {
+                "product_id": pid, "movement": "IN", "quantity": 20,
+            })])
+
+    monkeypatch.setattr(aa, "get_llm", lambda model=None: _ScriptedLLM())
+
+    # draft dari instruksi NL — persis kasus user: "tambahkan stok ... sebanyak 20"
+    r = await client.post(
+        "/api/v1/ai-actions/draft", headers=h,
+        json={"instruction": "tambahkan stok untuk produk Smartphone G066 sebanyak 20"},
+    )
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert data["status"] == "DRAFT"
+    assert data["action_type"] == "ADJUST_STOCK"
+    assert data["payload"] == {"product_id": pid, "movement": "IN", "quantity": 20}
+
+    # approve -> validasi lolos -> eksekusi
+    r = await client.post(f"/api/v1/ai-actions/{data['id']}/approve", headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "EXECUTED"
+
+    # stok benar-benar bertambah 20
+    r = await client.get(f"/api/v1/products/{pid}", headers=h)
+    assert r.json()["current_stock"] == 20
+
+
+@pytest.mark.asyncio
+async def test_stock_adjustment_out_insufficient_stock_fails_validation(client: AsyncClient, db):
+    """FR-AA-05 utk ADJUST_STOCK: OUT melebihi stok -> APPROVED_VALIDATION_FAILED, stok tak berubah."""
+    owner, _ = await _login(client, db, "owner-stock2@t.dev", "OWNER")
+    h = {"Authorization": f"Bearer {owner}"}
+    r = await client.post(
+        "/api/v1/products", headers=h,
+        json={"name": "Soda R057", "category": "Makanan", "price": 10000},
+    )
+    pid = r.json()["id"]
+
+    from app.models import AIAction
+    from app.services.ai_action_service import AIActionService
+
+    action = await AIActionService.create_draft(
+        db, requested_by=await _owner_id(db, "owner-stock2@t.dev"),
+        action_type="ADJUST_STOCK",
+        payload={"product_id": pid, "movement": "OUT", "quantity": 50},  # stok 0, minta 50
+    )
+    await db.commit()
+
+    action = await AIActionService.approve(db, action, actor_id=await _owner_id(db, "owner-stock2@t.dev"))
+    assert action.status == "APPROVED_VALIDATION_FAILED"
+    assert "INSUFFICIENT_STOCK" in action.validation_failures
+
+    # stok tidak berubah (masih 0)
+    r = await client.get(f"/api/v1/products/{pid}", headers=h)
+    assert r.json()["current_stock"] == 0
+
+
+async def _owner_id(db, email: str) -> str:
+    user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+    return str(user.id)

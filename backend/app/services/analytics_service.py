@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InventoryTransaction, Order, OrderItem, Product
-from app.services.inventory_service import InventoryService
 
 
 class AnalyticsService:
@@ -91,25 +90,48 @@ class AnalyticsService:
     @staticmethod
     async def analyze_inventory(db: AsyncSession, threshold_days: int | None = None) -> dict:
         threshold_days = threshold_days or 7
-        products = (await db.execute(select(Product).where(Product.status == "ACTIVE"))).scalars().all()
         now = datetime.now()
         month_ago = now - timedelta(days=30)
 
+        products = (await db.execute(select(Product).where(Product.status == "ACTIVE"))).scalars().all()
+
+        # BULK, bukan N+1 per produk: stok & rata-rata penjualan 30 hari masing-masing
+        # satu query agregat (penting saat DB jauh, mis. Supabase pooler — N+1 = ratusan
+        # round-trip jaringan untuk 120 produk).
+        in_expr = case(
+            (InventoryTransaction.movement == "IN", InventoryTransaction.quantity),
+            else_=-InventoryTransaction.quantity,
+        )
+        stock_rows = (
+            await db.execute(
+                select(InventoryTransaction.product_id, func.coalesce(func.sum(in_expr), 0).label("stock"))
+                .where(InventoryTransaction.product_id.in_([p.id for p in products]))
+                .group_by(InventoryTransaction.product_id)
+            )
+        ).all()
+        stock_by_product = {r.product_id: int(r.stock) for r in stock_rows}
+
+        avg_rows = (
+            await db.execute(
+                select(
+                    OrderItem.product_id,
+                    (func.coalesce(func.sum(OrderItem.quantity), 0) / 30.0).label("avg"),
+                )
+                .join(Order, Order.id == OrderItem.order_id)
+                .where(
+                    OrderItem.product_id.in_([p.id for p in products]),
+                    Order.status.in_(["CONFIRMED", "COMPLETED"]),
+                    Order.created_at >= month_ago,
+                )
+                .group_by(OrderItem.product_id)
+            )
+        ).all()
+        avg_by_product = {r.product_id: float(r.avg) for r in avg_rows}
+
         rows_out: list[dict] = []
         for p in products:
-            stock = await InventoryService.current_stock(db, str(p.id))
-            avg = (
-                await db.execute(
-                    select(func.coalesce(func.sum(OrderItem.quantity), 0) / 30.0)
-                    .join(Order, Order.id == OrderItem.order_id)
-                    .where(
-                        OrderItem.product_id == p.id,
-                        Order.status.in_(["CONFIRMED", "COMPLETED"]),
-                        Order.created_at >= month_ago,
-                    )
-                )
-            ).scalar_one()
-            avg = float(avg)
+            stock = stock_by_product.get(p.id, 0)
+            avg = avg_by_product.get(p.id, 0.0)
             if avg > 0:
                 est_days = round(stock / avg, 1)
                 risk = est_days <= threshold_days
@@ -128,7 +150,14 @@ class AnalyticsService:
                     "stockout_risk": risk,
                 }
             )
-        rows_out.sort(key=lambda r: r["estimated_days_left"] if r["estimated_days_left"] != "N/A" else 10**9)
+        # sort: hari tersisa menaik; produk tanpa penjualan (N/A) di paling bawah.
+        # float("inf") — bukan 10**9 — supaya tipe konsisten (str vs int akan TypeError).
+        def _days_left(r: dict) -> float:
+            if r["estimated_days_left"] == "N/A":
+                return float("inf")
+            return float(r["estimated_days_left"])
+
+        rows_out.sort(key=_days_left)
         return {"threshold_days": threshold_days, "data": rows_out}
 
     # ---------- channel distribution (FR-BA-06 stretch — cheap, include) ----------

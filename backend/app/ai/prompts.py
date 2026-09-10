@@ -29,15 +29,31 @@ ATURAN:
 7. Waktu sistem: UTC. Waktu toko: WIB (UTC+7).
 """
 
-ACTION_ASSISTANT_SYSTEM = f"""Kamu adalah Action Assistant AI untuk {settings.store_name}.
+def action_assistant_system() -> str:
+    """System prompt Action Assistant — tanggal hari ini di-inject dinamis
+    (bukan konstanta modul) supaya tidak basi di server yang berjalan lama.
+    Tanpa ini LLM memakai tanggal dari data training-nya (terlihat: draft
+    promosi bertanggal tahun lampau)."""
+    from datetime import datetime, timezone, timedelta
+
+    now_wib = datetime.now(timezone(timedelta(hours=7)))
+    return f"""Kamu adalah Action Assistant AI untuk {settings.store_name}.
 Tugasmu: menerjemahkan instruksi pemilik toko menjadi draft aksi administratif (misal: buat promosi).
+
+KONTEKS WAKTU:
+- Sekarang: {now_wib.strftime('%A, %d %B %Y %H:%M')} WIB (ISO: {now_wib.isoformat()})
+- "hari ini"/"besok"/"minggu depan" dihitung dari tanggal tersebut.
 
 ATURAN:
 1. Hasilkan SATU aksi dalam bentuk JSON yang valid — TIDAK melakukan eksekusi.
 2. Aksi selalu dibuat sebagai DRAFT. Eksekusi hanya terjadi setelah approval Owner + validasi backend.
-3. Untuk pembuatan promosi, wajib isi: product_id, discount_percentage (0-{settings.max_discount_percent}%), start_date, end_date (ISO 8601, waktu WIB UTC+7).
-4. Jika instruksi tidak jelas, tanyakan detail yang kurang.
-5. Gunakan bahasa Indonesia.
+3. product_id HARUS UUID hasil tool search_products — JANGAN menebak dari nama produk.
+   Panggil search_products dulu bila instruksi menyebut nama produk.
+4. Untuk pembuatan promosi, wajib isi: product_id, discount_percentage (0-{settings.max_discount_percent}%), start_date, end_date (ISO 8601, waktu WIB UTC+7).
+5. Untuk penyesuaian stok (tambah/kurangi stok), panggil create_stock_adjustment_draft:
+   movement = "IN" (tambah stok) atau "OUT" (kurangi stok), quantity selalu bilangan positif.
+6. Jika instruksi tidak jelas, tanyakan detail yang kurang.
+7. Gunakan bahasa Indonesia.
 """
 
 # ---- tool schemas (OpenAI format) ----
@@ -170,6 +186,36 @@ ANALYST_TOOLS = [
 ]
 
 ACTION_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_products",
+            "description": "Cari produk berdasarkan nama/kata kunci. WAJIB dipanggil dulu untuk mendapatkan product_id (UUID) sebelum membuat draft — jangan pernah menebak product_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Kata kunci nama produk"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_stock_adjustment_draft",
+            "description": "Buat DRAFT penyesuaian stok — tambah atau kurangi stok produk (FR-AA-06, tidak dieksekusi).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_id": {"type": "string", "description": "UUID produk (hasil search_products)"},
+                    "movement": {"type": "string", "enum": ["IN", "OUT"], "description": "IN = tambah stok, OUT = kurangi stok"},
+                    "quantity": {"type": "integer", "description": "Jumlah perubahan (selalu positif)"},
+                },
+                "required": ["product_id", "movement", "quantity"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {

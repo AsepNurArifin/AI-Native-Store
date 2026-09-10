@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <h1 class="text-2xl font-bold">AI Actions <span class="text-sm font-normal text-slate-500">(Owner only)</span></h1>
-    <p class="text-sm text-slate-500">Antrean draft promosi dari AI Action Assistant. Approve / reject — eksekusi hanya bila validasi lolos.</p>
+    <p class="text-sm text-slate-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject — eksekusi hanya bila validasi lolos.</p>
     <ScCard>
       <div class="mb-3 flex gap-2">
         <select v-model="fStatus" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
@@ -15,7 +15,10 @@
 
       <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
         <label class="mb-1 block text-sm font-medium">Buat draft dengan AI (FR-AA-01)</label>
-        <p class="mb-2 text-xs text-slate-500">Contoh: “buat promosi 15% untuk semua produk kategori Fashion selama 2 minggu”</p>
+        <p class="mb-2 text-xs text-slate-500">
+          Contoh: “buat promosi 15% untuk produk Smartphone G066 selama 2 minggu” ·
+          “tambahkan stok produk Soda R057 sebanyak 20”
+        </p>
         <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Instruksi natural language…" />
         <div class="mt-2 flex items-center gap-3">
           <ScButton size="sm" :loading="creating" @click="createDraft()">Buat Draft</ScButton>

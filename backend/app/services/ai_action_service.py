@@ -107,9 +107,11 @@ class AIActionService:
 
     @staticmethod
     async def _validate_and_execute(db: AsyncSession, action: AIAction) -> AIAction:
-        """FR-AA-05 — 4 conditions; on failure -> APPROVED_VALIDATION_FAILED (not executed)."""
+        """FR-AA-05 — validasi lalu eksekusi; gagal -> APPROVED_VALIDATION_FAILED."""
         if action.action_type == "CREATE_PROMOTION":
             return await AIActionService._execute_create_promotion(db, action)
+        if action.action_type == "ADJUST_STOCK":
+            return await AIActionService._execute_adjust_stock(db, action)
         errors = {"UNSUPPORTED_ACTION": f"Action {action.action_type} belum didukung."}
         action.status = "APPROVED_VALIDATION_FAILED"
         action.validation_failures = errors
@@ -179,5 +181,77 @@ class AIActionService:
             db, event="EXECUTED", actor_type="AI_SYSTEM",
             ai_action_id=str(action.id),
             detail={"promotion_id": str(promo.id), "payload": payload},
+        )
+        return action
+
+    @staticmethod
+    async def _execute_adjust_stock(db: AsyncSession, action: AIAction) -> AIAction:
+        """FR-AA-06 — eksekusi penyesuaian stok setelah approval.
+
+        Validasi: (1) produk ada & ACTIVE; (2) movement IN|OUT; (3) quantity > 0;
+        (4) khusus OUT: stok cukup (tidak boleh minus).
+        Hasil: InventoryTransaction type=ADJUSTMENT, reference_id = id AIAction
+        (traceability: tx bisa dilacak balik ke draft yang disetujui).
+        """
+        from app.models import InventoryTransaction, Product
+        from app.services.inventory_service import InventoryService
+
+        payload = action.payload
+        product_id = payload.get("product_id")
+        movement = payload.get("movement")
+        quantity = payload.get("quantity")
+        errors: dict = {}
+
+        product = await db.get(Product, product_id) if product_id else None
+        if not product:
+            errors["PRODUCT_NOT_FOUND"] = "Produk tidak ditemukan."
+        elif product.status != "ACTIVE":
+            errors["PRODUCT_INACTIVE"] = "Produk tidak aktif."
+        if movement not in ("IN", "OUT"):
+            errors["INVALID_MOVEMENT"] = "Movement harus IN atau OUT."
+        if not isinstance(quantity, int) or quantity <= 0:
+            errors["INVALID_QUANTITY"] = "Quantity harus bilangan bulat positif."
+
+        stock_before = None
+        if not errors and movement == "OUT":
+            stock_before = await InventoryService.current_stock(db, str(product_id))
+            if stock_before < quantity:
+                errors["INSUFFICIENT_STOCK"] = f"Stok tidak cukup: tersedia {stock_before}, diminta {quantity}."
+
+        if errors:
+            action.status = "APPROVED_VALIDATION_FAILED"
+            action.validation_failures = errors
+            await db.flush()
+            await AuditService.log(
+                db, event="VALIDATION_FAILED", actor_type="AI_SYSTEM",
+                ai_action_id=str(action.id), detail=errors,
+            )
+            return action
+
+        if stock_before is None:
+            stock_before = await InventoryService.current_stock(db, str(product_id))
+        tx = await InventoryService.record(
+            db,
+            product_id=str(product_id),
+            type_="ADJUSTMENT",
+            movement=movement,
+            reference_type="MANUAL",
+            quantity=quantity,
+            reference_id=action.id,
+            actor_id=action.requested_by,
+        )
+        action.status = "EXECUTED"
+        action.executed_at = utcnow()
+        action.result_target_id = str(tx.id)
+        await db.flush()
+        await AuditService.log(
+            db, event="EXECUTED", actor_type="AI_SYSTEM",
+            ai_action_id=str(action.id),
+            detail={
+                "inventory_tx_id": str(tx.id),
+                "stock_before": stock_before,
+                "stock_after": stock_before + (quantity if movement == "IN" else -quantity),
+                "payload": payload,
+            },
         )
         return action

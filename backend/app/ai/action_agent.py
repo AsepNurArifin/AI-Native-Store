@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.llm import get_llm, model_for
-from app.ai.prompts import ACTION_ASSISTANT_SYSTEM, ACTION_TOOLS
+from app.ai.prompts import action_assistant_system, ACTION_TOOLS
 from app.ai.tools import ToolExecutor
 from app.models import AIAction
 from app.services.ai_action_service import AIActionService
@@ -21,17 +21,31 @@ class ActionAssistant:
         self.tools = ToolExecutor(db)
 
     async def create_draft(self, instruction: str, requested_by: str) -> AIAction:
-        """Instruksi -> (LLM) -> CREATE_PROMOTION_DRAFT -> simpan AIAction DRAFT."""
-        resp = await self.llm.complete(
-            system=ACTION_ASSISTANT_SYSTEM,
-            messages=[{"role": "user", "content": instruction}],
-            tools=ACTION_TOOLS,
-        )
+        """Instruksi -> (LLM, loop tool) -> CREATE_PROMOTION_DRAFT -> simpan AIAction DRAFT.
+
+        Loop (maks 3 iterasi) diperlukan karena LLM harus memanggil search_products
+        dulu untuk mendapatkan product_id UUID, baru create_promotion_draft —
+        hasil tool dikirim balik ke LLM seperti pola SalesAgent.
+        """
+        messages: list[dict] = [{"role": "user", "content": instruction}]
         draft_payload = None
-        for tc in resp.tool_calls:
-            result = await self.tools.call(tc.name, tc.arguments)
-            if "draft" in result:
-                draft_payload = result["draft"]
+        for _ in range(3):
+            resp = await self.llm.complete(
+                system=action_assistant_system(),
+                messages=messages,
+                tools=ACTION_TOOLS,
+            )
+            if not resp.tool_calls:
+                break
+            for tc in resp.tool_calls:
+                result = await self.tools.call(tc.name, tc.arguments)
+                if "draft" in result:
+                    draft_payload = result["draft"]
+                    break
+                # kirim hasil tool balik ke LLM (bukan draft -> lanjut iterasi)
+                messages.append({"role": "assistant", "content": f"tool: {tc.name}"})
+                messages.append({"role": "user", "content": f"hasil tool {tc.name}: {result}"})
+            if draft_payload:
                 break
         if not draft_payload:
             # fallback: LLM menjawab teks — coba parse JSON
