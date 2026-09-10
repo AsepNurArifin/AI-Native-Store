@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_staff_or_owner
+from app.api.deps import require_owner
 from app.db.session import get_session
-from app.models import User
+from app.models import Promotion, User
 from app.schemas.catalog import PromotionCreate, PromotionOut, PromotionUpdate
 from app.services.product_service import ProductNotFound, ProductService
 from app.services.promotion_service import PromotionNotFoundError, PromotionOverlapError, PromotionService
 
-router = APIRouter(prefix="/promotions", tags=["promotions"], dependencies=[Depends(require_staff_or_owner)])
+router = APIRouter(prefix="/promotions", tags=["promotions"], dependencies=[Depends(require_owner)])
 
 
 @router.get("", response_model=list[PromotionOut])
-async def list_promotions(product_id: str | None = None, db: AsyncSession = Depends(get_session), _: User = Depends(require_staff_or_owner)):
+async def list_promotions(product_id: str | None = None, db: AsyncSession = Depends(get_session), _: User = Depends(require_owner)):
     rows = await PromotionService.list(db, product_id=product_id)
     out = []
     for r in rows:
@@ -23,7 +23,7 @@ async def list_promotions(product_id: str | None = None, db: AsyncSession = Depe
 
 
 @router.post("", response_model=PromotionOut, status_code=status.HTTP_201_CREATED)
-async def create_promotion(body: PromotionCreate, db: AsyncSession = Depends(get_session), _: User = Depends(require_staff_or_owner)):
+async def create_promotion(body: PromotionCreate, db: AsyncSession = Depends(get_session), _: User = Depends(require_owner)):
     try:
         await ProductService.get_or_404(db, body.product_id)
     except ProductNotFound:
@@ -48,8 +48,8 @@ async def create_promotion(body: PromotionCreate, db: AsyncSession = Depends(get
 
 
 @router.patch("/{promotion_id}", response_model=PromotionOut)
-async def update_promotion(promotion_id: str, body: PromotionUpdate, db: AsyncSession = Depends(get_session), _: User = Depends(require_staff_or_owner)):
-    promo = await db.get(__import__("app.models", fromlist=["Promotion"]).Promotion, promotion_id)
+async def update_promotion(promotion_id: str, body: PromotionUpdate, db: AsyncSession = Depends(get_session), _: User = Depends(require_owner)):
+    promo = await db.get(Promotion, promotion_id)
     if not promo:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Promosi tidak ditemukan")
     for k, v in body.model_dump(exclude_unset=True).items():

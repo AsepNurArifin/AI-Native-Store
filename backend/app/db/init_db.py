@@ -4,6 +4,7 @@ Catatan desain: Supabase adalah Postgres terkelola — create_all cukup untuk ca
 Produksi penuh: gunakan Alembic migrations (D1 di DATA_SCHEMA §5).
 """
 
+import asyncio
 import logging
 
 from sqlalchemy import text
@@ -13,8 +14,35 @@ from app.models import Base
 
 logger = logging.getLogger(__name__)
 
+# Retry startup DB: postgres di docker compose bisa "healthy" lalu sempat restart
+# sesaat saat init — tanpa retry, backend langsung exit (Application startup failed).
+_STARTUP_RETRIES = 10
+_STARTUP_BACKOFF_SECONDS = 3
+
 
 async def init_db(seed: bool = True) -> None:
+    for attempt in range(1, _STARTUP_RETRIES + 1):
+        try:
+            await _init_db_once(seed=seed)
+            return
+        except Exception as e:  # noqa: BLE001 — retry semua kegagalan koneksi startup
+            if attempt == _STARTUP_RETRIES:
+                logger.error(
+                    "DB tetap tidak terjangkau setelah %d percobaan: %s\n"
+                    "  -> Pastikan DATABASE_URL di backend/.env benar (Supabase session pooler),"
+                    " atau jalankan profil local: docker compose -f docker-compose.yaml"
+                    " -f docker-compose.local.yaml up -d",
+                    _STARTUP_RETRIES, e,
+                )
+                raise
+            logger.warning(
+                "DB belum siap (percobaan %d/%d): %s — retry dalam %ds",
+                attempt, _STARTUP_RETRIES, e, _STARTUP_BACKOFF_SECONDS,
+            )
+            await asyncio.sleep(_STARTUP_BACKOFF_SECONDS)
+
+
+async def _init_db_once(seed: bool = True) -> None:
     async with engine.begin() as conn:
         # idempotency_keys pakai String PK — aman untuk create_all berulang
         await conn.run_sync(Base.metadata.create_all)

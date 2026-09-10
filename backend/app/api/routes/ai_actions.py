@@ -1,13 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.action_agent import ActionAssistant
 from app.api.deps import require_owner
 from app.db.session import get_session
 from app.models import AIAction, User
-from app.schemas.ai import AIActionOut, ApproveResponse, RejectRequest
+from app.schemas.ai import AIActionOut, ApproveResponse, DraftRequest, RejectRequest
 from app.services.ai_action_service import ActionError, ActionNotOwnerError, AIActionService
 
 router = APIRouter(prefix="/ai-actions", tags=["ai-actions"], dependencies=[Depends(require_owner)])
+
+
+@router.post("/draft", response_model=AIActionOut, status_code=status.HTTP_201_CREATED)
+async def create_draft(body: DraftRequest, db: AsyncSession = Depends(get_session), user: User = Depends(require_owner)):
+    """FR-AA-01 — instruksi natural language Owner -> DRAFT AIAction (jalur 2)."""
+    try:
+        action = await ActionAssistant(db).create_draft(body.instruction, requested_by=str(user.id))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    await db.refresh(action)
+    return action
 
 
 @router.get("", response_model=list[AIActionOut])

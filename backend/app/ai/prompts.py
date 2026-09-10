@@ -87,7 +87,7 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "build_order_summary",
-            "description": "Bangun ringkasan pesanan (Order Summary) dari daftar produk + qty. TIDAK membuat order.",
+            "description": "Bangun ringkasan pesanan (Order Summary) dari SELURUH item + qty yang disebut customer sepanjang sesi percakapan ini — jangan ada item yang tertinggal (FR-SA-05, §2.4). TIDAK membuat order.",
             "parameters": {
                 "type": "object",
                 "properties": {

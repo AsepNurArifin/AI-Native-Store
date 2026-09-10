@@ -36,7 +36,7 @@ Ini aturan paling penting. Ada **dua jalur** yang berbeda **otorisasi-nya**:
 | Jalur | Inisiator | Otorisasi | Contoh |
 |---|---|---|---|
 | **Jalur 1 — Customer Transaction** | Konfirmasi eksplisit customer sendiri | **Tidak perlu approval Owner**, cukup validasi backend (stok, harga, produk aktif) | Membuat Order (UC-02) |
-| **Jalur 2 — AI Administrative Action** | Instruksi Staff/Owner ke AI Action Assistant | **Wajib approval Owner** sebelum eksekusi | Membuat/ubah Promotion (UC-04) |
+| **Jalur 2 — AI Administrative Action** | Instruksi Owner ke AI Action Assistant | **Wajib approval Owner** sebelum eksekusi | Membuat/ubah Promotion (UC-04) |
 
 > **Implikasi implementasi:** AI Action Assistant **tidak boleh** langsung mengeksekusi promosi. AI hanya membuat draft (status DRAFT, tidak berdampak), lalu menunggu approval Owner. Approval hanya boleh oleh role OWNER (termasuk draft buatan Owner sendiri, FR-AA-03).
 

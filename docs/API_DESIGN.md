@@ -53,7 +53,7 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
 | POST | `/api/v1/auth/refresh` | Refresh token → access baru *(jika D2 access+refresh)* |
 | GET | `/api/v1/auth/me` | Profil user + role |
 
-### 2.5 Products (internal; Staff+Owner)
+### 2.5 Products (internal; Owner)
 
 | Method | Path | FR | Deskripsi |
 |---|---|---|---|
@@ -101,17 +101,17 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
 
 | Method | Path | Deskripsi |
 |---|---|---|
-| POST | `/api/v1/ai/analyst/query` | `{ question }` → `{ answer, data: {...}, query_used, disclaimer? }` — angka dari SQL; disclaimer lintas-channel bila topik customer (FR-BA-05) |
+| POST | `/api/v1/chat/analyst/ask` | **Owner only (JWT — FR-AUTH-02, Fix 1.3)** `{ question }` → `{ answer, data: {...}, query_used, disclaimer? }` — angka dari SQL; disclaimer lintas-channel bila jawaban memakai data channel_distribution (FR-BA-05) |
 
 ### 2.11 AI Actions (internal; UC-04)
 
 | Method | Path | Deskripsi |
 |---|---|---|
-| POST | `/api/v1/ai/actions/draft` | `{ instruction }` (natural language) → ActionAgent → draft `{ ai_action_id, action_type, payload }` status DRAFT (FR-AA-01/02) |
-| GET | `/api/v1/ai/actions` | List + filter status |
-| GET | `/api/v1/ai/actions/{id}` | Detail draft + audit trail |
-| POST | `/api/v1/ai/actions/{id}/approve` | **Owner only** (403 untuk Staff — FR-AA-03) → validasi 4 kondisi (FR-AA-05) → EXECUTED atau APPROVED_VALIDATION_FAILED (+alasan) |
-| POST | `/api/v1/ai/actions/{id}/reject` | Owner only → REJECTED (+note opsional) |
+| POST | `/api/v1/ai-actions/draft` | **Owner only** `{ instruction }` (natural language) → ActionAssistant → AIAction status DRAFT (FR-AA-01/02; Fix 1.2). Instruksi tak bisa dipahami → 422 dengan pesan ramah |
+| GET | `/api/v1/ai-actions` | List + filter status |
+| GET | `/api/v1/ai-actions/{id}` | Detail draft + audit trail |
+| POST | `/api/v1/ai-actions/{id}/approve` | **Owner only** (403 untuk non-Owner — FR-AA-03) → validasi 4 kondisi (FR-AA-05) → EXECUTED atau APPROVED_VALIDATION_FAILED (+alasan) |
+| POST | `/api/v1/ai-actions/{id}/reject` | Owner only → REJECTED (+note opsional) |
 
 ### 2.12 Audit Logs (internal; Owner)
 
@@ -181,15 +181,15 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
   } }
 ```
 
-### 3.5 Analyst jawaban — `POST /ai/analyst/query`
+### 3.5 Analyst jawaban — `POST /chat/analyst/ask` (Owner, JWT)
 ```json
 // request: { "question": "Produk apa yang paling banyak terjual bulan ini?" }
 // 200
 { "answer": "Produk X terjual 45 unit bulan ini.",
   "data": { "top_products": [ { "product_id": "...", "name": "Produk X", "units_sold": 45 } ] },
-  "query_used": "SELECT ... GROUP BY ...",
-  "disclaimer": null }
-// topik customer → disclaimer: "Analitik dihitung per profil per channel (identitas lintas channel tidak disatukan)."
+  "query_used": "analyze_sales",
+  "disclaimer": "Dihasilkan AI berdasarkan data toko. Angka dapat berbeda dari laporan resmi." }
+// topik distribusi channel → disclaimer: "Disclaimer lintas channel: angka WhatsApp dapat lebih rendah dari aktual ..."
 ```
 
 ---

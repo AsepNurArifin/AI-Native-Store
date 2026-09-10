@@ -1,0 +1,19 @@
+# Docker compose BACKEND SAJA.
+# - FE jalan lokal via npm run dev (tidak di-docker).
+# - DB = Supabase (managed) — isi DATABASE_URL di backend/.env:
+#     postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+#   (session pooler, port 5432 — BUKAN transaction pooler 6543, tidak kompatibel asyncpg)
+
+name: ai-store-backend
+
+services:
+  backend:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL_TEST: ""

@@ -15,9 +15,17 @@ class Settings(BaseSettings):
     seed_on_startup: bool = True
     store_name: str = "Toko Demo"
 
-    # Database
+    # Database (Supabase)
     database_url: str = "postgresql+asyncpg://store:store@localhost:5432/store"
     database_url_test: str = ""  # dipakai pytest bila diisi
+
+    # Supabase — kredensial project (dashboard → Project Settings → API)
+    # DATABASE_URL tetap yang dipakai backend untuk koneksi DB.
+    # Key di bawah belum dipakai kode (frontend tidak konek langsung ke Supabase),
+    # tapi disiapkan di sini supaya gaya setup sama seperti biasa.
+    supabase_url: str = ""              # https://<project-ref>.supabase.co
+    supabase_anon_key: str = ""         # public (publishable) key
+    supabase_service_role_key: str = ""  # secret key — JANGAN pernah dikirim ke frontend
 
     # Auth
     jwt_secret_key: str = "change-me"
@@ -29,6 +37,7 @@ class Settings(BaseSettings):
     stockout_risk_days: int = 7
     max_discount_percent: int = 50
     idempotency_ttl_minutes: int = 30
+    maintenance_interval_minutes: int = 5  # scheduler: expire promo + purge idempotency (BR 1, R5)
 
     # AI / LLM
     llm_provider: str = "mock"  # mock | openai | google | groq
@@ -41,6 +50,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.2  # P2 — determinisme (SRS §11)
     llm_timeout_seconds: int = 20
     llm_max_retries: int = 2
+    llm_monthly_budget_idr: float = 0  # NFR-08 — untuk monitoring manual di startup/log
 
     # Groq (OpenAI-compatible; dipakai bila llm_provider="groq") — semua Qwen
     groq_api_key: str = ""
@@ -67,8 +77,7 @@ class Settings(BaseSettings):
         return self.wa_template_order_confirm
 
     # Seed
-    seed_owner_email: str = "owner@tokodemo.test"
-    seed_staff_email: str = "staff@tokodemo.test"
+    seed_owner_email: str = "owner@store.demo"
     seed_default_password: str = "ChangeMe123!"
     seed_sku_count: int = 100
 

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_owner
 from app.core.security import utcnow
 from app.db.session import get_session
-from app.models import Product
+from app.models import Product, User
 from app.schemas.chat import (
     AnalystQueryRequest,
     AnalystQueryResponse,
@@ -37,7 +38,7 @@ async def start_chat(body: ChatStartRequest, db: AsyncSession = Depends(get_sess
 
 @router.post("/{conversation_id}/messages", response_model=ChatReply)
 async def send_message(conversation_id: str, body: ChatMessageRequest, db: AsyncSession = Depends(get_session)):
-    """FR-SMS-08 — customer message -> SalesAgent -> AI reply + optional order summary."""
+    """ customer message -> SalesAgent -> AI reply + optional order summary."""
     conv = await ConversationService.get(db, conversation_id)
     if not conv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Percakapan tidak ditemukan")
@@ -45,18 +46,28 @@ async def send_message(conversation_id: str, body: ChatMessageRequest, db: Async
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Percakapan bukan channel WEB")
 
     agent = SalesAgent(db)
-    reply = await agent.handle_message(
-        conversation_id=conversation_id,
-        sender="CUSTOMER",
-        content=body.content,
-        channel="WEB",
-    )
+    try:
+        reply = await agent.handle_message(
+            conversation_id=conversation_id,
+            sender="CUSTOMER",
+            content=body.content,
+            channel="WEB",
+        )
+    except Exception:
+        # R4 — tutup sesi dengan outcome ERROR, jangan biarkan state menggantung
+        await ConversationService.set_outcome(db, conversation_id, "ERROR")
+        await db.commit()
+        raise
     await db.commit()
     return reply
 
 
 @router.post("/analyst/ask", response_model=AnalystQueryResponse)
-async def ask_analyst(body: AnalystQueryRequest, db: AsyncSession = Depends(get_session)):
+async def ask_analyst(
+    body: AnalystQueryRequest,
+    db: AsyncSession = Depends(get_session),
+    _: User = Depends(require_owner),  # FR-AUTH-02 + UC-03: business query = internal (owner-only)
+):
     """FR-BA-02 — natural language question -> structured query -> SQL -> narration."""
     agent = AnalystAgent(db)
     result = await agent.ask(body.question)

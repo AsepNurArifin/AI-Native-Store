@@ -35,5 +35,6 @@ def require_role(*roles: str):
     return _dep
 
 
+# Keputusan tim (SRS_AMENDMENTS B2): role STAFF dihapus total — SRS §2.2 hanya
+# Owner. Semua endpoint internal seragam require_owner.
 require_owner = require_role("OWNER")
-require_staff_or_owner = require_role("STAFF", "OWNER")

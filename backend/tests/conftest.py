@@ -6,6 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 
+# ─── ATURAN TEST HYGIENE (R10, docs/REMEDIATION_PLAN.md) ─────────────────────
+# Test happy-path alur order WAJIB mengambil summary_ref dari jalur produksi
+# (chat/webhook -> tool build_order_summary), BUKAN summary_store.put() manual.
+# Injeksi manual hanya untuk mensimulasikan keadaan basi (stok berubah dsb.)
+# — contoh alur asli: tests/test_flow_e2e.py.
+# Latar: bug Fix 1.1 lolos test karena test menyuntik data yang seharusnya
+# dibuat kode produksi (menguji implementasi, bukan requirement).
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Pastikan environment test: DB test terpisah (DATABASE_URL_TEST bila ada)
 if settings.database_url_test:
     settings.database_url = settings.database_url_test

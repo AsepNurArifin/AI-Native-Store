@@ -26,9 +26,11 @@ async def test_me_requires_token(client: AsyncClient):
     resp = await client.get("/api/v1/auth/me")
     assert resp.status_code == 401
 @pytest.mark.asyncio
-async def test_owner_only_endpoint_blocks_staff(client: AsyncClient, db):
-    await _seed_user(db, email="staff@test.dev", role="STAFF")
-    login = await client.post("/api/v1/auth/login", json={"email": "staff@test.dev", "password": "pw12345"})
+async def test_owner_only_endpoint_rejects_non_owner_role(client: AsyncClient, db):
+    """Role STAFF sudah dihapus (SRS §2.2: hanya Owner). Baris user legacy
+    dengan role non-owner di DB (mis. sisa migrasi) tetap wajib ditolak 403."""
+    await _seed_user(db, email="legacy@test.dev", role="STAFF")  # role lama, sudah tak valid
+    login = await client.post("/api/v1/auth/login", json={"email": "legacy@test.dev", "password": "pw12345"})
     token = login.json()["access_token"]
     resp = await client.get("/api/v1/ai-actions", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 403

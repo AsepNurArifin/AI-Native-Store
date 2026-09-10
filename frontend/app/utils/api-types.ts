@@ -4,7 +4,7 @@ export interface UserOut {
   id: string
   name: string
   email: string
-  role: 'STAFF' | 'OWNER' | string
+  role: 'OWNER' | string
   status: string
   created_at: string
 }

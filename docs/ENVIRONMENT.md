@@ -5,7 +5,9 @@
 ## 1. Sumber & Format
 
 - **Backend**: `backend/.env` (dibaca `app/core/config.py` via `env_file=".env"` saat dev lokal, dan oleh `docker compose` via `env_file: ./backend/.env`). Template: `backend/.env.example`.
-- **Frontend**: `frontend/.env` — **hanya** variabel `NUXT_PUBLIC_*` (ikut ke bundle browser, jangan taruh secret). `NUXT_PUBLIC_API_BASE` di-bake saat `nuxt build`, jadi untuk Docker diteruskan via `build.args` di `docker-compose.yml`, bukan runtime env. Template: `frontend/.env.example`.
+- **Frontend**: `frontend/.env` — **hanya** variabel `NUXT_PUBLIC_*` (ikut ke bundle browser, jangan taruh secret). FE tidak di-docker — jalan lokal via `npm run dev`. Template: `frontend/.env.example`.
+- **Docker (khusus BE)**: `cd backend && docker compose up -d` — DB = Supabase via `DATABASE_URL` di `.env`.
+- **Pytest**: butuh Postgres lokal terpisah (conftest drop/create tabel per test — jangan arahkan ke Supabase). Jalankan container mandiri: `docker run -d --name ai-store-test-pg -e POSTGRES_USER=store -e POSTGRES_PASSWORD=store -e POSTGRES_DB=store -p 5432:5432 postgres:16-alpine` lalu `docker exec ai-store-test-pg psql -U store -d store -c "CREATE DATABASE store_test;"` (sekali saja).
 - Tidak ada lagi `.env` di root — root hanya punya `.gitignore` sebagai jaring pengaman.
 - Supabase tidak butuh env khusus selain connection string.
 - Semua nilai di bawah adalah **contoh/placeholder** — nilai asli dari dashboard masing-masing provider.
@@ -29,7 +31,7 @@
 
 | Nama | Contoh | Keterangan |
 |---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres` | Connection string utama (**wajib skema `+asyncpg://`** — backend pakai SQLAlchemy async). Ambil dari Supabase dashboard → Project Settings → Database. **Gunakan pooler (port 6543) untuk transaction mode** karena backend pakai connection pool |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres` | Connection string utama (**wajib skema `+asyncpg://`** — backend pakai SQLAlchemy async). Ambil dari Supabase dashboard → Project Settings → Database. **Gunakan SESSION pooler (port 5432)** — transaction pooler (6543) tidak kompatibel dengan prepared statement asyncpg |
 | `SUPABASE_URL` | `https://xyzcompany.supabase.co` | URL project (opsional, untuk util) |
 | `SUPABASE_ANON_KEY` | `eyJ...` | Anon key (opsional; frontend tidak memakai Supabase langsung — semua lewat backend) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | ⚠️ Hanya jika benar-benar perlu admin API Supabase (mis. menjalankan SQL seed). Jangan pernah diekspos ke frontend |
@@ -45,7 +47,6 @@
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Umur access token |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Umur refresh token (opsional, jika dipakai) |
 | `SEED_OWNER_EMAIL` | `owner@tokodemo.test` | ⚠️ Saat ini DIABAIKAN seed — akun seed hardcoded `owner@store.demo` / `owner123` (lihat `app/seed/generate.py`). Selaraskan sebelum demo bila perlu |
-| `SEED_STAFF_EMAIL` | `staff@tokodemo.test` | ⚠️ Sama — hardcoded `staff@store.demo` / `staff123` |
 | `SEED_DEFAULT_PASSWORD` | *(ganti di prod)* | ⚠️ Sama — password seed hardcoded, bukan dari var ini |
 
 ## 5. AI / LLM (`LLM_*`)

@@ -39,7 +39,16 @@ class AnalystAgent:
                 msg_history.append({"role": "user", "content": f"hasil tool {tc.name}: {result}"})
 
         narration = await self._narrate(question, data, msg_history)
-        disclaimer = "Dihasilkan AI berdasarkan data toko. Angka dapat berbeda dari laporan resmi."
+        # FR-BA-05 (§2.6): disclaimer khusus bila jawaban menyangkut data customer/
+        # distribusi channel — lebih spesifik daripada disclaimer generik.
+        if query_used == "channel_distribution":
+            disclaimer = (
+                "Dihasilkan AI dari data transaksi internal. Distribusi per channel "
+                "bisa berbeda dari laporan resmi pihak ketiga; gunakan untuk acuan "
+                "internal saja."
+            )
+        else:
+            disclaimer = "Dihasilkan AI berdasarkan data toko. Angka dapat berbeda dari laporan resmi."
         return AnalystQueryResponse(answer=narration, data=data, query_used=query_used, disclaimer=disclaimer)
 
     def _normalize_dates(self, tool_name: str, args: dict) -> dict:

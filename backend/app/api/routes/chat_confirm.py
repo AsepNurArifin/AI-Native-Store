@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
+from app.models import Customer
 from app.schemas.order import ConfirmOrderRequest, ConfirmOrderResponse
 from app.services.conversation_service import ConversationService
 from app.services.order_service import OrderError, OrderService
@@ -20,7 +21,6 @@ async def confirm_order(conversation_id: str, body: ConfirmOrderRequest, db: Asy
     conv = await ConversationService.get(db, conversation_id)
     if not conv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Percakapan tidak ditemukan")
-    from app.models import Customer
 
     customer = await db.get(Customer, conv.customer_id)
     if not customer:

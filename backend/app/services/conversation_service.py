@@ -42,6 +42,26 @@ class ConversationService:
         return await db.get(Conversation, conversation_id)
 
     @staticmethod
+    async def find_open(db: AsyncSession, customer: Customer, channel: str) -> Conversation | None:
+        """FR-SMS-07 — percakapan OPEN terakhir milik customer pada channel ini.
+
+        Dipakai channel WhatsApp supaya konteks sesi tidak terputus per pesan
+        (setiap pesan masuk TIDAK membuat conversation baru).
+        """
+        return (
+            await db.execute(
+                select(Conversation)
+                .where(
+                    Conversation.customer_id == str(customer.id),
+                    Conversation.channel == channel,
+                    Conversation.outcome == "OPEN",
+                )
+                .order_by(Conversation.last_activity_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    @staticmethod
     async def add_message(
         db: AsyncSession,
         conversation_id: str,

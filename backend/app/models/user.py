@@ -8,7 +8,8 @@ from app.models.base import Base, UUID_PK
 
 
 class UserRole(str, enum.Enum):
-    STAFF = "STAFF"
+    # SRS §2.2 — hanya Owner (internal) + Customer (tabel terpisah).
+    # Role STAFF dihapus (keputusan tim): semua operasi internal langsung Owner.
     OWNER = "OWNER"
 
 
@@ -19,6 +20,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(10), nullable=False, default=UserRole.STAFF.value)
+    role: Mapped[str] = mapped_column(String(10), nullable=False, default=UserRole.OWNER.value)
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="ACTIVE")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

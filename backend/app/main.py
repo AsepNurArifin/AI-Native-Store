@@ -11,6 +11,29 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+async def _maintenance_job() -> None:
+    """BR 1 + R5 — expire promosi lewat end_date & purge idempotency key basi.
+
+    Dipanggil scheduler periodik. Gagal sendiri tidak mematikan app
+    (logging saja), karena operasi ini best-effort.
+    """
+    from app.db.session import AsyncSessionLocal
+    from app.services.order_service import OrderService
+    from app.services.promotion_service import PromotionService
+    from app.services.summary_store import purge_expired
+
+    try:
+        async with AsyncSessionLocal() as db:
+            n_promo = await PromotionService.expire_due(db)
+            n_keys = await OrderService.purge_expired_idempotency_keys(db)
+            await db.commit()
+        purge_expired()  # bersihkan summary kedaluwarsa
+        if n_promo or n_keys:
+            logger.info("maintenance: %d promo expired, %d idempotency keys purged", n_promo, n_keys)
+    except Exception:
+        logger.exception("maintenance job gagal")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db.init_db import init_db
@@ -18,7 +41,27 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     await init_db(seed=settings.seed_on_startup)
     logger.info("Startup complete.")
+
+    # BR 1: job async EXPIRED promosi (FR-SMS-05) + purge idempotency (R5).
+    # Tidak dijalankan saat pytest (env testing) supaya tidak mengganggu test.
+    if settings.app_env != "testing" and settings.maintenance_interval_minutes > 0:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            _maintenance_job, "interval",
+            minutes=settings.maintenance_interval_minutes,
+            id="maintenance", coalesce=True, max_instances=1,
+        )
+        scheduler.start()
+        app.state.maintenance_scheduler = scheduler
+        logger.info("Maintenance scheduler started (every %d min)", settings.maintenance_interval_minutes)
+
     yield
+
+    scheduler = getattr(app.state, "maintenance_scheduler", None)
+    if scheduler is not None:
+        scheduler.shutdown(wait=False)
 
 
 app = FastAPI(

@@ -51,15 +51,17 @@ class WhatsAppAdapter:
 
     def _is_new_message(self, message_id: str) -> bool:
         # MVP: in-memory dedupe set (per-process). F7: tabel webhook_events.
-        from app.channels.whatsapp.adapter import _seen
-
         if message_id in _seen:
             return False
         _seen.add(message_id)
         return True
 
     async def _route_to_agent(self, msg: InboundMessage) -> ChatReply:
-        # cari/create conversation untuk nomor WA ini
+        """Alur pesan masuk channel WA (FR-SA-05, UC-02 E5):
+        - konfirmasi eksplisit (CONFIRM:<ref>) -> langsung buat order (bukan teks bebas)
+        - CANCEL -> tutup sesi tanpa order
+        - selain itu -> SalesAgent
+        """
         from app.services.conversation_service import ConversationService
 
         customer = await ConversationService.ensure_customer(
@@ -69,16 +71,91 @@ class WhatsAppAdapter:
             name=msg.sender_id,
             contact=msg.sender_id,
         )
-        conv = await ConversationService.create(self.db, customer, "WHATSAPP")
+
+        # reuse percakapan OPEN yang masih aktif — jangan buat baru per pesan
+        # (Fix 1.4 / FR-SMS-07: konteks sesi harus tersambung lintas pesan).
+        conv = await ConversationService.find_open(self.db, customer, "WHATSAPP")
+        if conv is None:
+            conv = await ConversationService.create(self.db, customer, "WHATSAPP")
+        conversation_id = str(conv.id)
+
+        # 1) Konfirmasi eksplisit via tombol interactive reply (UC-02 E5)
+        if msg.content.startswith("CONFIRM:"):
+            reply = await self._confirm_order(customer, conversation_id, msg.content)
+            await self.db.commit()
+            return reply
+
+        # 2) Pembatalan eksplisit
+        if msg.content.strip().upper() == "CANCEL":
+            await ConversationService.add_message(
+                self.db, conversation_id, sender="CUSTOMER", content=msg.content,
+                message_type="BUTTON_REPLY", raw_payload={"reply_id": msg.content},
+            )
+            await ConversationService.set_outcome(self.db, conversation_id, "ABANDONED")
+            await self.db.commit()
+            return ChatReply(reply="Baik, pesanan dibatalkan. Ada lagi yang bisa saya bantu? 🙏")
+
+        # 3) Pesan biasa -> SalesAgent
         agent = SalesAgent(self.db)
-        reply = await agent.handle_message(
-            conversation_id=str(conv.id),
-            sender="CUSTOMER",
-            content=msg.content,
-            channel="WHATSAPP",
-        )
+        try:
+            reply = await agent.handle_message(
+                conversation_id=conversation_id,
+                sender="CUSTOMER",
+                content=msg.content,
+                channel="WHATSAPP",
+            )
+        except Exception:
+            # R4 — tandai sesi ERROR supaya tidak menggantung
+            await ConversationService.set_outcome(self.db, conversation_id, "ERROR")
+            await self.db.commit()
+            raise
         await self.db.commit()
         return reply
+
+    async def _confirm_order(self, customer, conversation_id: str, content: str) -> ChatReply:
+        """CONFIRM:<ref> -> OrderService.create_from_summary (FR-SA-05, UC-02 E5/E7)."""
+        from app.services.conversation_service import ConversationService
+        from app.services.order_service import OrderError, OrderService
+        from app.services.summary_store import get as get_summary
+
+        ref = content.split(":", 1)[1].strip()
+        summary = get_summary(ref)
+        if summary is None:
+            # E7: summary kedaluwarsa / tidak dikenal — minta ulang tanpa 500
+            return ChatReply(
+                reply="Ringkasan pesanan sudah kedaluwarsa. Silakan ulangi pesanan Anda, nanti saya buatkan ringkasan baru. 🙏"
+            )
+
+        try:
+            order, replayed = await OrderService.create_from_summary(
+                self.db,
+                conversation_id=conversation_id,
+                channel="WHATSAPP",
+                customer_identity={
+                    "channel": "WHATSAPP",
+                    "identifier": customer.identifier,
+                    "name": customer.name,
+                    "contact": customer.contact,
+                },
+                items=[{"product_id": i.product_id, "quantity": i.quantity} for i in summary.items],
+                idempotency_key=f"wa:{ref}",  # stabil per ref → retry webhook tidak dobel order
+            )
+        except OrderError as e:
+            return ChatReply(reply=f"Mohon maaf, pesanan tidak bisa diproses: {e.message}")
+
+        await ConversationService.add_message(
+            self.db, conversation_id, sender="CUSTOMER",
+            content=content, message_type="BUTTON_REPLY",
+            raw_payload={"reply_id": content},
+        )
+        await ConversationService.set_outcome(self.db, conversation_id, "ORDERED")
+
+        total = float(order.total_amount)
+        status_txt = "(sudah diproses sebelumnya)" if replayed else "berhasil dicatat ✅"
+        return ChatReply(
+            reply=f"Pesanan #{str(order.id)[:8]} {status_txt}. Total: Rp{total:,.0f}. "
+            "Terima kasih sudah berbelanja! 🙏"
+        )
 
     def _build_confirm_buttons(self, reply: ChatReply) -> dict | None:
         """Interactive reply buttons utk konfirmasi order (UC-02 E5) — hanya jika ada summary."""

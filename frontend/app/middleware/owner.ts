@@ -1,4 +1,4 @@
-/** Guard Owner-only (AI actions, audit): Staff -> 403 page sederhana. */
+/** Guard Owner-only (seluruh panel admin): role non-Owner -> 403 page sederhana. */
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to.path.startsWith('/admin')) return
   const auth = useAuthStore()

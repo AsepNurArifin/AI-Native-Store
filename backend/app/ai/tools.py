@@ -1,7 +1,10 @@
 """Tool executor untuk Sales Agent / Analyst / Action Assistant.
 
 Semua tool memanggil service layer — LLM tidak pernah akses DB langsung (NFR-06).
-create_order DAN approve_draft sengaja TIDAK ada di sini (bukan tool LLM, SRS §5.2).
+Tool mutasi berat (create_order, approve_draft, execute_draft) sengaja TIDAK
+diekspos ke LLM: konfirmasi order dan approval Owner adalah event manusia
+(UC-02 E5, FR-AA-03), bukan keputusan model — jalurnya lewat endpoint REST
+(/chat/{id}/confirm, /ai-actions/{id}/approve). Lihat docs/SRS_AMENDMENTS.md B3.
 """
 
 import uuid
@@ -16,17 +19,31 @@ from app.services.inventory_service import InventoryService
 from app.services.product_service import ProductService
 from app.services.promotion_service import PromotionService
 from app.services.analytics_service import AnalyticsService
+from app.services.summary_store import put as put_summary
 
 
 class ToolExecutor:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # daftar tool eksplisit (R9) — tidak pakai getattr/reflection.
+    _TOOLS = {
+        "get_product": "get_product",
+        "search_products": "search_products",
+        "get_stock": "get_stock",
+        "compare_products": "compare_products",
+        "build_order_summary": "build_order_summary",
+        "analyze_sales": "analyze_sales",
+        "analyze_inventory": "analyze_inventory",
+        "channel_distribution": "channel_distribution",
+        "create_promotion_draft": "create_promotion_draft",
+    }
+
     async def call(self, name: str, args: dict) -> dict:
-        fn = getattr(self, name, None)
-        if fn is None:
+        method = self._TOOLS.get(name)
+        if method is None:
             return {"error": f"Tool {name} tidak dikenal."}
-        return await fn(**args)
+        return await getattr(self, method)(**args)
 
     # ==================== SALES ====================
 
@@ -95,13 +112,15 @@ class ToolExecutor:
             )
         if errors:
             return {"error": "; ".join(errors[:5])}
-        return {
-            "summary": OrderSummary(
-                summary_ref=uuid.uuid4().hex,
-                items=lines,
-                total=round(total, 2),
-            ).model_dump()
-        }
+        summary = OrderSummary(
+            summary_ref=uuid.uuid4().hex,
+            items=lines,
+            total=round(total, 2),
+        )
+        # simpan summary supaya bisa dikonfirmasi (UC-02 E5) — Web & WhatsApp.
+        # Tanpa ini, chat_confirm selalu 410 SUMMARY_EXPIRED.
+        put_summary(summary)
+        return {"summary": summary.model_dump()}
 
     # ==================== ANALYST ====================
 

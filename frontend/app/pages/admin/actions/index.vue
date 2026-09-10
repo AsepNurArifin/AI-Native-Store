@@ -12,6 +12,18 @@
         <ScButton size="sm" variant="secondary" @click="load()">Muat</ScButton>
       </div>
       <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
+
+      <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+        <label class="mb-1 block text-sm font-medium">Buat draft dengan AI (FR-AA-01)</label>
+        <p class="mb-2 text-xs text-slate-500">Contoh: “buat promosi 15% untuk semua produk kategori Fashion selama 2 minggu”</p>
+        <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Instruksi natural language…" />
+        <div class="mt-2 flex items-center gap-3">
+          <ScButton size="sm" :loading="creating" @click="createDraft()">Buat Draft</ScButton>
+          <span v-if="draftError" class="text-sm text-red-600">{{ draftError }}</span>
+          <span v-if="draftOk" class="text-sm text-green-600">Draft dibuat ✓</span>
+        </div>
+      </div>
+
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead><tr class="border-b text-left text-slate-500">
@@ -42,6 +54,25 @@ const { request } = useApi()
 const items = ref<AIActionOut[]>([])
 const error = ref('')
 const fStatus = ref('')
+const instruction = ref('')
+const creating = ref(false)
+const draftError = ref('')
+const draftOk = ref(false)
+
+async function createDraft() {
+  draftError.value = ''
+  draftOk.value = false
+  if (!instruction.value.trim()) { draftError.value = 'Isi instruksi dulu.'; return }
+  creating.value = true
+  try {
+    await request<AIActionOut>('/ai-actions/draft', { method: 'POST', body: { instruction: instruction.value.trim() } })
+    draftOk.value = true
+    instruction.value = ''
+    await load()
+  }
+  catch (e: unknown) { draftError.value = e instanceof Error ? e.message : 'Gagal membuat draft' }
+  finally { creating.value = false }
+}
 
 async function load() {
   error.value = ''

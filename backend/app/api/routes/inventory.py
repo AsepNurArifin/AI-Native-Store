@@ -2,18 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_staff_or_owner
+from app.api.deps import require_owner
 from app.db.session import get_session
 from app.models import InventoryTransaction, Product, User
 from app.schemas.inventory import AdjustmentCreate, InventoryTransactionOut, StockSummaryItem
 from app.services.inventory_service import InventoryService
 from app.services.product_service import ProductNotFound, ProductService
 
-router = APIRouter(prefix="/inventory", tags=["inventory"], dependencies=[Depends(require_staff_or_owner)])
+router = APIRouter(prefix="/inventory", tags=["inventory"], dependencies=[Depends(require_owner)])
 
 
 @router.get("/summary", response_model=list[StockSummaryItem])
-async def stock_summary(db: AsyncSession = Depends(get_session), _: User = Depends(require_staff_or_owner)):
+async def stock_summary(db: AsyncSession = Depends(get_session), _: User = Depends(require_owner)):
     return await InventoryService.stock_summary(db)
 
 
@@ -24,7 +24,7 @@ async def list_transactions(
     movement: str | None = Query(default=None, pattern="^(IN|OUT)$"),
     limit: int = Query(default=100, le=500),
     db: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff_or_owner),
+    _: User = Depends(require_owner),
 ):
     stmt = select(InventoryTransaction).order_by(InventoryTransaction.timestamp.desc()).limit(limit)
     if product_id:
@@ -38,7 +38,7 @@ async def list_transactions(
 
 
 @router.post("/adjustments", response_model=InventoryTransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_adjustment(body: AdjustmentCreate, db: AsyncSession = Depends(get_session), user: User = Depends(require_staff_or_owner)):
+async def create_adjustment(body: AdjustmentCreate, db: AsyncSession = Depends(get_session), user: User = Depends(require_owner)):
     """FR-SMS-02 — manual adjustment: type=ADJUSTMENT, movement IN|OUT (explicit)."""
     try:
         product = await ProductService.get_or_404(db, body.product_id)

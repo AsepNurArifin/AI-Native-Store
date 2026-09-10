@@ -35,13 +35,23 @@ class OrderService:
     # ---- active promotions helper (fresh read) ----
     @staticmethod
     async def _active_promotion(db: AsyncSession, product_id: str) -> Promotion | None:
+        """Satu sumber kebenaran dengan Order Summary (Fix 2.2).
+
+        Kandidat diambil dari DB, lalu kelayakan ditentukan oleh
+        PromotionService.effective_status() — supaya promosi terjadwal
+        (start_date masa depan) tidak dihitung di order padahal tidak
+        dihitung juga di summary.
+        """
+        from app.services.promotion_service import PromotionService
+
         stmt = select(Promotion).where(
             Promotion.product_id == product_id,
             Promotion.status == "ACTIVE",
-            Promotion.start_date <= utcnow(),
-            Promotion.end_date > utcnow(),
         )
-        return (await db.execute(stmt)).scalar_one_or_none()
+        for promo in (await db.execute(stmt)).scalars().all():
+            if PromotionService.effective_status(promo) == "ACTIVE":
+                return promo
+        return None
 
     # ---- idempotency (UC-02 E5) ----
     @staticmethod
@@ -222,3 +232,15 @@ class OrderService:
         items = (await db.execute(select(OrderItem).where(OrderItem.order_id == order_id))).scalars().all()
         order.items = list(items)  # type: ignore[attr-defined]
         return order
+
+    @staticmethod
+    async def purge_expired_idempotency_keys(db: AsyncSession, ttl_minutes: int | None = None) -> int:
+        """Hapus IdempotencyKey yang sudah melewati TTL (R5) — dipanggil scheduler."""
+        ttl = ttl_minutes or settings.idempotency_ttl_minutes
+        cutoff = utcnow() - timedelta(minutes=ttl)
+        rows = (await db.execute(
+            select(IdempotencyKey).where(IdempotencyKey.created_at < cutoff)
+        )).scalars().all()
+        for r in rows:
+            await db.delete(r)
+        return len(rows)

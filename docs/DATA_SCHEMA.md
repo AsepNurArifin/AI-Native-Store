@@ -23,7 +23,7 @@ products ──▶ inventory_transactions
 
 ## 2. Definisi Tabel
 
-### 2.1 `users` — Staff/Owner internal (bukan customer)
+### 2.1 `users` — Owner internal (bukan customer; SRS §2.2)
 
 | Kolom | Tipe | Constraint |
 |---|---|---|
@@ -31,7 +31,7 @@ products ──▶ inventory_transactions
 | `name` | VARCHAR(100) | NOT NULL |
 | `email` | VARCHAR(255) | NOT NULL UNIQUE |
 | `password_hash` | VARCHAR(255) | NOT NULL (bcrypt/argon2) |
-| `role` | VARCHAR(10) | NOT NULL CHECK (role IN ('STAFF','OWNER')) |
+| `role` | VARCHAR(10) | NOT NULL CHECK (role IN ('OWNER')) |
 | `status` | VARCHAR(10) | NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INACTIVE')) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
@@ -164,7 +164,7 @@ products ──▶ inventory_transactions
 | `action_type` | VARCHAR(30) | NOT NULL — MVP: `'CREATE_PROMOTION'`; katalog extensible (PRD §25) |
 | `payload` | JSONB | NOT NULL — parameter structured (draft) |
 | `status` | VARCHAR(28) | NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','APPROVED','REJECTED','APPROVED_VALIDATION_FAILED','EXECUTED')) |
-| `requested_by` | UUID | NOT NULL FK users(id) — Staff/Owner yang memberi instruksi |
+| `requested_by` | UUID | NOT NULL FK users(id) — Owner yang memberi instruksi |
 | `created_at`, `decided_at`, `executed_at` | TIMESTAMPTZ | NULL sesuai tahap |
 | `result_target_id` | UUID | NULL — id Promotion hasil eksekusi (traceability) |
 
@@ -221,7 +221,7 @@ products ──▶ inventory_transactions
 
 - Tools: **SQL migration file berurutan** di `backend/migrations/` (up saja, tercatat di tabel `schema_migrations`) — supabase-friendly; Alembic opsional jika tim lebih nyaman ORM-driven. *(Keputusan final di F0 — lihat §5 D6.)*
 - Urutan pembuatan: users → products → inventory_transactions → customers → conversations → conversation_messages → recommendations → orders → order_items → promotions → ai_actions → approvals → audit_logs → idempotency_keys → view.
-- Seed (F1, `backend/seed/`): 1 Owner + 1 Staff; 100–500 SKU synthetic; InventoryTransaction IN MANUAL per SKU; customer + order historis deterministik (untuk benchmark FR-BA/NFR-09); 1–2 promotion contoh (satu ACTIVE, satu DRAFT).
+- Seed (F1, `backend/seed/`): 1 Owner; 100–500 SKU synthetic; InventoryTransaction IN MANUAL per SKU; customer + order historis deterministik (untuk benchmark FR-BA/NFR-09); 1–2 promotion contoh (satu ACTIVE, satu DRAFT).
 - Seed **idempotent**: cek marker (mis. table seed_marker) supaya tidak dobel saat re-run.
 
 ---

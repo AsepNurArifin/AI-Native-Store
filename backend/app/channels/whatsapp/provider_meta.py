@@ -8,6 +8,7 @@
 import hashlib
 import hmac
 import logging
+from datetime import datetime
 
 import httpx
 
@@ -55,6 +56,8 @@ class MetaCloudWhatsAppProvider(WhatsAppProviderBase):
                 text = m["button"]["text"]
             if not text:
                 return None
+            # catat waktu pesan inbound untuk 24h window (FR-SA-07) — MVP in-memory
+            self._seen_sessions[sender] = datetime.now().isoformat()
             return InboundMessage(
                 channel="WHATSAPP",
                 sender_id=sender,

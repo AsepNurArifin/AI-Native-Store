@@ -11,7 +11,7 @@
                         │                FRONTEND (Nuxt)             │
                         │  ┌────────────────┐  ┌───────────────────┐ │
                         │  │  Landing Page   │  │   Admin Panel     │ │
-                        │  │  + Web Chat     │  │   (Staff/Owner)   │ │
+                        │  │  + Web Chat     │  │      (Owner)      │ │
                         │  │  Widget (guest) │  │   login JWT       │ │
                         │  └───────┬────────┘  └─────────┬─────────┘ │
                         └──────────┼─────────────────────┼───────────┘
@@ -126,7 +126,7 @@ Semua business rule SRS §3 hidup di sini:
 - Schemas = Pydantic untuk request/response (kontrak di `API_DESIGN.md`).
 
 ### 2.6 `app/seed/` — Synthetic Data Generator
-- Generate: users (Owner+Staff), ~100–500 SKU produk elektronik (kategori: laptop, mouse, keyboard, monitor, headset — konteks contoh PRD), InventoryTransaction awal (IN MANUAL), customer, order historis untuk benchmark Business Analyst (NFR-09).
+- Generate: users (Owner), ~100–500 SKU produk elektronik (kategori: laptop, mouse, keyboard, monitor, headset — konteks contoh PRD), InventoryTransaction awal (IN MANUAL), customer, order historis untuk benchmark Business Analyst (NFR-09).
 - Deterministik (seeded RNG) agar test reproducible.
 
 ---
@@ -165,7 +165,7 @@ customer menekan tombol [Konfirmasi Pesanan] (Web UI / WA interactive button)
 ### 3.2 UC-04 — AI Action draft → approval → eksekusi (jalur 2 — C2)
 
 ```
-Staff/Owner mengetik instruksi di Admin Panel
+Owner mengetik instruksi di Admin Panel
    → ActionAgent: LLM ekstraksi → tool create_promotion_draft(params)
    → AiActionService.create_draft(): AIAction(DRAFT) + AuditLog(AI_SYSTEM, CREATED)
    → tampil di antrean approval Owner

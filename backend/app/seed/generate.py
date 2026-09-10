@@ -1,6 +1,6 @@
 """Synthetic seed generator — NFR-01: max 500 SKU.
 
-Membuat: owner+staff, 120 produk 6 kategori, inventory history 30 hari,
+Membuat: owner, 120 produk 6 kategori, inventory history 30 hari,
 beberapa order contoh, dan promo aktif. Data deterministik (random.seed)
 agar reproducible untuk benchmark NFR-07/NFR-09.
 """
@@ -39,20 +39,16 @@ async def generate_seed(db: AsyncSession, product_count: int = 120) -> None:
     rng = random.Random(SEED)
     now = datetime.now()
 
-    # ---------- users (FR-AUTH-01/02) ----------
+    # ---------- users (FR-AUTH-01/02) — SRS §2.2: hanya Owner ----------
+    from app.core.config import settings
+
     owner = User(
         name="Owner Demo",
-        email="owner@store.demo",
+        email=settings.seed_owner_email,
         password_hash=hash_password("owner123"),
         role="OWNER",
     )
-    staff = User(
-        name="Staff Demo",
-        email="staff@store.demo",
-        password_hash=hash_password("staff123"),
-        role="STAFF",
-    )
-    db.add_all([owner, staff])
+    db.add(owner)
     await db.flush()
 
     # ---------- products ----------

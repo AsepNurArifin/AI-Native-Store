@@ -8,6 +8,78 @@ from app.core.security import hash_password
 from app.models import User
 
 
+@pytest.mark.asyncio
+async def test_draft_endpoint_nl_instruction_to_draft(client: AsyncClient, db, monkeypatch):
+    """Fix 1.2 / FR-AA-01 — POST /ai-actions/draft: instruksi NL -> DRAFT (jalur 2).
+
+    LLM di-script agar memanggil tool create_promotion_draft; ToolExecutor
+    dan AIActionService tetap jalur produksi.
+    """
+    owner, owner_id = await _login(client, db, "owner-draft@t.dev", "OWNER")
+    h = {"Authorization": f"Bearer {owner}"}
+    r = await client.post(
+        "/api/v1/products", headers=h,
+        json={"name": "Produk Draft", "category": "Fashion", "price": 100000},
+    )
+    pid = r.json()["id"]
+
+    import app.ai.action_agent as aa
+    from app.ai.llm import LLMResponse, LLMToolCall
+
+    class _ScriptedLLM:
+        async def complete(self, *, system, messages, tools=None):
+            return LLMResponse("", [LLMToolCall("create_promotion_draft", {
+                "product_id": pid, "discount_percentage": 15.0,
+                "start_date": "2020-01-01T00:00:00+07:00", "end_date": "2026-12-31T00:00:00+07:00",
+            })])
+
+    monkeypatch.setattr(aa, "get_llm", lambda model=None: _ScriptedLLM())
+
+    r = await client.post(
+        "/api/v1/ai-actions/draft", headers=h,
+        json={"instruction": "buat promosi 15% untuk produk ini selama akhir tahun"},
+    )
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert data["status"] == "DRAFT"
+    assert data["action_type"] == "CREATE_PROMOTION"
+    assert data["payload"]["product_id"] == pid
+
+    # audit CREATED tercatat (FR-AA-04)
+    logs = await client.get(f"/api/v1/audit/logs?ai_action_id={data['id']}", headers=h)
+    assert "CREATED" in [l["event"] for l in logs.json()]
+
+
+@pytest.mark.asyncio
+async def test_draft_endpoint_requires_auth(client: AsyncClient, db):
+    """Fix 1.2 — endpoint draft wajib token (FR-AUTH-02)."""
+    r = await client.post("/api/v1/ai-actions/draft", json={"instruction": "buat promosi"})
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_draft_endpoint_owner_only(client: AsyncClient, db):
+    """Fix 1.2 — hanya Owner yang boleh membuat draft (UC-04 actor = Owner).
+    Role STAFF sudah dihapus; user dengan role non-owner wajib 403.
+    """
+    db.add(User(name="Legacy", email="legacy-draft@t.dev", password_hash=hash_password("x12345"), role="STAFF"))
+    await db.commit()
+    r = await client.post("/api/v1/auth/login", json={"email": "legacy-draft@t.dev", "password": "x12345"})
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    r = await client.post("/api/v1/ai-actions/draft", headers=h, json={"instruction": "buat promosi"})
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_draft_endpoint_garbled_instruction_422(client: AsyncClient, db):
+    """Fix 1.2 — instruksi tak bisa dipahami -> 422 dengan pesan ramah (bukan 500)."""
+    owner, _ = await _login(client, db, "owner-garbled@t.dev", "OWNER")
+    h = {"Authorization": f"Bearer {owner}"}
+    r = await client.post("/api/v1/ai-actions/draft", headers=h, json={"instruction": "halo apa kabar"})
+    assert r.status_code == 422
+    assert "tidak bisa dipahami" in r.json()["detail"]
+
+
 async def _login(client: AsyncClient, db, email: str, role: str) -> tuple[str, str]:
     db.add(User(name=email, email=email, password_hash=hash_password("x12345"), role=role))
     await db.commit()

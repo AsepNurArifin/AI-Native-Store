@@ -14,6 +14,8 @@
 | [`WABA_SETUP.md`](WABA_SETUP.md) | Setup Meta WhatsApp Cloud API, test number, verifikasi bisnis | F0, F7 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | Daftar environment variable & secrets, contoh nilai | F0 |
 | [`TASK_ASSIGNMENT.md`](TASK_ASSIGNMENT.md) | Pembagian tugas 3 anggota + peta FR/NFR → pemilik | F0 |
+| [`REMEDIATION_PLAN.md`](REMEDIATION_PLAN.md) | Rencana perbaikan temuan audit konsistensi code-vs-SRS (fase, acceptance criteria, DoD) | Setelah audit konsistensi |
+| [`SRS_AMENDMENTS.md`](SRS_AMENDMENTS.md) | Log deviasi implementasi vs SRS + status ratifikasi (wajib dibaca sebelum sidang) | Setelah REMEDIATION_PLAN |
 
 ## Hierarki Keputusan
 

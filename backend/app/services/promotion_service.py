@@ -21,15 +21,24 @@ class PromotionService:
 
     @staticmethod
     def effective_status(promo: Promotion, now: datetime | None = None) -> str:
-        """BR 1 — effective status computed on-read; DB EXPIRED update is async."""
+        """BR 1 — effective status computed on-read; DB EXPIRED update is async.
+
+        Konsistensi harga summary vs order (UC-02 step 5): promosi dengan
+        start_date di masa depan HARUS tidak dianggap ACTIVE, supaya diskon
+        tidak terhitung di Order Summary tapi hilang saat order dibuat.
+        Batas end_date memakai >= agar sejalan dengan OrderService._active_promotion
+        yang memakai end_date > utcnow().
+        """
         now = now or utcnow()
         if promo.status == "REJECTED":
             return "REJECTED"
         if promo.status == "DRAFT":
             return "DRAFT"
-        if now > promo.end_date:
+        if now >= promo.end_date:
             return "EXPIRED"
-        if now >= promo.start_date and promo.status == "ACTIVE":
+        if now < promo.start_date:
+            return "SCHEDULED"  # belum mulai — bukan ACTIVE
+        if promo.status == "ACTIVE":
             return "ACTIVE"
         return promo.status
 
@@ -48,6 +57,25 @@ class PromotionService:
         if changed:
             await db.flush()
         return list(rows)
+
+    @staticmethod
+    async def expire_due(db: AsyncSession) -> int:
+        """BR 1 — background job: status ACTIVE -> EXPIRED bila sudah lewat end_date.
+
+        Dipanggil scheduler di app.main; refresh-on-read di list() tetap ada
+        sebagai jaring pengaman.
+        """
+        rows = (
+            (await db.execute(
+                select(Promotion).where(
+                    Promotion.status == "ACTIVE",
+                    Promotion.end_date < utcnow(),
+                )
+            )).scalars().all()
+        )
+        for r in rows:
+            r.status = "EXPIRED"
+        return len(rows)
 
     @staticmethod
     async def check_overlap(
