@@ -1,0 +1,52 @@
+<template>
+  <div class="space-y-4">
+    <h1 class="text-2xl font-bold">Percakapan</h1>
+    <ScCard>
+      <div class="mb-3 flex gap-2">
+        <select v-model="fChannel" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
+        </select>
+        <ScButton size="sm" variant="secondary" @click="load()">Muat</ScButton>
+      </div>
+      <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b text-left text-slate-500">
+            <th class="py-2 pr-2">ID</th><th class="pr-2">Channel</th><th class="pr-2">Outcome</th><th class="pr-2">Aktivitas</th><th></th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="c in items" :key="c.id" class="border-b border-slate-100">
+              <td class="py-2 pr-2 font-mono text-xs">{{ c.id.slice(0, 8) }}…</td>
+              <td class="pr-2">{{ c.channel }}</td>
+              <td class="pr-2"><ScBadge :tone="statusClass(c.outcome)">{{ c.outcome || '-' }}</ScBadge></td>
+              <td class="pr-2 text-xs">{{ formatWIB(c.last_activity_at) }}</td>
+              <td><NuxtLink :to="`/admin/conversations/${c.id}`"><ScButton size="sm" variant="outline">Buka</ScButton></NuxtLink></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ScCard>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { formatWIB, statusClass } from '~/utils/format'
+import type { ConversationOut } from '~/utils/api-types'
+
+definePageMeta({ layout: 'admin', middleware: 'auth' })
+const { request } = useApi()
+const items = ref<ConversationOut[]>([])
+const error = ref('')
+const fChannel = ref('')
+
+async function load() {
+  error.value = ''
+  try {
+    items.value = await request<ConversationOut[]>('/conversations', {
+      query: { channel: fChannel.value || undefined, page: 1, page_size: 50 }
+    })
+  }
+  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+}
+onMounted(load)
+</script>

@@ -1,0 +1,6 @@
+# Jangan pernah bake secret / artefak lokal ke image backend.
+.env
+.venv/
+__pycache__/
+*.py[oc]
+.pytest_cache/

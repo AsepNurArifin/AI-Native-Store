@@ -1,0 +1,3 @@
+# Jaring pengaman: env per-service tidak boleh ke-commit.
+# (backend/.env dan frontend/.env juga diabaikan di .gitignore masing-masing.)
+.env

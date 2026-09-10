@@ -1,0 +1,57 @@
+<template>
+  <div class="space-y-4">
+    <NuxtLink to="/admin/conversations" class="text-sm text-blue-600 hover:underline">← Kembali</NuxtLink>
+    <h1 class="text-2xl font-bold">Detail Percakapan</h1>
+    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+    <div v-if="detail" class="grid gap-4 lg:grid-cols-3">
+      <div class="space-y-3 lg:col-span-2">
+        <ScCard>
+          <template #header>
+            <div class="flex items-center justify-between text-sm">
+              <span>{{ detail.channel }} · <ScBadge :tone="statusClass(detail.outcome)">{{ detail.outcome || 'OPEN' }}</ScBadge></span>
+              <span class="text-xs text-slate-500">{{ formatWIB(detail.last_activity_at) }}</span>
+            </div>
+          </template>
+          <div class="max-h-[480px] space-y-2 overflow-y-auto">
+            <div v-for="m in detail.messages" :key="m.id" class="flex" :class="m.sender === 'CUSTOMER' ? 'justify-end' : 'justify-start'">
+              <div class="max-w-[80%] rounded-lg px-3 py-2 text-sm" :class="m.sender === 'CUSTOMER' ? 'bg-slate-900 text-white' : 'bg-slate-100 dark:bg-slate-800'">
+                <p class="whitespace-pre-wrap">{{ m.content }}</p>
+                <p class="mt-1 text-[10px] opacity-60">{{ m.message_type }} · {{ formatWIB(m.timestamp) }}</p>
+              </div>
+            </div>
+            <p v-if="!detail.messages.length" class="text-sm text-slate-500">Belum ada pesan.</p>
+          </div>
+        </ScCard>
+      </div>
+      <div>
+        <ScCard>
+          <template #header><span class="font-semibold">Rekomendasi AI</span></template>
+          <div v-if="detail.recommendations.length" class="space-y-2 text-sm">
+            <div v-for="r in detail.recommendations" :key="r.id" class="rounded border border-slate-200 p-2 dark:border-slate-700">
+              <p class="font-mono text-xs">{{ r.product_id.slice(0, 8) }}…</p>
+              <p class="text-slate-600 dark:text-slate-300">{{ r.reason }}</p>
+            </div>
+          </div>
+          <p v-else class="text-sm text-slate-500">Belum ada rekomendasi.</p>
+        </ScCard>
+      </div>
+    </div>
+    <p v-else-if="!error" class="text-sm text-slate-500">Memuat…</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { formatWIB, statusClass } from '~/utils/format'
+import type { ConversationDetail } from '~/utils/api-types'
+
+definePageMeta({ layout: 'admin', middleware: 'auth' })
+const route = useRoute()
+const { request } = useApi()
+const detail = ref<ConversationDetail | null>(null)
+const error = ref('')
+
+onMounted(async () => {
+  try { detail.value = await request<ConversationDetail>(`/conversations/${route.params.id}`) }
+  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+})
+</script>
