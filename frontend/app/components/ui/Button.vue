@@ -44,6 +44,8 @@ const props = withDefaults(
     size?: ButtonVariants['size']
     loading?: boolean
     disabled?: boolean
+    /** Jika diisi, tombol dirender sebagai NuxtLink (CTA navigasi). */
+    to?: string
     class?: any
   }>(),
   { variant: 'default', size: 'default', loading: false, disabled: false },
@@ -51,7 +53,18 @@ const props = withDefaults(
 </script>
 
 <template>
+  <NuxtLink
+    v-if="to"
+    :to="to"
+    :class="cn(buttonVariants({ variant: props.variant, size: props.size }), props.class)"
+    :aria-disabled="props.disabled || props.loading"
+    :tabindex="props.disabled || props.loading ? -1 : undefined"
+  >
+    <LoaderCircle v-if="props.loading" class="animate-spin" />
+    <slot />
+  </NuxtLink>
   <button
+    v-else
     :class="cn(buttonVariants({ variant: props.variant, size: props.size }), props.class)"
     :disabled="props.disabled || props.loading"
   >

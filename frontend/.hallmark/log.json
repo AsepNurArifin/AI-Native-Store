@@ -8,5 +8,25 @@
     "theme_axes": "light-paper / geometric-sans / warm-accent",
     "enrichment": "none",
     "brief": "Redesign seluruh FE: buang dark mode + neon indigo/violet → tema toko digital hangat (terracotta, kertas krem); design.md dikunci"
+  },
+  {
+    "date": "2026-09-11",
+    "scope": "page:/",
+    "genre": "playful (soft-retail)",
+    "macrostructure": "marketing landing (hero → masalah → cara-kerja → fitur → pricing → FAQ → CTA)",
+    "theme": "custom (Toko Digital)",
+    "theme_axes": "light-paper / geometric-sans / warm-accent",
+    "enrichment": "none (typography + token only)",
+    "brief": "Landing promosi SaaS: hero value-prop + CTA trial, 3 kartu masalah→solusi persona Bu Ratna, 3 langkah cara kerja, 6 kartu fitur, pricing 3 paket (mock), FAQ akordeon, CTA penutup. Chat demo pindah ke /chat."
+  },
+  {
+    "date": "2026-09-11",
+    "scope": "page:/subscribe",
+    "genre": "playful (soft-retail)",
+    "macrostructure": "form funnel (form → success state)",
+    "theme": "custom (Toko Digital)",
+    "theme_axes": "light-paper / geometric-sans / warm-accent",
+    "enrichment": "none",
+    "brief": "Funnel subscribe mock: form toko/pemilik/kontak + pemilih paket (trial/bln/thn), validasi client-side, success state. Backend endpoint + rate-limit menyusul (Fase 2)."
   }
 ]
