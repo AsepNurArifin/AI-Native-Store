@@ -15,7 +15,7 @@
               <td class="pr-2">{{ c.channel }}</td>
               <td class="pr-2 font-mono text-xs">{{ c.identifier }}</td>
               <td class="pr-2">{{ c.contact || '-' }}</td>
-              <td><NuxtLink :to="`/admin/customers/${c.id}`"><ScButton size="sm" variant="outline">Detail</ScButton></NuxtLink></td>
+              <td><NuxtLink :to="`/admin/customers/${c.id}`"><Button size="sm" variant="outline">Detail</Button></NuxtLink></td>
             </tr>
           </tbody>
         </table>

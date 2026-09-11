@@ -6,7 +6,7 @@
         <select v-model="fChannel" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
           <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
         </select>
-        <ScButton size="sm" variant="secondary" @click="load()">Muat</ScButton>
+        <Button size="sm" variant="secondary" @click="load()">Muat</Button>
       </div>
       <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
       <div class="overflow-x-auto">
@@ -20,7 +20,7 @@
               <td class="pr-2">{{ c.channel }}</td>
               <td class="pr-2"><ScBadge :tone="statusClass(c.outcome)">{{ c.outcome || '-' }}</ScBadge></td>
               <td class="pr-2 text-xs">{{ formatWIB(c.last_activity_at) }}</td>
-              <td><NuxtLink :to="`/admin/conversations/${c.id}`"><ScButton size="sm" variant="outline">Buka</ScButton></NuxtLink></td>
+              <td><NuxtLink :to="`/admin/conversations/${c.id}`"><Button size="sm" variant="outline">Buka</Button></NuxtLink></td>
             </tr>
           </tbody>
         </table>

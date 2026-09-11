@@ -16,7 +16,7 @@
           </select>
         </div>
         <div><label class="mb-1 block text-sm">Qty</label><ScInput v-model.number="adj.quantity" type="number" class="w-24" /></div>
-        <ScButton type="submit" size="sm" :loading="adjLoading">Catat</ScButton>
+        <Button type="submit" size="sm" :loading="adjLoading">Catat</Button>
       </form>
       <p v-if="adjMsg" class="mt-2 text-sm" :class="adjOk ? 'text-emerald-600' : 'text-red-600'">{{ adjMsg }}</p>
     </ScCard>
@@ -46,7 +46,7 @@
         <select v-model="fType" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
           <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
         </select>
-        <ScButton size="sm" variant="secondary" @click="loadTx()">Muat</ScButton>
+        <Button size="sm" variant="secondary" @click="loadTx()">Muat</Button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">

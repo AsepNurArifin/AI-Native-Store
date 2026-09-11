@@ -8,10 +8,7 @@
         <!-- Logo & Header -->
         <div class="mb-6 text-center">
           <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
-            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+            <Lock class="h-6 w-6" />
           </div>
           <h1 class="font-display text-2xl font-bold text-slate-900 dark:text-white">Admin Portal</h1>
           <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Masuk untuk mengelola katalog, pesanan, dan persetujuan aksi AI</p>
@@ -35,9 +32,9 @@
             {{ error }}
           </div>
 
-          <ScButton type="submit" variant="ai" size="lg" class="w-full font-semibold" :loading="loading">
+          <Button type="submit" variant="ai" size="lg" class="w-full font-semibold" :loading="loading">
             Masuk ke Dashboard
-          </ScButton>
+          </Button>
 
           <!-- Quick Fill Demo Account -->
           <div class="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3.5 text-center dark:border-slate-800 dark:bg-slate-800/50">
@@ -63,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import { Lock } from '@lucide/vue'
 definePageMeta({ layout: 'default' })
 const auth = useAuthStore()
 const email = ref('')

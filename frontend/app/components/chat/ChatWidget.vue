@@ -4,9 +4,7 @@
     <div class="flex items-center justify-between border-b border-slate-100/90 bg-slate-50/70 px-5 py-4 dark:border-slate-800/80 dark:bg-slate-900/60 backdrop-blur-sm">
       <div class="flex items-center gap-3">
         <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
-          </svg>
+          <Bot class="h-5 w-5" />
           <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
         </div>
         <div>
@@ -25,10 +23,7 @@
         title="Reset percakapan"
         @click="resetChat"
       >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" />
-        </svg>
+        <RefreshCw class="h-4 w-4" />
       </button>
     </div>
 
@@ -37,9 +32,7 @@
       <!-- Empty State -->
       <div v-if="!messages.length" class="flex flex-col items-center justify-center py-8 text-center">
         <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-          <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+          <MessageSquare class="h-7 w-7" />
         </div>
         <h4 class="font-display font-semibold text-slate-800 dark:text-slate-200">Mulai Tanya ke AI Sales</h4>
         <p class="mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
@@ -145,7 +138,7 @@
           </div>
 
           <!-- Confirm Button -->
-          <ScButton
+          <Button
             variant="ai"
             size="md"
             class="w-full justify-center shadow-md font-semibold"
@@ -153,7 +146,7 @@
             @click="confirm(m.summary!)"
           >
             Konfirmasi Pesanan Sekarang
-          </ScButton>
+          </Button>
 
           <p v-if="confirmMsg" class="text-center text-xs font-medium" :class="confirmOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
             {{ confirmMsg }}
@@ -179,19 +172,17 @@
           placeholder="Ketik produk atau pertanyaan belanja kamu di sini…"
           class="flex-1 bg-white dark:bg-slate-950"
         />
-        <ScButton type="submit" variant="ai" size="md" :loading="sending" class="shrink-0 px-4">
+        <Button type="submit" variant="ai" size="md" :loading="sending" class="shrink-0 px-4">
           <span>Kirim</span>
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </ScButton>
+          <Send class="h-4 w-4" />
+        </Button>
       </form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Bot, MessageSquare, RefreshCw, Send } from '@lucide/vue'
 import { formatIDR } from '~/utils/format'
 import type { ChatReply, OrderSummary, ProductOut } from '~/utils/api-types'
 import { NormalizedApiError } from '~/composables/useApi'

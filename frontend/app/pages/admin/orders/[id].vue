@@ -31,8 +31,8 @@
       </div>
       <template #footer>
         <div class="flex gap-2">
-          <ScButton v-if="order.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete()">Complete</ScButton>
-          <ScButton v-if="order.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel()">Cancel</ScButton>
+          <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete()">Complete</Button>
+          <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel()">Cancel</Button>
         </div>
       </template>
     </ScCard>

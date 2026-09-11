@@ -12,14 +12,14 @@
       </div>
       <div class="flex items-center gap-2">
         <NuxtLink to="/admin/products">
-          <ScButton size="sm" variant="ai">
+          <Button size="sm" variant="ai">
             + Tambah Produk
-          </ScButton>
+          </Button>
         </NuxtLink>
         <NuxtLink to="/admin/analytics">
-          <ScButton size="sm" variant="outline">
+          <Button size="sm" variant="outline">
             Lihat Analitik
-          </ScButton>
+          </Button>
         </NuxtLink>
       </div>
     </div>
@@ -31,7 +31,7 @@
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Koneksi Backend</p>
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+            <Activity class="h-4 w-4" />
           </div>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
@@ -50,7 +50,7 @@
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Stok Kritis</p>
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            <TriangleAlert class="h-4 w-4" />
           </div>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
@@ -69,7 +69,7 @@
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pesanan Masuk</p>
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
+            <ShoppingCart class="h-4 w-4" />
           </div>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
@@ -88,7 +88,7 @@
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">AI Governance</p>
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
+            <Sparkles class="h-4 w-4" />
           </div>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
@@ -116,7 +116,7 @@
         </div>
         <div class="flex gap-2 shrink-0">
           <NuxtLink to="/admin/actions">
-            <ScButton size="sm" variant="ai">Periksa Antrean AI</ScButton>
+            <Button size="sm" variant="ai">Periksa Antrean AI</Button>
           </NuxtLink>
         </div>
       </div>
@@ -215,6 +215,7 @@
 </template>
 
 <script setup lang="ts">
+import { Activity, ShoppingCart, Sparkles, TriangleAlert } from '@lucide/vue'
 import { formatIDR, statusClass } from '~/utils/format'
 import type { OrderOut, StockSummaryItem } from '~/utils/api-types'
 

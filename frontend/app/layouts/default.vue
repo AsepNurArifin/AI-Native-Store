@@ -46,6 +46,7 @@
             <span>Admin Portal</span>
             <span class="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
           </NuxtLink>
+          <ThemeToggle />
         </nav>
       </div>
     </header>

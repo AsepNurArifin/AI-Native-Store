@@ -10,7 +10,7 @@
         <select v-model="fChannel" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
           <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
         </select>
-        <ScButton size="sm" variant="secondary" @click="load()">Muat</ScButton>
+        <Button size="sm" variant="secondary" @click="load()">Muat</Button>
       </div>
       <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
       <div class="overflow-x-auto">
@@ -27,9 +27,9 @@
               <td class="pr-2">{{ formatIDR(o.total_amount) }}</td>
               <td class="pr-2 text-xs">{{ formatWIB(o.created_at) }}</td>
               <td class="flex gap-1">
-                <NuxtLink :to="`/admin/orders/${o.id}`"><ScButton size="sm" variant="outline">Detail</ScButton></NuxtLink>
-                <ScButton v-if="o.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete(o)">Complete</ScButton>
-                <ScButton v-if="o.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel(o)">Cancel</ScButton>
+                <NuxtLink :to="`/admin/orders/${o.id}`"><Button size="sm" variant="outline">Detail</Button></NuxtLink>
+                <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete(o)">Complete</Button>
+                <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel(o)">Cancel</Button>
               </td>
             </tr>
           </tbody>

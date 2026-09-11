@@ -75,8 +75,8 @@
       <p v-if="msg" class="mb-2 text-sm" :class="ok ? 'text-emerald-600' : 'text-red-600'">{{ msg }}</p>
       <template #footer>
         <div v-if="action.status === 'DRAFT'" class="flex gap-2">
-          <ScButton size="sm" :loading="busy" @click="approve()">Approve & Eksekusi</ScButton>
-          <ScButton size="sm" variant="destructive" :loading="busy" @click="reject()">Reject</ScButton>
+          <Button size="sm" :loading="busy" @click="approve()">Approve & Eksekusi</Button>
+          <Button size="sm" variant="destructive" :loading="busy" @click="reject()">Reject</Button>
         </div>
         <p v-else class="text-sm text-slate-500">Sudah diputuskan — read-only.</p>
       </template>

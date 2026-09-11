@@ -4,7 +4,7 @@ Admin dashboard + Web Chat Widget (conversational commerce). Frontend di-hosting
 **Vercel** (tanpa container — lihat keputusan di `../plan.md` §B3).
 
 **Stack:** Nuxt 4.5 · Vue 3.5 · Tailwind CSS v4 · **shadcn-vue** (new-york) ·
-Pinia · TypeScript.
+Pinia · TypeScript · Ikon **`@lucide/vue`**.
 
 ---
 
@@ -38,6 +38,10 @@ Stack UI lama (`@nuxt/ui`, `@nuxt/icon`, `@nuxt/fonts`, `@nuxt/color-mode`)
   (`<Button>`, `<Card>`, `<Input>`, `<Badge>`, `<Label>`, `<Textarea>`,
   `<Table>` + sub-komponen, `<Separator>`, `<Skeleton>`).
   Konfigurasi CLI: `components.json` (alias `@/*` → `app/*` sudah sesuai).
+- **Ikon lucide** — `@lucide/vue` diimpor eksplisit per komponen. Tidak ada
+  SVG inline di halaman kecuali **logo brand** (`app/layouts/*.vue`).
+- **Dark mode** — kelas `.dark` di `<html>`; `useTheme()` + `<ThemeToggle>`
+  sudah dipasang di layout `default` & `admin` (lihat §2a).
 
 **Menambah komponen shadcn baru** (mis. `select`, `dialog`, `dropdown-menu`):
 
@@ -52,14 +56,20 @@ Komponen berbasis primitif (Select/Dialog/dll.) akan otomatis menginstal
 ### Konvensi komponen
 
 - Semua komponen `ui/*.vue` mengimpor helper `cn` dari `~/lib/utils`
-  (shadcn). File `app/utils/cn.ts` adalah duplikat yang dipakai komponen
-  legacy `Sc*`.
-- `Sc*` (`ScButton`, `ScCard`, `ScInput`, `ScBadge`) adalah **wrapper desain
-  legacy** (murni Tailwind, tidak bergantung `@nuxt/ui`) dan masih dipakai
-  ±105 tempat di halaman. Migrasi bertahap: ganti `<ScButton>` → `<Button>`
-  dst. Varian brand `ai` sudah tersedia sebagai variant Button.
-- Dark mode: kelas `.dark` di elemen root (CSS custom-variant `dark:`).
-  Toggle UI belum disediakan.
+  (satu-satunya sumber — `app/utils/cn.ts` sudah dihapus).
+- `Button.vue` adalah **superset ScButton** (kompatibel hasil migrasi):
+  - variant `ai` (gradient brand indigo→purple);
+  - `size="md"` = alias `default`; `sm`/`lg` mempertahankan proporsi ScButton;
+  - prop `loading` menampilkan spinner `<LoaderCircle>` (lucide) + auto-disable.
+  Migrasi `<ScButton>` → `<Button>` **selesai** (37 penggunaan; `ScButton.vue`
+  dihapus).
+- Sisa `Sc*` (`ScCard`, `ScInput`, `ScBadge`) adalah **wrapper desain legacy**
+  (murni Tailwind, tidak bergantung `@nuxt/ui`) — migrasi bertahap menyusul.
+- **Dark mode**: `useTheme()` (composable) mengelola kelas `.dark` di `<html>`
+  dan `localStorage.theme` (default ikut `prefers-color-scheme`).
+  `<ThemeToggle>` dipasang di kedua layout. Skrip anti-FOUC inline di
+  `nuxt.config.ts` (`app.head.script`) memasang kelas sebelum paint pertama;
+  `plugins/theme.client.ts` menyinkronkannya ke state Nuxt saat hydrate.
 
 ---
 

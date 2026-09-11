@@ -6,7 +6,7 @@
         <template #header><span class="font-semibold">Tanya analis (bahasa natural)</span></template>
         <form class="space-y-2" @submit.prevent="ask()">
           <textarea v-model="question" rows="2" placeholder="Produk apa yang paling laris bulan ini?" class="w-full rounded-md border border-slate-300 p-2 text-sm dark:border-slate-700 dark:bg-slate-950" />
-          <ScButton type="submit" size="sm" :loading="asking">Tanya</ScButton>
+          <Button type="submit" size="sm" :loading="asking">Tanya</Button>
         </form>
         <p v-if="askError" class="mt-2 text-sm text-red-600">{{ askError }}</p>
         <div v-if="answer" class="mt-3 rounded bg-slate-50 p-3 text-sm dark:bg-slate-800">
@@ -23,7 +23,7 @@
         <form class="mb-2 flex flex-wrap gap-2" @submit.prevent="loadSales()">
           <ScInput v-model="from" type="date" class="w-40" />
           <ScInput v-model="to" type="date" class="w-40" />
-          <ScButton type="submit" size="sm" variant="secondary">Muat</ScButton>
+          <Button type="submit" size="sm" variant="secondary">Muat</Button>
         </form>
         <p v-if="salesError" class="text-sm text-red-600">{{ salesError }}</p>
         <p v-if="salesLoading" class="text-sm text-slate-500">Memuat…</p>
@@ -66,7 +66,7 @@
         <template #header><span class="font-semibold">Risiko stockout</span></template>
         <div class="mb-2 flex gap-2">
           <ScInput v-model.number="threshold" type="number" class="w-28" placeholder="7 hari" />
-          <ScButton size="sm" variant="secondary" :loading="invLoading" @click="loadInv()">Muat</ScButton>
+          <Button size="sm" variant="secondary" :loading="invLoading" @click="loadInv()">Muat</Button>
         </div>
         <p v-if="invLoading" class="text-sm text-slate-500">Memuat…</p>
         <template v-else-if="inv">
@@ -102,7 +102,7 @@
       </ScCard>
       <ScCard>
         <template #header><span class="font-semibold">Distribusi channel</span></template>
-        <ScButton size="sm" variant="secondary" :loading="channelsLoading" @click="loadChannels()">Muat (pakai rentang di atas)</ScButton>
+        <Button size="sm" variant="secondary" :loading="channelsLoading" @click="loadChannels()">Muat (pakai rentang di atas)</Button>
         <p v-if="channelsLoading" class="mt-2 text-sm text-slate-500">Memuat…</p>
         <template v-else-if="channels">
           <p class="mt-2 mb-3 text-sm text-slate-500">

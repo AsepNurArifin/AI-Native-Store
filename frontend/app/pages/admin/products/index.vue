@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-2xl font-bold">Produk</h1>
-      <ScButton size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Produk' }}</ScButton>
+      <Button size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Produk' }}</Button>
     </div>
 
     <ScCard v-if="showForm">
@@ -21,8 +21,8 @@
         </div>
         <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
         <div class="flex gap-2 md:col-span-2">
-          <ScButton type="submit" size="sm" :loading="saving">Simpan</ScButton>
-          <ScButton type="button" size="sm" variant="ghost" @click="resetForm()">Batal</ScButton>
+          <Button type="submit" size="sm" :loading="saving">Simpan</Button>
+          <Button type="button" size="sm" variant="ghost" @click="resetForm()">Batal</Button>
         </div>
       </form>
     </ScCard>
@@ -34,7 +34,7 @@
         <select v-model="status" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
           <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
         </select>
-        <ScButton size="sm" variant="secondary" @click="load()">Cari</ScButton>
+        <Button size="sm" variant="secondary" @click="load()">Cari</Button>
       </div>
       <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
       <p v-if="loading" class="text-sm text-slate-500">Memuat…</p>
@@ -52,9 +52,9 @@
               <td class="pr-2">{{ p.current_stock }} <span v-if="p.is_low_stock" title="stok menipis">⚠️</span></td>
               <td class="pr-2"><ScBadge :tone="statusClass(p.status)">{{ p.status }}</ScBadge></td>
               <td class="flex gap-1 py-1">
-                <ScButton size="sm" variant="outline" @click="startEdit(p)">Ubah</ScButton>
-                <ScButton size="sm" variant="ghost" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</ScButton>
-                <ScButton size="sm" variant="destructive" @click="remove(p)">Hapus</ScButton>
+                <Button size="sm" variant="outline" @click="startEdit(p)">Ubah</Button>
+                <Button size="sm" variant="ghost" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
+                <Button size="sm" variant="destructive" @click="remove(p)">Hapus</Button>
               </td>
             </tr>
           </tbody>

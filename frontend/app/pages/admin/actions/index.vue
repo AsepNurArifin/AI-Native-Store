@@ -9,7 +9,7 @@
           <option>DRAFT</option><option>APPROVED</option><option>REJECTED</option>
           <option>APPROVED_VALIDATION_FAILED</option><option>EXECUTED</option>
         </select>
-        <ScButton size="sm" variant="secondary" @click="load()">Muat</ScButton>
+        <Button size="sm" variant="secondary" @click="load()">Muat</Button>
       </div>
       <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
 
@@ -21,7 +21,7 @@
         </p>
         <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Instruksi natural language…" />
         <div class="mt-2 flex items-center gap-3">
-          <ScButton size="sm" :loading="creating" @click="createDraft()">Buat Draft</ScButton>
+          <Button size="sm" :loading="creating" @click="createDraft()">Buat Draft</Button>
           <span v-if="draftError" class="text-sm text-red-600">{{ draftError }}</span>
           <span v-if="draftOk" class="text-sm text-green-600">Draft dibuat ✓</span>
         </div>
@@ -38,7 +38,7 @@
               <td class="pr-2">{{ a.action_type }}</td>
               <td class="pr-2"><ScBadge :tone="statusClass(a.status)">{{ a.status }}</ScBadge></td>
               <td class="pr-2 text-xs">{{ formatWIB(a.created_at) }}</td>
-              <td><NuxtLink :to="`/admin/actions/${a.id}`"><ScButton size="sm" variant="outline">Buka</ScButton></NuxtLink></td>
+              <td><NuxtLink :to="`/admin/actions/${a.id}`"><Button size="sm" variant="outline">Buka</Button></NuxtLink></td>
             </tr>
           </tbody>
         </table>

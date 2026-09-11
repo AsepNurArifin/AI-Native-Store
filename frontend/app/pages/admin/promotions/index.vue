@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold">Promosi</h1>
-      <ScButton size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Promosi' }}</ScButton>
+      <Button size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Promosi' }}</Button>
     </div>
     <ScCard v-if="showForm">
       <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
@@ -21,7 +21,7 @@
         <div><label class="mb-1 block text-sm">Mulai</label><ScInput v-model="form.start_date" type="datetime-local" /></div>
         <div><label class="mb-1 block text-sm">Selesai</label><ScInput v-model="form.end_date" type="datetime-local" /></div>
         <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
-        <div class="md:col-span-2"><ScButton type="submit" size="sm" :loading="saving">Simpan</ScButton></div>
+        <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving">Simpan</Button></div>
       </form>
     </ScCard>
     <ScCard>
@@ -38,7 +38,7 @@
               <td class="pr-2 text-xs">{{ formatWIB(pr.start_date) }} → {{ formatWIB(pr.end_date) }}</td>
               <td class="pr-2"><ScBadge :tone="statusClass(pr.status)">{{ pr.status }}</ScBadge></td>
               <td>
-                <ScButton v-if="pr.status === 'DRAFT'" size="sm" variant="outline" @click="activate(pr)">Aktifkan</ScButton>
+                <Button v-if="pr.status === 'DRAFT'" size="sm" variant="outline" @click="activate(pr)">Aktifkan</Button>
               </td>
             </tr>
           </tbody>
