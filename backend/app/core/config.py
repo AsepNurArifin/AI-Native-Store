@@ -91,3 +91,48 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+# Nilai default yang wajib diganti di production (P5 — security hardening)
+_INSECURE_JWT_SECRETS = {"change-me", "change-me-64-char-random-secret"}
+
+
+def validate_runtime_config() -> list[str]:
+    """P5 — validasi konfigurasi saat startup (fail-fast untuk production).
+
+    Return: daftar masalah. Panggil di lifespan:
+      - app_env == production dan ada masalah  => RAISE (jangan start dengan config tidak aman)
+      - selain itu                                => warning log saja (tidak blokir dev/test)
+
+    Aturan tambahan (plan.md §4 B6 / §5 P5):
+      - JWT secret lemah/default selalu dicatat, fatal di production;
+      - DEBUG=true membuka /api/v1/dev/* (mock WA) — fatal di production;
+      - SEED_ON_STARTUP=true di production bisa menulis data demo ke DB nyata — fatal;
+      - LLM_PROVIDER=mock di production — fatal;
+      - WA_PROVIDER=mock di production — warning (fallback demo yang disadari tim);
+      - CORS wildcard di production — fatal.
+    """
+    problems: list[str] = []
+
+    if (
+        not settings.jwt_secret_key
+        or len(settings.jwt_secret_key) < 32
+        or settings.jwt_secret_key in _INSECURE_JWT_SECRETS
+    ):
+        problems.append("JWT_SECRET_KEY default/lemah — wajib ganti (min 32 char acak) di production")
+
+    if settings.app_env == "production":
+        if settings.debug:
+            problems.append("DEBUG=true pada production (membuka /api/v1/dev/*)")
+        if settings.seed_on_startup:
+            problems.append("SEED_ON_STARTUP=true pada production (seed otomatis tidak boleh di DB nyata)")
+        if settings.llm_provider == "mock":
+            problems.append("LLM_PROVIDER=mock pada production (harus provider nyata: openai|google|groq)")
+        if settings.wa_provider == "mock":
+            problems.append("WA_PROVIDER=mock pada production (fallback demo — pastikan disadari tim)")
+        if "*" in settings.cors_origin_list:
+            problems.append("CORS_ORIGINS mengandung '*' pada production")
+    elif settings.llm_provider != "mock" and not (settings.llm_api_key or settings.groq_api_key):
+        problems.append("LLM_PROVIDER bukan mock tetapi API key kosong (LLM_API_KEY / GROQ_API_KEY)")
+
+    return problems

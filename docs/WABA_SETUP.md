@@ -45,7 +45,7 @@
 | Aturan | Sumber | Implementasi |
 |---|---|---|
 | **24-hour window** | Free-form message hanya ≤24 jam sejak pesan customer terakhir | `check_24h_window()` pakai `conversations.last_activity_at`; tertutup → kirim template atau tahan + log (FR-SA-07) |
-| **Interactive reply button** | Maks 3 tombol quick reply; payload maks 256 char | Tombol [Konfirmasi Pesanan] payload `CONFIRM_ORDER:<summary_ref>` |
+| **Interactive reply button** | Maks 3 tombol quick reply; payload maks 256 char | Tombol [Konfirmasi Pesanan] payload `CONFIRM:<summary_ref>` |
 | **Template message** | Harus named + approved +kategori utility/marketing | Usulan 1 template utility: `order_confirmation` — dibuat & disubmit approve di F7 (opsional bila 24h window cukup untuk demo) |
 | **Webhook signature** | Header `X-Hub-Signature-256` = HMAC-SHA256(body, app_secret) | Middleware verifikasi; invalid → 401 tanpa proses |
 | **Webhook harus 200 cepat** | Meta retry bila lambat/gagal | Terima → ack 200 segera → proses async (queue) — E6/NFR-12 |

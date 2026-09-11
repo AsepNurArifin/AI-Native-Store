@@ -207,7 +207,7 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
 | `/orders/*` | FR-SMS-06 | TC-SMS-06a/b/c |
 | `/promotions/*` | FR-SMS-05 | TC-SMS-05a/b |
 | `/customers`, `/conversations/*` | FR-SMS-04a/07/08/09 | TC-SMS-04/07/08/09 |
-| `/ai/analyst/query` | FR-BA-01/02/04/05 | TC-BA-01/02/04/05 |
+| `/chat/analyst/ask` | FR-BA-01/02/04/05 | TC-BA-01/02/04/05 |
 | `/ai/actions/*` | FR-AA-01..05 | TC-AA-01..05 |
 | `/audit-logs` | FR-AA-04 | TC-AA-04, NFR-TC-05 |
 

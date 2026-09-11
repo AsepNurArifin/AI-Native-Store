@@ -1,0 +1,43 @@
+# =====================================================================
+# Override LOCAL DEV — backend + Postgres lokal (tanpa Supabase).
+# Dipakai BERSAMA docker-compose.yaml (merge by service name):
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+#
+# Backend terhubung ke Postgres lokal via network internal compose
+# (`db:5432`). Port host 5433 untuk psql manual dari mesin.
+# =====================================================================
+
+name: ai-store-backend-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: store
+      POSTGRES_PASSWORD: store
+      POSTGRES_DB: store
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U store -d store"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  backend:
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+      SEED_ON_STARTUP: "true"
+      DATABASE_URL: postgresql+asyncpg://store:store@db:5432/store
+      DATABASE_URL_TEST: ""
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

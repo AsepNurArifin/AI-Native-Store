@@ -1,6 +1,6 @@
 # Dokumentasi Proyek — AI-Native Store Management System
 
-> Baseline requirement: `SRS_v3.1_AI_Native_Store_Management_System (1).md` (normatif, self-contained) dan `Product Requirements Document — AI-Native Store Management System.md` (product-level). Master plan: [`plan.md`](../plan.md).
+> Baseline requirement: `SRS_v3.3_AI_Native_Store_Management_System.md` (normatif, self-contained) dan `Product Requirements Document — AI-Native Store Management System.md` (product-level). Master plan: [`plan.md`](../plan.md).
 
 ## Indeks Dokumen
 
@@ -19,7 +19,7 @@
 
 ## Hierarki Keputusan
 
-1. **SRS v3.1** — sumber requirement final (FR/NFR/UC/TC). Jika ada konflik, SRS menang.
+1. **SRS v3.3** — sumber requirement final (FR/NFR/UC/TC). Jika ada konflik, SRS menang.
 2. **PRD** — konteks produk, vision, boundary, prinsip.
 3. **plan.md** — eksekusi: urutan, jadwal, pembagian kerja.
 4. **docs/*** — desain teknis yang menurunkan SRS ke implementasi (arsitektur, skema, API, prompt, ops).
@@ -28,4 +28,4 @@
 
 - Perubahan scope (channel, ordering model, AI capability, role model, approval model, MVP boundary) = **scope change** (PRD §56), bukan perubahan kecil.
 - Setiap dokumen punya status DRAFT hingga diratifikasi tim.
-- Istilah baru yang muncul di satu dokumen harus diperiksa konsistensinya di dokumen lain (pola audit SRS v3.1).
+- Istilah baru yang muncul di satu dokumen harus diperiksa konsistensinya di dokumen lain (pola audit SRS v3.3).

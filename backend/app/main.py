@@ -36,7 +36,17 @@ async def _maintenance_job() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.core.config import validate_runtime_config
     from app.db.init_db import init_db
+
+    # P5 — fail-fast pada production bila konfigurasi tidak aman.
+    problems = validate_runtime_config()
+    for p in problems:
+        logger.error("CONFIG: %s", p)
+    if problems and settings.app_env == "production":
+        raise RuntimeError(
+            "Startup dibatalkan — konfigurasi production tidak aman:\n - " + "\n - ".join(problems)
+        )
 
     logger.info("Initializing database...")
     await init_db(seed=settings.seed_on_startup)
@@ -81,3 +91,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+# P4.3 — liveness di root (docker healthcheck & ops) memakai router health yang sama.
+from app.api.routes import health as _health  # noqa: E402
+
+app.include_router(_health.router)

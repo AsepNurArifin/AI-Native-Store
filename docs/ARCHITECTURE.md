@@ -1,6 +1,6 @@
 # ARCHITECTURE — Desain Arsitektur Sistem
 
-> Menurunkan SRS v3.1 (§2, §5, §8) ke desain teknis konkret. Menjadi acuan implementasi F1–F7.
+> Menurunkan SRS v3.3 (§2, §5, §8) ke desain teknis konkret. Menjadi acuan implementasi F1–F7.
 
 ---
 
@@ -95,7 +95,7 @@ channels/
 - `send_channel_message(channel, customer_ref, content, is_template)` → outbound
 - `check_24h_window(customer_ref)` → bool (hanya relevan WhatsApp, FR-SA-07)
 
-**Format internal pesan** harus identik dari kedua channel — AI core tidak tahu bedanya. Tombol konfirmasi order dari Web (button UI) dan WhatsApp (interactive reply button) dinormalisasi menjadi event yang sama: `CONFIRM_ORDER` dengan `order_summary_ref` (FR-SA-05).
+**Format internal pesan** harus identik dari kedua channel — AI core tidak tahu bedanya. Tombol konfirmasi order dari Web (button UI) dan WhatsApp (interactive reply button) dinormalisasi menjadi event yang sama: `CONFIRM` dengan `summary_ref` (FR-SA-05). Payload kanonik: `CONFIRM:<summary_ref>`.
 
 ### 2.3 `app/ai/` — AI Layer (SELL / UNDERSTAND / ACT)
 ```
@@ -111,7 +111,7 @@ ai/
 Aturan keras (NFR-06):
 - `ai/` **tidak boleh** import `app/models` atau SQLAlchemy — hanya memanggil tool.
 - Tool adalah fungsi Python tipis yang memanggil **service layer** (otorisasi + validasi sama dengan jalur manual).
-- `ai/tools/create_order` hanya boleh dieksekusi backend ketika event trigger-nya konfirmasi eksplisit dari channel layer — **bukan** keputusan LLM. LLM menyusun ringkasan; commit hanya dari event `CONFIRM_ORDER`.
+- `ai/tools/create_order` hanya boleh dieksekusi backend ketika event trigger-nya konfirmasi eksplisit dari channel layer — **bukan** keputusan LLM. LLM menyusun ringkasan; commit hanya dari event `CONFIRM`.
 
 ### 2.4 `app/services/` — Domain Layer (authority)
 Semua business rule SRS §3 hidup di sini:
@@ -153,7 +153,7 @@ Semua business rule SRS §3 hidup di sini:
 **Konfirmasi (jalur 1 — C2):**
 ```
 customer menekan tombol [Konfirmasi Pesanan] (Web UI / WA interactive button)
-   → event CONFIRM_ORDER(order_summary_ref) + idempotency key
+   → event CONFIRM(summary_ref) + idempotency key
    → OrderService.create_from_summary()  ← ATOMIK: lock product rows,
       re-verify stock & price & ACTIVE, insert Order(CONFIRMED) + OrderItems,
       insert InventoryTransaction(OUT, OUT, ORDER)
@@ -213,7 +213,7 @@ Owner mengetik pertanyaan (Admin Panel)
 ### 5.2 Keluar (backend → Meta)
 - Free-form message hanya bila `check_24h_window(customer_ref)` = open (FR-SA-07).
 - Di luar window: tahan pesan + log jelas, atau kirim template (`WA_TEMPLATE_ORDER_CONFIRM`) bila tersedia.
-- Interactive reply button untuk konfirmasi order: tombol payload = `CONFIRM_ORDER:<summary_ref>`.
+- Interactive reply button untuk konfirmasi order: tombol payload = `CONFIRM:<summary_ref>`.
 
 ### 5.3 Mock Provider (synthetic dev)
 - API sama dengan provider Meta (method-level): `send_text`, `send_interactive`, `send_template`, `simulate_inbound(payload)` — simulasi pesan customer dari nomor uji.

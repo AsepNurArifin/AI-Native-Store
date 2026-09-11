@@ -97,6 +97,54 @@ diisi service. `NO_MATCH` dihapus dari pemakaian aktif / dibiarkan sebagai nilai
 - **Test hygiene (R10):** happy-path order wajib lewat jalur produksi (lihat catatan
   `tests/conftest.py`); injeksi `summary_store.put` hanya untuk simulasi keadaan basi.
 
+## D. Keputusan ratifikasi sesi integrasi (plan.md B3/B4/P5)
+
+### D1. 🟢 Payload konfirmasi kanonik: `CONFIRM:<summary_ref>` (bukan `CONFIRM_ORDER:`)
+
+Wire payload (Web button & WA interactive reply button) dan intercept adapter
+menggunakan `CONFIRM:<summary_ref>`; idempotency key `wa:{ref}`. Dokumen
+(ARCHITECTURE/AI_PROMPTS/WABA_SETUP/API_DESIGN) sudah disinkronkan ke format ini.
+Konsep internal tetap "confirm order" — hanya representasi wire yang dibakukan.
+
+### D2. 🟢 Migration DB: raw SQL berurutan + runner `app.db.migrate`
+
+File `backend/migrations/001..004_*.sql` diterapkan via `uv run python -m app.db.migrate`
+(asyncpg, multi-statement per file dalam satu transaksi), tercatat di tabel
+`schema_migrations` (idempotent, up-only). `Base.metadata.create_all` tetap dipakai
+untuk dev/test (app/db/init_db.py); file migration adalah jalur kanonik
+produksi/Supabase. Verifikasi: fresh DB berhasil dibuat dari migration saja;
+trigger append-only menolak update/delete audit_logs.
+
+### D3. 🟢 PK UUID untuk SEMUA tabel (termasuk `audit_logs`, `conversation_messages`)
+
+DATA_SCHEMA D5 semula mengusulkan BIGINT IDENTITY untuk tabel append-only
+high-volume. Karena model ORM memakai UUID dan konsistensi schema dev/prod
+lebih penting untuk capstone (≤500 SKU, single store), seluruh tabel memakai
+UUID PK. Dampak NFR/volume tidak signifikan pada skala ini.
+
+### D4. 🟢 Deployment: FE di Vercel, DOCKER HANYA BACKEND
+
+Keputusan tim (ratifikasi sesi integrasi): frontend Nuxt tidak di-container;
+hosting FE = Vercel (`npm run build` preset Vercel, `NUXT_PUBLIC_API_BASE`
+diset di Vercel env). Docker hanya untuk backend (`backend/docker-compose.yaml`,
+plus override Postgres lokal `backend/docker-compose.local.yaml` bila ada),
+DB = Supabase managed. CORS backend wajib mencantumkan origin domain Vercel
+(`CORS_ORIGINS`).
+
+### D5. 🟢 Production config guards (P5) — fail-fast saat startup
+
+`validate_runtime_config()` di `app/core/config.py` dipanggil di lifespan:
+pada `APP_ENV=production` kondisi berikut membatalkan startup (RuntimeError):
+JWT_SECRET_KEY default/lemah, `DEBUG=true`, `SEED_ON_STARTUP=true`,
+`LLM_PROVIDER=mock`, CORS wildcard. `WA_PROVIDER=mock` di production = warning
+(fallback demo yang disadari tim). Dev/test hanya menampilkan warning.
+
+### D6. 🟢 Isolasi env test eksplisit
+
+`tests/conftest.py` menetapkan `settings.app_env="testing"`, `seed_on_startup=False`,
+`debug=False` sebelum import session — scheduler maintenance nonaktif saat test,
+seed startup tidak pernah menyentuh DB test, endpoint dev terkunci.
+
 ---
 
 > **Status dokumen:** DRAFT — butuh review + tanda tangan tim (mirip mekanisme

@@ -24,6 +24,21 @@ class WhatsAppAdapter:
         self.db = db
         self.provider = self._build_provider()
 
+    def verify_request(self, body: bytes, signature_header: str | None) -> bool:
+        """P5/F7 — verifikasi X-Hub-Signature-256 untuk provider Meta.
+
+        Mock provider tidak punya verify_signature -> terima (dev/test).
+        Provider Meta menolak request tanpa/invalid signature.
+        """
+        verifier = getattr(self.provider, "verify_signature", None)
+        if verifier is None:
+            return True
+        try:
+            return bool(verifier(body, signature_header))
+        except Exception:  # noqa: BLE001 — signature invalid tidak boleh crash route
+            logger.warning("webhook signature verification error")
+            return False
+
     def _build_provider(self):
         provider = (settings.wa_provider or "mock").lower()
         if provider == "meta":

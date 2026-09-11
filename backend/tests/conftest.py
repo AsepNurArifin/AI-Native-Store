@@ -1,3 +1,4 @@
+import asyncio
 from typing import AsyncGenerator
 
 import pytest_asyncio
@@ -29,10 +30,25 @@ async def _prepare_db():
 
     Engine memakai NullPool di mode test, jadi tiap koneksi dibuat fresh
     di event loop yang sedang aktif — aman untuk loop function-scoped.
+
+    Retry singkat: drop_all bisa sesekali bertabrakan dengan koneksi yang
+    baru saja ditutup test sebelumnya (race transien asyncpg/NullPool).
+    Ini hanya menyerap race infrastruktur test, bukan menyembunyikan bug produk.
     """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            await engine.dispose()  # bersihkan koneksi sisa dari test sebelumnya
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.drop_all)
+                await conn.run_sync(Base.metadata.create_all)
+            last_exc = None
+            break
+        except Exception as e:  # noqa: BLE001 — race transien DB test
+            last_exc = e
+            await asyncio.sleep(0.5 * (attempt + 1))
+    if last_exc is not None:
+        raise last_exc
     yield
 
 
