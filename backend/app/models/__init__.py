@@ -6,6 +6,7 @@ from app.models.customer import Customer
 from app.models.order import Order, OrderItem
 from app.models.conversation import Conversation, ConversationMessage, Recommendation
 from app.models.ai import AIAction, Approval, AuditLog, IdempotencyKey
+from app.models.subscription import Subscription
 
 __all__ = [
     "Base",
@@ -24,4 +25,5 @@ __all__ = [
     "Approval",
     "AuditLog",
     "IdempotencyKey",
+    "Subscription",
 ]

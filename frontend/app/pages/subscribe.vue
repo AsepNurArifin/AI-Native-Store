@@ -24,6 +24,7 @@ const form = reactive({
 
 const submitted = ref(false)
 const submitting = ref(false)
+const serverError = ref('')
 const errors = reactive<{ storeName?: string; ownerName?: string; contact?: string }>({})
 
 function validate(): boolean {
@@ -41,11 +42,27 @@ function validate(): boolean {
 async function submit() {
   if (!validate()) return
   submitting.value = true
+  serverError.value = ''
   try {
-    // TODO(Fase 2): POST /api/v1/subscriptions (rate-limited).
-    await new Promise(r => setTimeout(r, 900))
+    // Fase 2: endpoint publik (rate-limited di sisi backend, 5/menit/IP).
+    const api = useApi()
+    await api.request('/subscriptions', {
+      method: 'POST',
+      auth: false,
+      body: {
+        store_name: form.storeName.trim(),
+        owner_name: form.ownerName.trim(),
+        contact: form.contact.trim(),
+        plan: form.plan
+      }
+    })
     submitted.value = true
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch (e: unknown) {
+    const parsed = toApiError(e)
+    serverError.value = parsed.status === 429
+      ? 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.'
+      : parsed.message || 'Gagal mengirim pendaftaran. Coba lagi.'
   } finally {
     submitting.value = false
   }
@@ -97,6 +114,9 @@ async function submit() {
       </div>
 
       <form class="space-y-5" novalidate @submit.prevent="submit">
+        <p v-if="serverError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {{ serverError }}
+        </p>
         <Card class="border-stone-200/70">
           <CardContent class="space-y-5 pt-6">
             <!-- Nama toko -->

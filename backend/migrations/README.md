@@ -31,6 +31,7 @@ tercatat, masing-masing dalam satu transaksi (gagal → rollback seluruh file).
 | `002_indexes_and_stock_view.sql` | Index query utama + view `v_product_stock` |
 | `003_audit_append_only_trigger.sql` | Trigger `trg_audit_no_modify` (FR-AA-04) |
 | `004_seed_marker.sql` | Tabel `seed_marker` (seed idempotent) |
+| `005_subscriptions.sql` | Tabel `subscriptions` — funnel subscribe SaaS (Fase 2 PLAN_PRODUCT_LAUNCH.md, mock billing) |
 
 ## Keputusan skema tercatat
 
@@ -41,8 +42,10 @@ tercatat, masing-masing dalam satu transaksi (gagal → rollback seluruh file).
 2. **Tidak ada CHECK constraint** untuk enum — validasi di service layer
    (konsisten dengan model; menghindari drift create_all vs migration).
    Overlap promo juga di service layer (keputusan D3).
-3. **`v_product_stock.is_low_stock`** memakai `COALESCE(low_stock_threshold, 5)`
-   yang mencerminkan `LOW_STOCK_THRESHOLD_DEFAULT` di backend/.env.
+3. **`v_product_stock.is_low_stock`** memakai `COALESCE(low_stock_threshold, ...)`.
+   File 002 berisi konstanta awal (5), tetapi backend me-recreate view ini saat
+   startup dengan nilai `LOW_STOCK_THRESHOLD_DEFAULT` dari `backend/.env`
+   (lihat `app/db/init_db.py`) — ubah lewat `.env`, bukan lewat SQL.
 
 ## Verifikasi schema
 

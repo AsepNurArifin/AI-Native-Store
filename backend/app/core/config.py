@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     debug: bool = True  # mengaktifkan /api/v1/dev/* (mock WA)
     seed_on_startup: bool = True
     store_name: str = "Toko Demo"
+    # Rate-limit (P5): aktif di server; pytest mematikannya via conftest
+    # (test rate-limit mengaktifkannya kembali per-test).
+    rate_limit_enabled: bool = True
 
     # Database (Supabase)
     database_url: str = "postgresql+asyncpg://store:store@localhost:5432/store"

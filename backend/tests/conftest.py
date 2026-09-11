@@ -20,6 +20,10 @@ from app.core.config import settings
 if settings.database_url_test:
     settings.database_url = settings.database_url_test
 
+# Rate-limit default OFF di suite test (isolasi); diaktifkan per-test oleh
+# test rate-limit itu sendiri. Lihat app/core/rate_limit.py.
+settings.rate_limit_enabled = False
+
 from app.db.session import AsyncSessionLocal, engine  # noqa: E402
 from app.models import Base  # noqa: E402
 

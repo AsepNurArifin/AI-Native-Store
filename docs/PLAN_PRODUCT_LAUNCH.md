@@ -145,9 +145,9 @@ admin → chat → Telegram).
 
 | Item | Status | Catatan |
 |---|---|---|
-| `PLAN_OPEN_SOURCE.md` → ditunda | ⬜ Fase 0 | header status |
-| Landing page baru | ⬜ Fase 1 | |
-| Funnel subscribe mock | ⬜ Fase 2 | + rate-limit |
+| `PLAN_OPEN_SOURCE.md` → ditunda | ✅ Fase 0 | header status ditambahkan |
+| Landing page baru | ✅ Fase 1 | commit `d8d2784` |
+| Funnel subscribe | ✅ Fase 2 | POST/GET `/subscriptions` + rate-limit (P5 lunas) + 14 test |
 | Adapter Telegram | ⬜ Fase 3 | token per-tenant, e2e test |
 | Deploy demo publik | ⬜ Fase 4 | FE Vercel + BE host |
 | Seed "Toko Bu Ratna" | ⬜ Fase 5 | |
