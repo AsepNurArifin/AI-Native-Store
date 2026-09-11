@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">AI Actions <span class="text-sm font-normal text-slate-500">(Owner only)</span></h1>
-    <p class="text-sm text-slate-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject — eksekusi hanya bila validasi lolos.</p>
+    <h1 class="text-2xl font-bold">AI Actions <span class="text-sm font-normal text-stone-500">(Owner only)</span></h1>
+    <p class="text-sm text-stone-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject — eksekusi hanya bila validasi lolos.</p>
     <Card>
       <CardContent>
         <div class="mb-3 flex gap-2">
-          <select v-model="fStatus" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select v-model="fStatus" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua status</option>
             <option>DRAFT</option><option>APPROVED</option><option>REJECTED</option>
             <option>APPROVED_VALIDATION_FAILED</option><option>EXECUTED</option>
@@ -14,13 +14,13 @@
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
 
-        <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+        <div class="mb-4 rounded-md border border-stone-200 bg-stone-50 p-3">
           <label class="mb-1 block text-sm font-medium">Buat draft dengan AI (FR-AA-01)</label>
-          <p class="mb-2 text-xs text-slate-500">
+          <p class="mb-2 text-xs text-stone-500">
             Contoh: “buat promosi 15% untuk produk Smartphone G066 selama 2 minggu” ·
             “tambahkan stok produk Soda R057 sebanyak 20”
           </p>
-          <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Instruksi natural language…" />
+          <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm" placeholder="Instruksi natural language…" />
           <div class="mt-2 flex items-center gap-3">
             <Button size="sm" :loading="creating" @click="createDraft()">Buat Draft</Button>
             <span v-if="draftError" class="text-sm text-red-600">{{ draftError }}</span>
@@ -30,11 +30,11 @@
 
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">ID</th><th class="pr-2">Tipe</th><th class="pr-2">Status</th><th class="pr-2">Dibuat</th><th></th>
             </tr></thead>
             <tbody>
-              <tr v-for="a in items" :key="a.id" class="border-b border-slate-100">
+              <tr v-for="a in items" :key="a.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ a.id.slice(0, 8) }}…</td>
                 <td class="pr-2">{{ a.action_type }}</td>
                 <td class="pr-2"><Badge :variant="statusVariant(a.status)">{{ a.status }}</Badge></td>
@@ -43,7 +43,7 @@
               </tr>
             </tbody>
           </table>
-          <p v-if="!items.length" class="py-4 text-center text-sm text-slate-500">Belum ada draft.</p>
+          <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft.</p>
         </div>
       </CardContent>
     </Card>

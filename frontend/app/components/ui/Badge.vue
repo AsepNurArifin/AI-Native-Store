@@ -12,15 +12,13 @@ const badgeVariants = cva(
         destructive: 'border-transparent bg-destructive text-white',
         outline: 'text-foreground',
         success:
-          'border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+          'border-transparent bg-emerald-100 text-emerald-700',
         warning:
-          'border-transparent bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-        info: 'border-transparent bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
-        muted: 'border-transparent bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-        danger:
-          'border-transparent bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-        neutral:
-          'border-transparent bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100',
+          'border-transparent bg-amber-100 text-amber-700',
+        info: 'border-transparent bg-clay-100 text-clay-700',
+        muted: 'border-transparent bg-stone-100 text-stone-600',
+        danger: 'border-transparent bg-red-100 text-red-800',
+        neutral: 'border-transparent bg-stone-200 text-stone-800',
       },
     },
     defaultVariants: { variant: 'default' },

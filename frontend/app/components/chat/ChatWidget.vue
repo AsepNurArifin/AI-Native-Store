@@ -1,25 +1,25 @@
 <template>
-  <div class="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/50 dark:border-slate-800/80 dark:bg-slate-900/90 dark:shadow-none transition-all">
+  <div class="overflow-hidden rounded-3xl border border-stone-200/80 bg-white/95 shadow-xl shadow-stone-200/50 transition-all">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-slate-100/90 bg-slate-50/70 px-5 py-4 dark:border-slate-800/80 dark:bg-slate-900/60 backdrop-blur-sm">
+    <div class="flex items-center justify-between border-b border-stone-100/90 bg-stone-50/70 px-5 py-4 backdrop-blur-sm">
       <div class="flex items-center gap-3">
-        <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20">
+        <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-clay-600 text-white shadow-md">
           <Bot class="h-5 w-5" />
-          <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
+          <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h3 class="font-display font-bold text-slate-900 dark:text-white text-sm sm:text-base">AI Sales Assistant</h3>
+            <h3 class="font-display font-bold text-stone-900 text-sm sm:text-base">AI Sales Assistant</h3>
             <Badge variant="success" :dot="true">
               Live
             </Badge>
           </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Tanya produk, cek stok, & pesan via tombol</p>
+          <p class="text-xs text-stone-500">Tanya produk, cek stok, & pesan via tombol</p>
         </div>
       </div>
       <button
         v-if="messages.length"
-        class="rounded-lg p-1.5 text-xs text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+        class="rounded-lg p-1.5 text-xs text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
         title="Reset percakapan"
         @click="resetChat"
       >
@@ -31,11 +31,11 @@
     <div ref="scrollBox" class="modern-scrollbar max-h-[440px] min-h-[360px] space-y-4 overflow-y-auto p-4 sm:p-5">
       <!-- Empty State -->
       <div v-if="!messages.length" class="flex flex-col items-center justify-center py-8 text-center">
-        <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+        <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-clay-50 text-clay-600">
           <MessageSquare class="h-7 w-7" />
         </div>
-        <h4 class="font-display font-semibold text-slate-800 dark:text-slate-200">Mulai Tanya ke AI Sales</h4>
-        <p class="mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
+        <h4 class="font-display font-semibold text-stone-800">Mulai Tanya ke AI Sales</h4>
+        <p class="mt-1 max-w-xs text-xs text-stone-500">
           Ceritakan kebutuhan belanja Anda, misalnya: <i>“Cari laptop RAM 16GB budget 8 juta”</i> atau <i>“Ada diskon apa saja?”</i>
         </p>
       </div>
@@ -46,15 +46,13 @@
         <div class="flex items-end gap-2" :class="m.role === 'me' ? 'justify-end' : 'justify-start'">
           <div
             v-if="m.role === 'ai'"
-            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white text-[10px] font-bold"
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-clay-600 text-white text-[10px] font-bold"
           >
             AI
           </div>
           <div
             class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-xs"
-            :class="m.role === 'me'
-              ? 'rounded-br-xs bg-slate-900 text-white dark:bg-indigo-600'
-              : 'rounded-bl-xs border border-slate-200/80 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100'"
+            :class="m.role === 'me' ? 'rounded-br-xs bg-stone-900 text-white ' : 'rounded-bl-xs border border-stone-200/80 bg-stone-50 text-stone-800 '"
           >
             <p class="whitespace-pre-wrap">{{ m.text }}</p>
           </div>
@@ -65,21 +63,21 @@
           <div
             v-for="p in m.products"
             :key="p.id"
-            class="group relative rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-800/90 dark:hover:border-indigo-500/50"
+            class="group relative rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-clay-300 hover:shadow-md"
           >
             <div class="flex items-start justify-between gap-2">
-              <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              <span class="rounded-lg bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
                 {{ p.category }}
               </span>
               <span
                 class="text-[11px] font-medium"
-                :class="p.current_stock > 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'"
+                :class="p.current_stock > 5 ? 'text-emerald-600 ' : 'text-amber-600 '"
               >
                 Stok: {{ p.current_stock }}
               </span>
             </div>
-            <h5 class="mt-2 font-medium text-slate-900 dark:text-white line-clamp-1 text-sm">{{ p.name }}</h5>
-            <p class="mt-1 font-display font-bold text-indigo-600 dark:text-indigo-400 text-base">
+            <h5 class="mt-2 font-medium text-stone-900 line-clamp-1 text-sm">{{ p.name }}</h5>
+            <p class="mt-1 font-display font-bold text-clay-600 text-base">
               {{ formatIDR(p.price) }}
             </p>
           </div>
@@ -88,16 +86,16 @@
         <!-- Order Summary (Receipt Style) -->
         <div
           v-if="m.summary"
-          class="ml-9 mt-3 overflow-hidden rounded-2xl border-2 border-indigo-500/30 bg-gradient-to-b from-indigo-50/30 to-white dark:from-indigo-950/20 dark:to-slate-900 shadow-md p-4 space-y-3"
+          class="ml-9 mt-3 overflow-hidden rounded-2xl border-2 border-clay-500/30 bg-clay-50/50 shadow-md p-4 space-y-3"
         >
-          <div class="flex items-center justify-between border-b border-dashed border-slate-200 pb-2.5 dark:border-slate-800">
+          <div class="flex items-center justify-between border-b border-dashed border-stone-200 pb-2.5">
             <div class="flex items-center gap-2">
-              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-xs font-bold">
+              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-100 text-clay-700 text-xs font-bold">
                 ✓
               </span>
-              <span class="font-display font-bold text-slate-900 dark:text-white text-sm">Ringkasan Pesanan</span>
+              <span class="font-display font-bold text-stone-900 text-sm">Ringkasan Pesanan</span>
             </div>
-            <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">Ref: {{ m.summary.summary_ref.slice(0, 8) }}</span>
+            <span class="text-[11px] font-mono text-stone-400">Ref: {{ m.summary.summary_ref.slice(0, 8) }}</span>
           </div>
 
           <!-- Items list -->
@@ -105,10 +103,10 @@
             <div
               v-for="it in m.summary.items"
               :key="it.product_id"
-              class="flex items-center justify-between text-slate-700 dark:text-slate-300 py-0.5"
+              class="flex items-center justify-between text-stone-700 py-0.5"
             >
               <div class="flex items-center gap-2">
-                <span class="rounded bg-slate-200/80 px-1.5 py-0.5 text-xs font-semibold text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                <span class="rounded bg-stone-200/80 px-1.5 py-0.5 text-xs font-semibold text-stone-800">
                   {{ it.quantity }}x
                 </span>
                 <span class="font-medium line-clamp-1">{{ it.name }}</span>
@@ -118,19 +116,19 @@
           </div>
 
           <!-- Total Calculation -->
-          <div class="border-t border-dashed border-slate-200 pt-2.5 dark:border-slate-800">
+          <div class="border-t border-dashed border-stone-200 pt-2.5">
             <div class="flex items-center justify-between">
-              <span class="font-medium text-slate-500 dark:text-slate-400 text-sm">Total Tagihan</span>
-              <span class="font-display text-lg font-bold text-slate-900 dark:text-white">
+              <span class="font-medium text-stone-500 text-sm">Total Tagihan</span>
+              <span class="font-display text-lg font-bold text-stone-900">
                 {{ formatIDR(m.summary.total) }}
               </span>
             </div>
-            <p class="mt-0.5 text-[10px] text-slate-400">Harga & stok diverifikasi secara atomik saat konfirmasi.</p>
+            <p class="mt-0.5 text-[10px] text-stone-400">Harga & stok diverifikasi secara atomik saat konfirmasi.</p>
           </div>
 
           <!-- Customer Input fields if needed -->
-          <div v-if="needsInfo" class="rounded-xl bg-white/80 p-3 ring-1 ring-slate-200/80 dark:bg-slate-800/80 dark:ring-slate-700 space-y-2">
-            <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Data Pemesan:</p>
+          <div v-if="needsInfo" class="rounded-xl bg-white/80 p-3 ring-1 ring-stone-200/80 space-y-2">
+            <p class="text-xs font-semibold text-stone-700">Data Pemesan:</p>
             <div class="grid gap-2 sm:grid-cols-2">
               <Input v-model="custName" placeholder="Nama lengkap" class="h-8 text-xs" />
               <Input v-model="custContact" placeholder="No. WhatsApp / HP" class="h-8 text-xs" />
@@ -148,15 +146,15 @@
             Konfirmasi Pesanan Sekarang
           </Button>
 
-          <p v-if="confirmMsg" class="text-center text-xs font-medium" :class="confirmOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+          <p v-if="confirmMsg" class="text-center text-xs font-medium" :class="confirmOk ? 'text-emerald-600 ' : 'text-rose-600 '">
             {{ confirmMsg }}
           </p>
         </div>
       </div>
 
       <!-- Typing Indicator -->
-      <div v-if="sending" class="flex items-center gap-2 text-xs text-slate-400">
-        <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600/10 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+      <div v-if="sending" class="flex items-center gap-2 text-xs text-stone-400">
+        <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-600/10 text-clay-600">
           <span class="inline-block h-2 w-2 rounded-full bg-current animate-ping" />
         </div>
         <span>AI Sales sedang mencari stok toko…</span>
@@ -164,13 +162,13 @@
     </div>
 
     <!-- Input Footer -->
-    <div class="border-t border-slate-100/90 bg-slate-50/50 p-3 sm:p-4 dark:border-slate-800/80 dark:bg-slate-900/50">
-      <p v-if="error" class="mb-2 text-xs font-medium text-rose-600 dark:text-rose-400">{{ error }}</p>
+    <div class="border-t border-stone-100/90 bg-stone-50/50 p-3 sm:p-4">
+      <p v-if="error" class="mb-2 text-xs font-medium text-rose-600">{{ error }}</p>
       <form class="flex items-center gap-2" @submit.prevent="send()">
         <Input
           v-model="draft"
           placeholder="Ketik produk atau pertanyaan belanja kamu di sini…"
-          class="flex-1 bg-white dark:bg-slate-950"
+          class="flex-1 bg-white"
         />
         <Button type="submit" variant="ai" size="md" :loading="sending" class="shrink-0 px-4">
           <span>Kirim</span>

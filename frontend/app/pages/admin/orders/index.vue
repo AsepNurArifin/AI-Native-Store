@@ -4,11 +4,11 @@
     <Card>
       <CardContent>
         <div class="mb-3 flex flex-wrap gap-2">
-          <select v-model="fStatus" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select v-model="fStatus" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua status</option>
             <option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option>
           </select>
-          <select v-model="fChannel" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
           </select>
           <Button size="sm" variant="secondary" @click="load()">Muat</Button>
@@ -16,12 +16,12 @@
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">ID</th><th class="pr-2">Channel</th><th class="pr-2">Status</th>
               <th class="pr-2">Total</th><th class="pr-2">Dibuat</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              <tr v-for="o in items" :key="o.id" class="border-b border-slate-100">
+              <tr v-for="o in items" :key="o.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ o.id.slice(0, 8) }}…</td>
                 <td class="pr-2">{{ o.channel_origin }}</td>
                 <td class="pr-2"><Badge :variant="statusVariant(o.status)">{{ o.status }}</Badge></td>

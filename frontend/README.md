@@ -32,16 +32,15 @@ Stack UI lama (`@nuxt/ui`, `@nuxt/icon`, `@nuxt/fonts`, `@nuxt/color-mode`)
 
 - **Tailwind CSS v4** via plugin `@tailwindcss/vite` di `nuxt.config.ts`
   (plugin ini wajib ada — tanpa itu `@import "tailwindcss"` gagal di build).
-- **Tema shadcn** di `app/assets/css/main.css` (variabel oklch `:root`/`.dark`,
-  `@theme inline`, `@layer base`) — hasil `shadcn init`, baseColor `neutral`.
+- **Tema shadcn "Toko Digital"** di `app/assets/css/main.css` — variabel oklch
+  `:root` + ramp aksen `clay` (terracotta) di `@theme`. **Light-only** — tidak
+  ada dark mode. Sistem desain terkunci di `design.md` (root frontend).
 - **Komponen kanonik** di `app/components/ui/` — auto-import Nuxt tanpa prefix
   (`<Button>`, `<Card>`, `<Input>`, `<Badge>`, `<Label>`, `<Textarea>`,
   `<Table>` + sub-komponen, `<Separator>`, `<Skeleton>`).
   Konfigurasi CLI: `components.json` (alias `@/*` → `app/*` sudah sesuai).
 - **Ikon lucide** — `@lucide/vue` diimpor eksplisit per komponen. Tidak ada
   SVG inline di halaman kecuali **logo brand** (`app/layouts/*.vue`).
-- **Dark mode** — kelas `.dark` di `<html>`; `useTheme()` + `<ThemeToggle>`
-  sudah dipasang di layout `default` & `admin` (lihat §2a).
 
 **Menambah komponen shadcn baru** (mis. `select`, `dialog`, `dropdown-menu`):
 
@@ -58,7 +57,7 @@ Komponen berbasis primitif (Select/Dialog/dll.) akan otomatis menginstal
 - Semua komponen `ui/*.vue` mengimpor helper `cn` dari `~/lib/utils`
   (satu-satunya sumber — `app/utils/cn.ts` sudah dihapus).
 - `Button.vue` adalah **superset ScButton** (kompatibel hasil migrasi):
-  - variant `ai` (gradient brand indigo→purple);
+  - variant `ai` (aksen brand terracotta solid, tanpa gradient);
   - `size="md"` = alias `default`; `sm`/`lg` mempertahankan proporsi ScButton;
   - prop `loading` menampilkan spinner `<LoaderCircle>` (lucide) + auto-disable.
   Migrasi `<ScButton>` → `<Button>` **selesai** (37 penggunaan; `ScButton.vue`
@@ -66,7 +65,7 @@ Komponen berbasis primitif (Select/Dialog/dll.) akan otomatis menginstal
 - **Migrasi `Sc*` selesai** — tidak ada lagi wrapper legacy di
   `app/components/ui/`:
   - `<ScButton>` → `<Button>` (37 pemakaian). `Button.vue` adalah superset:
-    variant `ai` (gradient brand), `size="md"` = alias `default`, dan prop
+    variant `ai` (aksen brand solid), `size="md"` = alias `default`, dan prop
     `loading` (spinner `<LoaderCircle>` + auto-disable).
   - `<ScCard>` → `<Card>` + `<CardHeader>`/`<CardTitle>`/`<CardContent>`/
     `<CardFooter>` (30 pemakaian). Header/footer kini berupa **sub-komponen**,
@@ -79,11 +78,11 @@ Komponen berbasis primitif (Select/Dialog/dll.) akan otomatis menginstal
     (titik indikator berkedip). Helper **`statusVariant()`** di
     `app/utils/format.ts` memetakan status domain → nama varian (menggantikan
     `statusClass()` yang mengembalikan kelas Tailwind).
-- **Dark mode**: `useTheme()` (composable) mengelola kelas `.dark` di `<html>`
-  dan `localStorage.theme` (default ikut `prefers-color-scheme`).
-  `<ThemeToggle>` dipasang di kedua layout. Skrip anti-FOUC inline di
-  `nuxt.config.ts` (`app.head.script`) memasang kelas sebelum paint pertama;
-  `plugins/theme.client.ts` menyinkronkannya ke state Nuxt saat hydrate.
+- **Tema warna "Toko Digital"** (design.md): palet hangat — kertas krem
+  (`--background`), charcoal hangat, aksen terracotta (ramp `clay-50`…`clay-950`),
+  netral `stone` (pengganti `slate`/`zinc`). Semua kelas warna dingin
+  (`slate/indigo/violet/purple/zinc/pink`) dan seluruh variant `dark:` telah
+  dihapus dari kode — aplikasi light-only tanpa gradient/neon/glow.
 
 ---
 

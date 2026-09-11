@@ -10,12 +10,6 @@ const props = withDefaults(
   <div
     role="separator"
     :aria-orientation="props.orientation"
-    :class="
-      cn(
-        'bg-border shrink-0',
-        props.orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px',
-        props.class,
-      )
-    "
+    :class="cn( 'bg-border shrink-0', props.orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', props.class, )"
   />
 </template>

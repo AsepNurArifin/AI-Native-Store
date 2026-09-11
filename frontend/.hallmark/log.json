@@ -1,0 +1,12 @@
+[
+  {
+    "date": "2026-09-11",
+    "scope": "app",
+    "genre": "playful",
+    "macrostructure": "app shell (layout admin + default)",
+    "theme": "custom (Toko Digital)",
+    "theme_axes": "light-paper / geometric-sans / warm-accent",
+    "enrichment": "none",
+    "brief": "Redesign seluruh FE: buang dark mode + neon indigo/violet → tema toko digital hangat (terracotta, kertas krem); design.md dikunci"
+  }
+]

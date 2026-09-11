@@ -8,13 +8,13 @@
       <CardContent>
         <form class="flex flex-wrap items-end gap-2" @submit.prevent="onAdjust">
           <div class="min-w-52 flex-1"><label class="mb-1 block text-sm">Produk</label>
-            <select v-model="adj.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <select v-model="adj.product_id" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option value="">— pilih —</option>
               <option v-for="s in summary" :key="s.product_id" :value="s.product_id">{{ s.name }} ({{ s.current_stock }})</option>
             </select>
           </div>
           <div><label class="mb-1 block text-sm">Arah</label>
-            <select v-model="adj.movement" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <select v-model="adj.movement" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option value="IN">IN (tambah)</option><option value="OUT">OUT (kurang)</option>
             </select>
           </div>
@@ -32,11 +32,11 @@
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Produk</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th><th class="pr-2">Stok</th><th>Status</th>
             </tr></thead>
             <tbody>
-              <tr v-for="s in summary" :key="s.product_id" class="border-b border-slate-100">
+              <tr v-for="s in summary" :key="s.product_id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">{{ s.name }}</td>
                 <td class="pr-2">{{ s.category }}</td>
                 <td class="pr-2">{{ formatIDR(s.price) }}</td>
@@ -54,21 +54,21 @@
       </CardHeader>
       <CardContent>
         <div class="mb-2 flex gap-2">
-          <select v-model="fType" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select v-model="fType" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
           </select>
           <Button size="sm" variant="secondary" @click="loadTx()">Muat</Button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Waktu</th><th class="pr-2">Type</th><th class="pr-2">Arah</th><th class="pr-2">Qty</th><th>Ref</th>
             </tr></thead>
             <tbody>
-              <tr v-for="t in tx" :key="t.id" class="border-b border-slate-100">
+              <tr v-for="t in tx" :key="t.id" class="border-b border-stone-100">
                 <td class="py-1 pr-2">{{ formatWIB(t.timestamp) }}</td>
                 <td class="pr-2">{{ t.type }}</td><td class="pr-2">{{ t.movement }}</td>
-                <td class="pr-2">{{ t.quantity }}</td><td class="text-xs text-slate-500">{{ t.reference_type }}</td>
+                <td class="pr-2">{{ t.quantity }}</td><td class="text-xs text-stone-500">{{ t.reference_type }}</td>
               </tr>
             </tbody>
           </table>

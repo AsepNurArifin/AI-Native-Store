@@ -1,8 +1,27 @@
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * Hallmark · genre: playful (soft-retail) · theme: Toko Digital (custom)
+ * design-system: design.md · designed-as-app · light-only, no neon, no gradient
+ * paper oklch(0.982 0.008 85) · accent oklch(0.62 0.15 42) terracotta
+ * axes: light-paper / geometric-sans (Outfit) / warm-accent
+ */
+
+@theme {
+  /* Ramp aksen brand — terracotta "toko digital" (pengganti indigo/violet) */
+  --color-clay-50: oklch(0.972 0.014 60);
+  --color-clay-100: oklch(0.947 0.026 55);
+  --color-clay-200: oklch(0.9 0.045 50);
+  --color-clay-300: oklch(0.85 0.065 48);
+  --color-clay-400: oklch(0.76 0.105 45);
+  --color-clay-500: oklch(0.68 0.14 43);
+  --color-clay-600: oklch(0.62 0.15 42);
+  --color-clay-700: oklch(0.54 0.14 40);
+  --color-clay-800: oklch(0.45 0.115 38);
+  --color-clay-900: oklch(0.37 0.09 36);
+  --color-clay-950: oklch(0.26 0.06 35);
+}
 
 @layer base {
   :root {
@@ -22,7 +41,7 @@
   }
 }
 
-/* Custom Scrollbars */
+/* Custom Scrollbars — netral hangat */
 .modern-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -31,54 +50,17 @@
   background: transparent;
 }
 .modern-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: oklch(0.75 0.02 70 / 0.4);
   border-radius: 9999px;
 }
 .modern-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: oklch(0.75 0.02 70 / 0.6);
 }
 
-/* Gradient & Glass Utilities */
-.ai-gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.ai-gradient-bg {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-.dark .glass-card {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 41, 59, 0.8);
-}
-
-.glow-indigo {
-  box-shadow: 0 0 30px -5px rgba(99, 102, 241, 0.25);
-}
-
-.glow-violet {
-  box-shadow: 0 0 30px -5px rgba(139, 92, 246, 0.3);
-}
-
-/* Micro-animations */
-@keyframes pulseGlow {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.96); }
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s ease-in-out infinite;
+/* Kartu lembut — kertas krem, tanpa glass-neon */
+.soft-card {
+  background: oklch(0.995 0.004 85 / 0.92);
+  border: 1px solid oklch(0.905 0.015 75 / 0.9);
 }
 
 @theme inline {
@@ -121,72 +103,41 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --radius: 0.75rem;
+  /* Kertas nota hangat */
+  --background: oklch(0.982 0.008 85);
+  --foreground: oklch(0.26 0.02 55);
+  --card: oklch(0.995 0.004 85);
+  --card-foreground: oklch(0.26 0.02 55);
+  --popover: oklch(0.995 0.004 85);
+  --popover-foreground: oklch(0.26 0.02 55);
+  /* Terracotta — aksen brand toko */
+  --primary: oklch(0.62 0.15 42);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --secondary: oklch(0.955 0.012 75);
+  --secondary-foreground: oklch(0.35 0.025 55);
+  --muted: oklch(0.95 0.012 75);
+  --muted-foreground: oklch(0.5 0.025 60);
+  --accent: oklch(0.945 0.018 65);
+  --accent-foreground: oklch(0.35 0.025 55);
+  --destructive: oklch(0.55 0.19 27);
+  --border: oklch(0.905 0.015 75);
+  --input: oklch(0.905 0.015 75);
+  --ring: oklch(0.68 0.13 45);
+  /* Chart — keluarga hangat yang bisa dibedakan */
+  --chart-1: oklch(0.62 0.15 42);   /* terracotta */
+  --chart-2: oklch(0.6 0.12 150);   /* hijau daun */
+  --chart-3: oklch(0.72 0.14 75);   /* amber madu */
+  --chart-4: oklch(0.45 0.09 50);   /* cokelat */
+  --chart-5: oklch(0.55 0.13 25);   /* merah bata */
+  --sidebar: oklch(0.968 0.011 80);
+  --sidebar-foreground: oklch(0.26 0.02 55);
+  --sidebar-primary: oklch(0.62 0.15 42);
+  --sidebar-primary-foreground: oklch(0.99 0.005 85);
+  --sidebar-accent: oklch(0.945 0.018 65);
+  --sidebar-accent-foreground: oklch(0.35 0.025 55);
+  --sidebar-border: oklch(0.905 0.015 75);
+  --sidebar-ring: oklch(0.68 0.13 45);
 }
 
 @layer base {

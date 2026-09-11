@@ -8,14 +8,14 @@
       <CardContent>
         <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
           <div class="md:col-span-2"><label class="mb-1 block text-sm">Produk</label>
-            <select v-model="form.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <select v-model="form.product_id" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option value="">— pilih —</option>
               <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} — {{ formatIDR(p.price) }}</option>
             </select>
           </div>
           <div><label class="mb-1 block text-sm">Diskon % (maks 50)</label><Input v-model.number="form.discount_percentage" type="number" /></div>
           <div><label class="mb-1 block text-sm">Status</label>
-            <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <select v-model="form.status" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option>DRAFT</option><option>ACTIVE</option>
             </select>
           </div>
@@ -31,11 +31,11 @@
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Produk</th><th class="pr-2">Diskon</th><th class="pr-2">Periode</th><th class="pr-2">Status</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              <tr v-for="pr in items" :key="pr.id" class="border-b border-slate-100">
+              <tr v-for="pr in items" :key="pr.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ productName(pr.product_id) }}</td>
                 <td class="pr-2">{{ pr.discount_percentage }}%</td>
                 <td class="pr-2 text-xs">{{ formatWIB(pr.start_date) }} → {{ formatWIB(pr.end_date) }}</td>

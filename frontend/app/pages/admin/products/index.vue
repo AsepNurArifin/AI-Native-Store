@@ -15,12 +15,12 @@
           <div><label class="mb-1 block text-sm">Kategori</label><Input v-model="form.category" placeholder="laptop" /></div>
           <div><label class="mb-1 block text-sm">Harga (Rp)</label><Input v-model.number="form.price" type="number" placeholder="9500000" /></div>
           <div><label class="mb-1 block text-sm">Status</label>
-            <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <select v-model="form.status" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option>ACTIVE</option><option>INACTIVE</option>
             </select>
           </div>
           <div class="md:col-span-2"><label class="mb-1 block text-sm">Spesifikasi (JSON)</label>
-            <textarea v-model="specText" rows="2" class="w-full rounded-md border border-slate-300 p-2 font-mono text-xs dark:border-slate-700 dark:bg-slate-950" placeholder='{"ram":"16GB"}' />
+            <textarea v-model="specText" rows="2" class="w-full rounded-md border border-stone-300 p-2 font-mono text-xs" placeholder='{"ram":"16GB"}' />
           </div>
           <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
           <div class="flex gap-2 md:col-span-2">
@@ -36,21 +36,21 @@
         <div class="mb-3 flex flex-wrap gap-2">
           <Input v-model="q" placeholder="Cari nama…" class="max-w-56" />
           <Input v-model="category" placeholder="Kategori…" class="max-w-44" />
-          <select v-model="status" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select v-model="status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
           </select>
           <Button size="sm" variant="secondary" @click="load()">Cari</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
-        <p v-if="loading" class="text-sm text-slate-500">Memuat…</p>
+        <p v-if="loading" class="text-sm text-stone-500">Memuat…</p>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-slate-500">
+            <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Nama</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th>
               <th class="pr-2">Stok</th><th class="pr-2">Status</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in items" :key="p.id" class="border-b border-slate-100">
+              <tr v-for="p in items" :key="p.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">{{ p.name }}</td>
                 <td class="pr-2">{{ p.category }}</td>
                 <td class="pr-2">{{ formatIDR(p.price) }}</td>
@@ -64,7 +64,7 @@
               </tr>
             </tbody>
           </table>
-          <p v-if="!items.length" class="py-4 text-center text-sm text-slate-500">Belum ada produk.</p>
+          <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada produk.</p>
         </div>
       </CardContent>
     </Card>
