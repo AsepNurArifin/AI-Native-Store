@@ -65,9 +65,9 @@
           <span>Conversational Commerce</span>
         </div>
         <div class="flex items-center gap-2">
-          <ScBadge tone="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">Real-time Stock</ScBadge>
-          <ScBadge tone="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">Multi-Agent AI</ScBadge>
-          <ScBadge tone="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">Anti-Overbooking</ScBadge>
+          <Badge variant="muted">Real-time Stock</Badge>
+          <Badge variant="info">Multi-Agent AI</Badge>
+          <Badge variant="success">Anti-Overbooking</Badge>
         </div>
       </div>
     </footer>

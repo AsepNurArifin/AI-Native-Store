@@ -20,8 +20,8 @@ export function formatWIB(iso: string | null | undefined): string {
   }) + ' WIB'
 }
 
-/** Warna badge status ala shadcn (kelas Tailwind). */
-export function statusClass(status: string | null | undefined): string {
+/** Varian badge shadcn untuk status (dipakai `<Badge :variant="statusVariant(...)">`). */
+export function statusVariant(status: string | null | undefined): string {
   switch ((status || '').toUpperCase()) {
     case 'ACTIVE':
     case 'CONFIRMED':
@@ -29,22 +29,21 @@ export function statusClass(status: string | null | undefined): string {
     case 'EXECUTED':
     case 'APPROVED':
     case 'ORDERED':
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+      return 'success'
     case 'DRAFT':
     case 'OPEN':
-      return 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100'
+      return 'muted'
     case 'INACTIVE':
     case 'EXPIRED':
     case 'ABANDONED':
     case 'NO_MATCH':
-      return 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100'
+      return 'neutral'
     case 'CANCELLED':
     case 'REJECTED':
     case 'APPROVED_VALIDATION_FAILED':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
     case 'ERROR':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+      return 'danger'
     default:
-      return 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100'
+      return 'muted'
   }
 }

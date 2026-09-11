@@ -5,68 +5,74 @@
       <Button size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Produk' }}</Button>
     </div>
 
-    <ScCard v-if="showForm">
-      <template #header><span class="font-semibold">{{ editing ? 'Ubah produk' : 'Produk baru' }}</span></template>
-      <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
-        <div><label class="mb-1 block text-sm">Nama</label><ScInput v-model="form.name" placeholder="Laptop A" /></div>
-        <div><label class="mb-1 block text-sm">Kategori</label><ScInput v-model="form.category" placeholder="laptop" /></div>
-        <div><label class="mb-1 block text-sm">Harga (Rp)</label><ScInput v-model.number="form.price" type="number" placeholder="9500000" /></div>
-        <div><label class="mb-1 block text-sm">Status</label>
-          <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option>ACTIVE</option><option>INACTIVE</option>
-          </select>
-        </div>
-        <div class="md:col-span-2"><label class="mb-1 block text-sm">Spesifikasi (JSON)</label>
-          <textarea v-model="specText" rows="2" class="w-full rounded-md border border-slate-300 p-2 font-mono text-xs dark:border-slate-700 dark:bg-slate-950" placeholder='{"ram":"16GB"}' />
-        </div>
-        <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
-        <div class="flex gap-2 md:col-span-2">
-          <Button type="submit" size="sm" :loading="saving">Simpan</Button>
-          <Button type="button" size="sm" variant="ghost" @click="resetForm()">Batal</Button>
-        </div>
-      </form>
-    </ScCard>
+    <Card v-if="showForm">
+      <CardHeader>
+        <CardTitle>{{ editing ? 'Ubah produk' : 'Produk baru' }}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
+          <div><label class="mb-1 block text-sm">Nama</label><Input v-model="form.name" placeholder="Laptop A" /></div>
+          <div><label class="mb-1 block text-sm">Kategori</label><Input v-model="form.category" placeholder="laptop" /></div>
+          <div><label class="mb-1 block text-sm">Harga (Rp)</label><Input v-model.number="form.price" type="number" placeholder="9500000" /></div>
+          <div><label class="mb-1 block text-sm">Status</label>
+            <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+              <option>ACTIVE</option><option>INACTIVE</option>
+            </select>
+          </div>
+          <div class="md:col-span-2"><label class="mb-1 block text-sm">Spesifikasi (JSON)</label>
+            <textarea v-model="specText" rows="2" class="w-full rounded-md border border-slate-300 p-2 font-mono text-xs dark:border-slate-700 dark:bg-slate-950" placeholder='{"ram":"16GB"}' />
+          </div>
+          <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
+          <div class="flex gap-2 md:col-span-2">
+            <Button type="submit" size="sm" :loading="saving">Simpan</Button>
+            <Button type="button" size="sm" variant="ghost" @click="resetForm()">Batal</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
 
-    <ScCard>
-      <div class="mb-3 flex flex-wrap gap-2">
-        <ScInput v-model="q" placeholder="Cari nama…" class="max-w-56" />
-        <ScInput v-model="category" placeholder="Kategori…" class="max-w-44" />
-        <select v-model="status" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-          <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
-        </select>
-        <Button size="sm" variant="secondary" @click="load()">Cari</Button>
-      </div>
-      <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
-      <p v-if="loading" class="text-sm text-slate-500">Memuat…</p>
-      <div v-else class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead><tr class="border-b text-left text-slate-500">
-            <th class="py-2 pr-2">Nama</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th>
-            <th class="pr-2">Stok</th><th class="pr-2">Status</th><th>Aksi</th>
-          </tr></thead>
-          <tbody>
-            <tr v-for="p in items" :key="p.id" class="border-b border-slate-100">
-              <td class="py-2 pr-2 font-medium">{{ p.name }}</td>
-              <td class="pr-2">{{ p.category }}</td>
-              <td class="pr-2">{{ formatIDR(p.price) }}</td>
-              <td class="pr-2">{{ p.current_stock }} <span v-if="p.is_low_stock" title="stok menipis">⚠️</span></td>
-              <td class="pr-2"><ScBadge :tone="statusClass(p.status)">{{ p.status }}</ScBadge></td>
-              <td class="flex gap-1 py-1">
-                <Button size="sm" variant="outline" @click="startEdit(p)">Ubah</Button>
-                <Button size="sm" variant="ghost" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
-                <Button size="sm" variant="destructive" @click="remove(p)">Hapus</Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-if="!items.length" class="py-4 text-center text-sm text-slate-500">Belum ada produk.</p>
-      </div>
-    </ScCard>
+    <Card>
+      <CardContent>
+        <div class="mb-3 flex flex-wrap gap-2">
+          <Input v-model="q" placeholder="Cari nama…" class="max-w-56" />
+          <Input v-model="category" placeholder="Kategori…" class="max-w-44" />
+          <select v-model="status" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
+          </select>
+          <Button size="sm" variant="secondary" @click="load()">Cari</Button>
+        </div>
+        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
+        <p v-if="loading" class="text-sm text-slate-500">Memuat…</p>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b text-left text-slate-500">
+              <th class="py-2 pr-2">Nama</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th>
+              <th class="pr-2">Stok</th><th class="pr-2">Status</th><th>Aksi</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="p in items" :key="p.id" class="border-b border-slate-100">
+                <td class="py-2 pr-2 font-medium">{{ p.name }}</td>
+                <td class="pr-2">{{ p.category }}</td>
+                <td class="pr-2">{{ formatIDR(p.price) }}</td>
+                <td class="pr-2">{{ p.current_stock }} <span v-if="p.is_low_stock" title="stok menipis">⚠️</span></td>
+                <td class="pr-2"><Badge :variant="statusVariant(p.status)">{{ p.status }}</Badge></td>
+                <td class="flex gap-1 py-1">
+                  <Button size="sm" variant="outline" @click="startEdit(p)">Ubah</Button>
+                  <Button size="sm" variant="ghost" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
+                  <Button size="sm" variant="destructive" @click="remove(p)">Hapus</Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="!items.length" class="py-4 text-center text-sm text-slate-500">Belum ada produk.</p>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { formatIDR, statusClass } from '~/utils/format'
+import { formatIDR, statusVariant } from '~/utils/format'
 import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })

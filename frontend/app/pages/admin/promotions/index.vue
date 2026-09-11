@@ -4,52 +4,56 @@
       <h1 class="text-2xl font-bold">Promosi</h1>
       <Button size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Promosi' }}</Button>
     </div>
-    <ScCard v-if="showForm">
-      <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
-        <div class="md:col-span-2"><label class="mb-1 block text-sm">Produk</label>
-          <select v-model="form.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option value="">— pilih —</option>
-            <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} — {{ formatIDR(p.price) }}</option>
-          </select>
+    <Card v-if="showForm">
+      <CardContent>
+        <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
+          <div class="md:col-span-2"><label class="mb-1 block text-sm">Produk</label>
+            <select v-model="form.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+              <option value="">— pilih —</option>
+              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} — {{ formatIDR(p.price) }}</option>
+            </select>
+          </div>
+          <div><label class="mb-1 block text-sm">Diskon % (maks 50)</label><Input v-model.number="form.discount_percentage" type="number" /></div>
+          <div><label class="mb-1 block text-sm">Status</label>
+            <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+              <option>DRAFT</option><option>ACTIVE</option>
+            </select>
+          </div>
+          <div><label class="mb-1 block text-sm">Mulai</label><Input v-model="form.start_date" type="datetime-local" /></div>
+          <div><label class="mb-1 block text-sm">Selesai</label><Input v-model="form.end_date" type="datetime-local" /></div>
+          <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
+          <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving">Simpan</Button></div>
+        </form>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardContent>
+        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b text-left text-slate-500">
+              <th class="py-2 pr-2">Produk</th><th class="pr-2">Diskon</th><th class="pr-2">Periode</th><th class="pr-2">Status</th><th>Aksi</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="pr in items" :key="pr.id" class="border-b border-slate-100">
+                <td class="py-2 pr-2 font-mono text-xs">{{ productName(pr.product_id) }}</td>
+                <td class="pr-2">{{ pr.discount_percentage }}%</td>
+                <td class="pr-2 text-xs">{{ formatWIB(pr.start_date) }} → {{ formatWIB(pr.end_date) }}</td>
+                <td class="pr-2"><Badge :variant="statusVariant(pr.status)">{{ pr.status }}</Badge></td>
+                <td>
+                  <Button v-if="pr.status === 'DRAFT'" size="sm" variant="outline" @click="activate(pr)">Aktifkan</Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div><label class="mb-1 block text-sm">Diskon % (maks 50)</label><ScInput v-model.number="form.discount_percentage" type="number" /></div>
-        <div><label class="mb-1 block text-sm">Status</label>
-          <select v-model="form.status" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option>DRAFT</option><option>ACTIVE</option>
-          </select>
-        </div>
-        <div><label class="mb-1 block text-sm">Mulai</label><ScInput v-model="form.start_date" type="datetime-local" /></div>
-        <div><label class="mb-1 block text-sm">Selesai</label><ScInput v-model="form.end_date" type="datetime-local" /></div>
-        <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
-        <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving">Simpan</Button></div>
-      </form>
-    </ScCard>
-    <ScCard>
-      <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead><tr class="border-b text-left text-slate-500">
-            <th class="py-2 pr-2">Produk</th><th class="pr-2">Diskon</th><th class="pr-2">Periode</th><th class="pr-2">Status</th><th>Aksi</th>
-          </tr></thead>
-          <tbody>
-            <tr v-for="pr in items" :key="pr.id" class="border-b border-slate-100">
-              <td class="py-2 pr-2 font-mono text-xs">{{ productName(pr.product_id) }}</td>
-              <td class="pr-2">{{ pr.discount_percentage }}%</td>
-              <td class="pr-2 text-xs">{{ formatWIB(pr.start_date) }} → {{ formatWIB(pr.end_date) }}</td>
-              <td class="pr-2"><ScBadge :tone="statusClass(pr.status)">{{ pr.status }}</ScBadge></td>
-              <td>
-                <Button v-if="pr.status === 'DRAFT'" size="sm" variant="outline" @click="activate(pr)">Aktifkan</Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ScCard>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { formatIDR, formatWIB, statusClass } from '~/utils/format'
+import { formatIDR, formatWIB, statusVariant } from '~/utils/format'
 import type { ProductOut, PromotionOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })

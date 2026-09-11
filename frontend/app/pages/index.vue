@@ -70,35 +70,41 @@
       </div>
 
       <div class="grid gap-6 md:grid-cols-3">
-        <ScCard class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
-          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 font-bold dark:bg-indigo-950/60 dark:text-indigo-400">
-            01
-          </div>
-          <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">1. Ceritakan Kebutuhan</h3>
-          <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Ketik pertanyaan atau deskripsi kebutuhan Anda secara santai seperti mengobrol dengan staf pramuniaga profesional.
-          </p>
-        </ScCard>
+        <Card class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+          <CardContent>
+            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 font-bold dark:bg-indigo-950/60 dark:text-indigo-400">
+              01
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">1. Ceritakan Kebutuhan</h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Ketik pertanyaan atau deskripsi kebutuhan Anda secara santai seperti mengobrol dengan staf pramuniaga profesional.
+            </p>
+          </CardContent>
+        </Card>
 
-        <ScCard class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
-          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 font-bold dark:bg-purple-950/60 dark:text-purple-400">
-            02
-          </div>
-          <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">2. AI Verifikasi Stok & Harga</h3>
-          <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            AI Tool Calling langsung mencari katalog toko dan mengecek jumlah stok fisik yang tersedia tanpa halusinasi inventaris.
-          </p>
-        </ScCard>
+        <Card class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+          <CardContent>
+            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 font-bold dark:bg-purple-950/60 dark:text-purple-400">
+              02
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">2. AI Verifikasi Stok & Harga</h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              AI Tool Calling langsung mencari katalog toko dan mengecek jumlah stok fisik yang tersedia tanpa halusinasi inventaris.
+            </p>
+          </CardContent>
+        </Card>
 
-        <ScCard class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
-          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold dark:bg-emerald-950/60 dark:text-emerald-400">
-            03
-          </div>
-          <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">3. Konfirmasi Pesanan Atomik</h3>
-          <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Ringkasan pesanan muncul di chat. Cukup tekan satu tombol konfirmasi pesanan; stok otomatis terkunci aman anti-ganda.
-          </p>
-        </ScCard>
+        <Card class="relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+          <CardContent>
+            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold dark:bg-emerald-950/60 dark:text-emerald-400">
+              03
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 dark:text-white">3. Konfirmasi Pesanan Atomik</h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Ringkasan pesanan muncul di chat. Cukup tekan satu tombol konfirmasi pesanan; stok otomatis terkunci aman anti-ganda.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </section>
   </div>

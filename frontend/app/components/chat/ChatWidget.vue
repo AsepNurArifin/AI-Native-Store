@@ -10,9 +10,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h3 class="font-display font-bold text-slate-900 dark:text-white text-sm sm:text-base">AI Sales Assistant</h3>
-            <ScBadge tone="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" :dot="true">
+            <Badge variant="success" :dot="true">
               Live
-            </ScBadge>
+            </Badge>
           </div>
           <p class="text-xs text-slate-500 dark:text-slate-400">Tanya produk, cek stok, & pesan via tombol</p>
         </div>
@@ -132,8 +132,8 @@
           <div v-if="needsInfo" class="rounded-xl bg-white/80 p-3 ring-1 ring-slate-200/80 dark:bg-slate-800/80 dark:ring-slate-700 space-y-2">
             <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Data Pemesan:</p>
             <div class="grid gap-2 sm:grid-cols-2">
-              <ScInput v-model="custName" placeholder="Nama lengkap" class="h-8 text-xs" />
-              <ScInput v-model="custContact" placeholder="No. WhatsApp / HP" class="h-8 text-xs" />
+              <Input v-model="custName" placeholder="Nama lengkap" class="h-8 text-xs" />
+              <Input v-model="custContact" placeholder="No. WhatsApp / HP" class="h-8 text-xs" />
             </div>
           </div>
 
@@ -167,7 +167,7 @@
     <div class="border-t border-slate-100/90 bg-slate-50/50 p-3 sm:p-4 dark:border-slate-800/80 dark:bg-slate-900/50">
       <p v-if="error" class="mb-2 text-xs font-medium text-rose-600 dark:text-rose-400">{{ error }}</p>
       <form class="flex items-center gap-2" @submit.prevent="send()">
-        <ScInput
+        <Input
           v-model="draft"
           placeholder="Ketik produk atau pertanyaan belanja kamu di sini…"
           class="flex-1 bg-white dark:bg-slate-950"

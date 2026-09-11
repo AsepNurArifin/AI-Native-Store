@@ -18,14 +18,14 @@
         <form class="space-y-4" @submit.prevent="onLogin">
           <div>
             <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Email Admin</label>
-            <ScInput v-model="email" type="email" placeholder="owner@store.demo" required />
+            <Input v-model="email" type="email" placeholder="owner@store.demo" required />
           </div>
 
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Password</label>
             </div>
-            <ScInput v-model="password" type="password" placeholder="••••••••" required />
+            <Input v-model="password" type="password" placeholder="••••••••" required />
           </div>
 
           <div v-if="error" class="rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">

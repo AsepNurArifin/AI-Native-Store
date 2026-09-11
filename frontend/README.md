@@ -63,8 +63,22 @@ Komponen berbasis primitif (Select/Dialog/dll.) akan otomatis menginstal
   - prop `loading` menampilkan spinner `<LoaderCircle>` (lucide) + auto-disable.
   Migrasi `<ScButton>` → `<Button>` **selesai** (37 penggunaan; `ScButton.vue`
   dihapus).
-- Sisa `Sc*` (`ScCard`, `ScInput`, `ScBadge`) adalah **wrapper desain legacy**
-  (murni Tailwind, tidak bergantung `@nuxt/ui`) — migrasi bertahap menyusul.
+- **Migrasi `Sc*` selesai** — tidak ada lagi wrapper legacy di
+  `app/components/ui/`:
+  - `<ScButton>` → `<Button>` (37 pemakaian). `Button.vue` adalah superset:
+    variant `ai` (gradient brand), `size="md"` = alias `default`, dan prop
+    `loading` (spinner `<LoaderCircle>` + auto-disable).
+  - `<ScCard>` → `<Card>` + `<CardHeader>`/`<CardTitle>`/`<CardContent>`/
+    `<CardFooter>` (30 pemakaian). Header/footer kini berupa **sub-komponen**,
+    bukan slot bernama. Konsekuensi visual mengikuti kanon shadcn: tanpa garis
+    pemisah antar-seksi, padding `px-6`/`py-6`, radius `rounded-xl`.
+  - `<ScInput>` → `<Input>` (18 pemakaian) — API identik (`v-model`, `class`,
+    atribut native lewat fallthrough).
+  - `<ScBadge>` → `<Badge>` (20 pemakaian) — varian shadcn + varian brand
+    `success`/`warning`/`info`/`danger`/`neutral`, plus prop opsional `dot`
+    (titik indikator berkedip). Helper **`statusVariant()`** di
+    `app/utils/format.ts` memetakan status domain → nama varian (menggantikan
+    `statusClass()` yang mengembalikan kelas Tailwind).
 - **Dark mode**: `useTheme()` (composable) mengelola kelas `.dark` di `<html>`
   dan `localStorage.theme` (default ikut `prefers-color-scheme`).
   `<ThemeToggle>` dipasang di kedua layout. Skrip anti-FOUC inline di

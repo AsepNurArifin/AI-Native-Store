@@ -180,9 +180,9 @@
 
           <div class="flex items-center gap-3">
             <ThemeToggle />
-            <ScBadge tone="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" :dot="true">
+            <Badge variant="success" :dot="true">
               Sistem Aktif
-            </ScBadge>
+            </Badge>
             <NuxtLink to="/" class="hidden sm:inline-flex text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
               Lihat Toko ↗
             </NuxtLink>

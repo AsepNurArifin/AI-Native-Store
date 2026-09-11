@@ -1,68 +1,80 @@
 <template>
   <div class="space-y-4">
     <h1 class="text-2xl font-bold">Inventori</h1>
-    <ScCard>
-      <template #header><span class="font-semibold">Penyesuaian stok manual</span></template>
-      <form class="flex flex-wrap items-end gap-2" @submit.prevent="onAdjust">
-        <div class="min-w-52 flex-1"><label class="mb-1 block text-sm">Produk</label>
-          <select v-model="adj.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option value="">— pilih —</option>
-            <option v-for="s in summary" :key="s.product_id" :value="s.product_id">{{ s.name }} ({{ s.current_stock }})</option>
-          </select>
+    <Card>
+      <CardHeader>
+        <CardTitle>Penyesuaian stok manual</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form class="flex flex-wrap items-end gap-2" @submit.prevent="onAdjust">
+          <div class="min-w-52 flex-1"><label class="mb-1 block text-sm">Produk</label>
+            <select v-model="adj.product_id" class="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+              <option value="">— pilih —</option>
+              <option v-for="s in summary" :key="s.product_id" :value="s.product_id">{{ s.name }} ({{ s.current_stock }})</option>
+            </select>
+          </div>
+          <div><label class="mb-1 block text-sm">Arah</label>
+            <select v-model="adj.movement" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+              <option value="IN">IN (tambah)</option><option value="OUT">OUT (kurang)</option>
+            </select>
+          </div>
+          <div><label class="mb-1 block text-sm">Qty</label><Input v-model.number="adj.quantity" type="number" class="w-24" /></div>
+          <Button type="submit" size="sm" :loading="adjLoading">Catat</Button>
+        </form>
+        <p v-if="adjMsg" class="mt-2 text-sm" :class="adjOk ? 'text-emerald-600' : 'text-red-600'">{{ adjMsg }}</p>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Ringkasan stok</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b text-left text-slate-500">
+              <th class="py-2 pr-2">Produk</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th><th class="pr-2">Stok</th><th>Status</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="s in summary" :key="s.product_id" class="border-b border-slate-100">
+                <td class="py-2 pr-2 font-medium">{{ s.name }}</td>
+                <td class="pr-2">{{ s.category }}</td>
+                <td class="pr-2">{{ formatIDR(s.price) }}</td>
+                <td class="pr-2">{{ s.current_stock }}</td>
+                <td><Badge :variant="s.is_low_stock ? 'warning' : 'success'">{{ s.is_low_stock ? 'LOW' : 'OK' }}</Badge></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div><label class="mb-1 block text-sm">Arah</label>
-          <select v-model="adj.movement" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option value="IN">IN (tambah)</option><option value="OUT">OUT (kurang)</option>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Riwayat transaksi</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div class="mb-2 flex gap-2">
+          <select v-model="fType" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+            <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
           </select>
+          <Button size="sm" variant="secondary" @click="loadTx()">Muat</Button>
         </div>
-        <div><label class="mb-1 block text-sm">Qty</label><ScInput v-model.number="adj.quantity" type="number" class="w-24" /></div>
-        <Button type="submit" size="sm" :loading="adjLoading">Catat</Button>
-      </form>
-      <p v-if="adjMsg" class="mt-2 text-sm" :class="adjOk ? 'text-emerald-600' : 'text-red-600'">{{ adjMsg }}</p>
-    </ScCard>
-    <ScCard>
-      <template #header><span class="font-semibold">Ringkasan stok</span></template>
-      <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead><tr class="border-b text-left text-slate-500">
-            <th class="py-2 pr-2">Produk</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th><th class="pr-2">Stok</th><th>Status</th>
-          </tr></thead>
-          <tbody>
-            <tr v-for="s in summary" :key="s.product_id" class="border-b border-slate-100">
-              <td class="py-2 pr-2 font-medium">{{ s.name }}</td>
-              <td class="pr-2">{{ s.category }}</td>
-              <td class="pr-2">{{ formatIDR(s.price) }}</td>
-              <td class="pr-2">{{ s.current_stock }}</td>
-              <td><ScBadge :tone="s.is_low_stock ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'">{{ s.is_low_stock ? 'LOW' : 'OK' }}</ScBadge></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ScCard>
-    <ScCard>
-      <template #header><span class="font-semibold">Riwayat transaksi</span></template>
-      <div class="mb-2 flex gap-2">
-        <select v-model="fType" class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950">
-          <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
-        </select>
-        <Button size="sm" variant="secondary" @click="loadTx()">Muat</Button>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead><tr class="border-b text-left text-slate-500">
-            <th class="py-2 pr-2">Waktu</th><th class="pr-2">Type</th><th class="pr-2">Arah</th><th class="pr-2">Qty</th><th>Ref</th>
-          </tr></thead>
-          <tbody>
-            <tr v-for="t in tx" :key="t.id" class="border-b border-slate-100">
-              <td class="py-1 pr-2">{{ formatWIB(t.timestamp) }}</td>
-              <td class="pr-2">{{ t.type }}</td><td class="pr-2">{{ t.movement }}</td>
-              <td class="pr-2">{{ t.quantity }}</td><td class="text-xs text-slate-500">{{ t.reference_type }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ScCard>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b text-left text-slate-500">
+              <th class="py-2 pr-2">Waktu</th><th class="pr-2">Type</th><th class="pr-2">Arah</th><th class="pr-2">Qty</th><th>Ref</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="t in tx" :key="t.id" class="border-b border-slate-100">
+                <td class="py-1 pr-2">{{ formatWIB(t.timestamp) }}</td>
+                <td class="pr-2">{{ t.type }}</td><td class="pr-2">{{ t.movement }}</td>
+                <td class="pr-2">{{ t.quantity }}</td><td class="text-xs text-slate-500">{{ t.reference_type }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
