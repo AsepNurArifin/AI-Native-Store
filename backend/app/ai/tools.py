@@ -46,9 +46,24 @@ class ToolExecutor:
             return {"error": f"Tool {name} tidak dikenal."}
         return await getattr(self, method)(**args)
 
+    @staticmethod
+    def _as_uuid(value: str) -> uuid.UUID | None:
+        """Guard: LLM kadang mengisi product_id dengan nama/SKU (bukan UUID).
+
+        Tanpa guard ini asyncpg melempar DataError -> HTTP 500. Dengan guard,
+        tool mengembalikan error instruksional sehingga LLM bisa self-correct
+        (panggil search_products dulu) pada iterasi berikutnya.
+        """
+        try:
+            return uuid.UUID(str(value))
+        except (ValueError, AttributeError, TypeError):
+            return None
+
     # ==================== SALES ====================
 
     async def get_product(self, product_id: str) -> dict:
+        if self._as_uuid(product_id) is None:
+            return {"error": "product_id harus UUID produk — panggil search_products dulu untuk mendapatkannya."}
         product = await ProductService.get(self.db, product_id)
         if not product:
             return {"error": "Produk tidak ditemukan."}
@@ -64,6 +79,8 @@ class ToolExecutor:
         return {"count": len(items), "items": items}
 
     async def get_stock(self, product_id: str) -> dict:
+        if self._as_uuid(product_id) is None:
+            return {"error": "product_id harus UUID produk — panggil search_products dulu untuk mendapatkannya."}
         stock = await InventoryService.current_stock(self.db, product_id)
         product = await ProductService.get(self.db, product_id)
         return {"product_id": product_id, "name": product.name if product else None, "current_stock": stock}
@@ -71,6 +88,8 @@ class ToolExecutor:
     async def compare_products(self, product_ids: list[str]) -> dict:
         items = []
         for pid in product_ids[:3]:
+            if self._as_uuid(pid) is None:
+                continue
             product = await ProductService.get(self.db, pid)
             if not product:
                 continue
@@ -85,6 +104,9 @@ class ToolExecutor:
         total = 0.0
         errors = []
         for it in items:
+            if self._as_uuid(it["product_id"]) is None:
+                errors.append("product_id harus UUID produk — panggil search_products dulu")
+                continue
             product = await ProductService.get(self.db, it["product_id"])
             if not product:
                 errors.append(f"Produk {it['product_id']} tidak ditemukan")
@@ -153,6 +175,8 @@ class ToolExecutor:
     async def create_promotion_draft(self, product_id: str, discount_percentage: float,
                                      start_date: str, end_date: str) -> dict:
         """Hanya menghasilkan draft data (dieksekusi via approval flow)."""
+        if self._as_uuid(product_id) is None:
+            return {"error": "product_id harus UUID produk — panggil search_products dulu untuk mendapatkannya."}
         return {
             "draft": {
                 "action_type": "CREATE_PROMOTION",
@@ -171,6 +195,8 @@ class ToolExecutor:
         movement: IN = tambah stok, OUT = kurangi stok. quantity selalu positif —
         arah perubahan ditentukan movement, bukan tanda quantity.
         """
+        if self._as_uuid(product_id) is None:
+            return {"error": "product_id harus UUID produk — panggil search_products dulu untuk mendapatkannya."}
         return {
             "draft": {
                 "action_type": "ADJUST_STOCK",

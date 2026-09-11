@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     wa_test_numbers: str = ""
     wa_template_order_confirm: str = "order_confirmation"
 
+    # Telegram (Fase 3 PLAN_PRODUCT_LAUNCH.md — bot self-service via BotFather,
+    # tanpa verifikasi bisnis seperti WABA Meta)
+    telegram_provider: str = "mock"  # mock | bot
+    telegram_bot_token: str = ""  # dari @BotFather
+    telegram_webhook_secret: str = ""  # secret_token setWebhook -> header X-Telegram-Bot-Api-Secret-Token
+    telegram_api_base: str = "https://api.telegram.org"
+
     @property
     def wa_webhook_verify_token(self) -> str:
         return self.wa_verify_token
