@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { cn } from '~/utils/cn'
+import { cn } from '~/lib/utils'
 
 const props = withDefaults(defineProps<{
   variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'ghost' | 'ai'

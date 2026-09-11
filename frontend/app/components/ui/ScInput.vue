@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { cn } from '~/utils/cn'
+import { cn } from '~/lib/utils'
 
 const model = defineModel<string | number | null>()
 defineOptions({ inheritAttrs: false })
