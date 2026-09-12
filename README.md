@@ -151,11 +151,23 @@ otomatis via `Base.metadata.create_all` (`app/db/init_db.py`).
 ### 5.3 Seed
 
 Seed otomatis berjalan saat startup **jika tabel `users` kosong** dan
-`SEED_ON_STARTUP=true` → 1 Owner, ±120 SKU, riwayat stok 30 hari, contoh order, promo.
-Data deterministik (`random.seed(42)`) untuk benchmark NFR.
+`SEED_ON_STARTUP=true` → data demo **"Toko Bu Ratna"**: Owner "Ratna Wulandari",
+98 SKU elektronik dalam 7 kategori (Smartphone, Laptop, Tablet, Audio, Wearable,
+Aksesori, Komputer & Gaming), spesifikasi dan **harga simulasi**, riwayat stok
+30 hari, pelanggan contoh (WA/Telegram/WEB), 2 order, 1 promo aktif.
+Random seed tetap (`42`); waktu historis relatif terhadap waktu seeding.
+Saldo historis non-negatif dan transaksi ORDER memiliki rujukan pesanan.
+Lihat [kualitas data katalog](docs/CATALOG_DATA_QUALITY.md) untuk batas audit spesifikasi.
 
 **Kredensial demo (development):** lihat `SEED_OWNER_EMAIL` / `SEED_DEFAULT_PASSWORD`
-di `.env` (default `owner@store.demo` / `owner123` untuk seed generator).
+di `.env` (default `owner@store.demo` / `ChangeMe123!`). **Backup dan pastikan
+DB target benar sebelum reset:** `backend/scripts/reset_demo.sql` menghapus
+seluruh data toko. Gunakan hanya pada DB demo atas persetujuan pemilik, lalu
+re-seed (restart backend atau `uv run python -m app.seed.generate`).
+Seed tidak mengganti data toko yang sudah terisi.
+
+Menuju final: [checklist](docs/FINALIZATION_CHECKLIST.md) ·
+[runbook demo lokal](docs/DEMO_RUNBOOK.md).
 
 ---
 
@@ -203,9 +215,9 @@ Postgres test terpisah:
 
 ```bash
 docker run -d --name ai-store-test-pg \
-  -e POSTGRES_USER=store -e POSTGRES_PASSWORD=store -e POSTGRES_DB=store \
-  -p 5432:5432 postgres:16-alpine
-docker exec ai-store-test-pg psql -U store -d store -c "CREATE DATABASE store_test;"
+  -e POSTGRES_USER=store -e POSTGRES_PASSWORD=store -e POSTGRES_DB=store_test \
+  -p 5433:5432 postgres:16-alpine
+# DATABASE_URL_TEST=postgresql+asyncpg://store:store@localhost:5433/store_test
 ```
 
 Jalankan:
@@ -218,8 +230,11 @@ uv run pytest tests/test_concurrency.py -q         # proteksi oversell
 uv run pytest tests/test_webhook_security.py -q    # signature webhook Meta
 ```
 
-`conftest.py` menetapkan `APP_ENV=testing` (scheduler nonaktif, seed nonaktif) dan
-drop/create tabel per test. Test pakai `ScriptedLLM` — tidak memanggil LLM nyata.
+`conftest.py` mengharuskan `DATABASE_URL_TEST` PostgreSQL lokal terpisah dengan
+nama DB mengandung `test`, lalu drop/create tabel per test. URL kosong/nonlokal
+atau identik dengan DB toko ditolak. Test menggunakan mock/scripted LLM, bukan
+provider nyata. Suite finalisasi juga mencakup `test_seed.py`,
+`test_product_search.py`, dan `test_electronics_e2e.py`.
 
 ### 7.2 Frontend
 

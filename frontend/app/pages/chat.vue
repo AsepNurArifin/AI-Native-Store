@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-12 py-2 sm:py-4">
     <!-- Hero Section -->
-    <section class="grid items-center gap-10 lg:grid-cols-12">
+    <section class="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
       <!-- Left Column: Copywriting & Actions -->
       <div class="space-y-6 lg:col-span-6">
         <!-- Feature Badge -->
         <div class="inline-flex items-center gap-2 rounded-full border border-clay-200/60 bg-clay-50/70 px-3 py-1 text-xs font-semibold text-clay-700">
           <span class="flex h-2 w-2 rounded-full bg-clay-500 animate-pulse" />
-          <span>Generasi Baru Conversational Commerce</span>
+          <span>Layanan chat Toko Bu Ratna</span>
         </div>
 
         <!-- Main Headline -->
@@ -18,7 +18,7 @@
 
         <!-- Subtitle -->
         <p class="text-base leading-relaxed text-stone-600 sm:text-lg">
-          Tanyakan rekomendasi produk, cek ketersediaan stok fisik gudang secara instan, dan selesaikan transaksi langsung dari ruang chat tanpa repot mengisi keranjang belanja.
+          Tanyakan rekomendasi gadget, cek spesifikasi &amp; ketersediaan stok toko secara instan, dan selesaikan transaksi langsung dari ruang chat tanpa repot mengisi keranjang belanja.
         </p>
 
         <!-- Quick Prompt Chips -->
@@ -37,25 +37,25 @@
           </div>
         </div>
 
-        <!-- Key Metrics Strip -->
+        <!-- Key Metrics Strip (fakta katalog riil dari seed) -->
         <div class="grid grid-cols-3 gap-3 pt-4 border-t border-stone-200/70">
           <div>
-            <p class="font-display text-xl font-bold text-stone-900">100%</p>
-            <p class="text-xs text-stone-500">Stok Real-time</p>
+            <p class="font-display text-xl font-bold text-stone-900">98</p>
+            <p class="text-xs text-stone-500">produk contoh</p>
           </div>
           <div>
-            <p class="font-display text-xl font-bold text-stone-900">&lt; 2 dtk</p>
-            <p class="text-xs text-stone-500">Respon AI Sales</p>
+            <p class="font-display text-xl font-bold text-stone-900">7</p>
+            <p class="text-xs text-stone-500">kategori</p>
           </div>
           <div>
-            <p class="font-display text-xl font-bold text-stone-900">0 Klik</p>
-            <p class="text-xs text-stone-500">Tanpa Keranjang</p>
+            <p class="font-display text-xl font-bold text-stone-900">Chat</p>
+            <p class="text-xs text-stone-500">tanya spesifikasi</p>
           </div>
         </div>
       </div>
 
       <!-- Right Column: Interactive Chat Widget -->
-      <div class="lg:col-span-6">
+      <div class="min-w-0 lg:col-span-6">
         <ChatWidget ref="chatWidgetRef" />
       </div>
     </section>
@@ -65,7 +65,7 @@
       <div class="text-center max-w-2xl mx-auto">
         <h2 class="font-display text-2xl font-bold text-stone-900 sm:text-3xl">Bagaimana Cara Kerjanya?</h2>
         <p class="mt-2 text-sm text-stone-600">
-          Proses belanja revolusioner yang didesain untuk kecepatan, kejelasan stok, dan kenyamanan.
+          Cari produk, periksa ringkasan, lalu konfirmasi pesanan demo.
         </p>
       </div>
 
@@ -89,7 +89,7 @@
             </div>
             <h3 class="font-display text-base font-bold text-stone-900">2. AI Verifikasi Stok & Harga</h3>
             <p class="mt-2 text-sm text-stone-600 leading-relaxed">
-              AI Tool Calling langsung mencari katalog toko dan mengecek jumlah stok fisik yang tersedia tanpa halusinasi inventaris.
+              Asisten mencari data katalog, termasuk spesifikasi, harga, dan stok yang tercatat. Informasi yang belum tersedia perlu dikonfirmasi ke pemilik toko.
             </p>
           </CardContent>
         </Card>
@@ -112,15 +112,15 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default' })
-useHead({ title: 'Demo Toko — AI-Native Store' })
+useHead({ title: 'Chat Toko Bu Ratna — Tanya Stok, Spesifikasi & Pesan Langsung' })
 
 const chatWidgetRef = ref<{ sendPrompt: (prompt: string) => void } | null>(null)
 
 const suggestedPrompts = [
-  'Laptop RAM 16GB budget 10 juta',
-  'Keyboard wireless ergonomis',
-  'Ada promo diskon apa hari ini?',
-  'Mouse gaming responsif'
+  'iPhone 15 Pro ada stok?',
+  'Laptop RAM 16GB di bawah 12 juta',
+  'Ada promo apa hari ini?',
+  'Headset wireless di bawah 1 juta'
 ]
 
 function triggerPrompt(prompt: string) {

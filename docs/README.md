@@ -6,6 +6,9 @@
 
 | Dokumen | Isi | Dibaca sebelum |
 |---|---|---|
+| [`FINALIZATION_CHECKLIST.md`](FINALIZATION_CHECKLIST.md) | Checklist aktif final single-store elektronik: bukti test, UAT, scope, freeze | Menuju final |
+| [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) | Menjalankan demo lokal, skenario presentasi, cadangan, reset aman | Sebelum demo |
+| [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md) | Harga simulasi, koreksi bersumber, kontrak spesifikasi/filter, batas audit | Mengubah katalog |
 | [`plan.md`](../plan.md) | Master plan: roadmap fase, milestone, traceability, risiko, open items | Semua anggota, F0 |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Arsitektur sistem, alur data, komponen, layer AI, channel adapter | F1 |
 | [`DATA_SCHEMA.md`](DATA_SCHEMA.md) | Skema database Supabase: entitas, kolom, relasi, aturan integritas | F1 |

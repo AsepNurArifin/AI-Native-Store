@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { Lock } from '@lucide/vue'
 definePageMeta({ layout: 'default' })
+useHead({ title: 'Masuk Admin — Toko Bu Ratna' })
 const auth = useAuthStore()
 const email = ref('')
 const password = ref('')

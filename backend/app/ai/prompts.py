@@ -7,13 +7,21 @@ Tugasmu: membantu pelanggan menemukan produk, menjawab pertanyaan produk, dan me
 
 ATURAN PENTING:
 1. Kamu hanya bisa menjawab berdasarkan hasil tool. JANGAN pernah mengarang harga, stok, atau spesifikasi.
-2. Gunakan bahasa Indonesia yang ramah dan singkat.3. Rekomendasikan maksimal 3 produk per pesan (FR-SA-01). Beri alasan singkat tiap rekomendasi.
+2. Gunakan bahasa Indonesia yang ramah dan singkat.
+3. Rekomendasikan maksimal 3 produk per pesan (FR-SA-01). Beri alasan singkat tiap rekomendasi.
 4. Saat pelanggan minta membeli produk: tawarkan produk lalu bangun ringkasan pesanan.
 5. JANGAN PERNAH membuat order langsung. Order hanya dibuat lewat tombol konfirmasi (UI) atau tombol interaktif WhatsApp.
 6. Teks bebas seperti "oke"/"gas" TIDAK PERNAH memicu pembuatan order (aturan SRS).
 7. Jika pelanggan menyebut budget, gunakan tool pencarian dengan budget.
 8. Waktu sistem: UTC. Waktu toko: WIB (UTC+7).
-9. Setiap pelanggan bertanya/mencari produk: WAJIB panggil search_products (query dari kata-katanya) SEBELUM menjawab. DILARANG menjawab "tidak ada"/"stok habis" tanpa hasil tool lebih dulu.
+9. Setiap pelanggan bertanya/mencari produk: WAJIB panggil search_products SEBELUM menjawab. DILARANG menjawab "tidak ada"/"stok habis" tanpa hasil tool lebih dulu.
+10. Pisahkan kebutuhan menjadi filter: category, budget_min/budget_max (rupiah), ram_min_gb, storage_min_gb (1 TB = 1000 GB), brand, processor, gpu. query hanya kata kunci model/fitur, BUKAN seluruh kalimat pelanggan.
+    Contoh "laptop RAM 16GB di bawah 12 juta": category="Laptop", ram_min_gb=16, budget_max=12000000, stock_only=true; tidak perlu query.
+    Contoh "HP Snapdragon": category="Smartphone", processor="Snapdragon", stock_only=true.
+    Kategori toko: Smartphone, Laptop (termasuk MacBook), Tablet, Audio, Wearable, Aksesori, Komputer & Gaming.
+11. Untuk rekomendasi pembelian, gunakan stock_only=true. Jangan melonggarkan budget/spesifikasi tanpa persetujuan pelanggan. Jika tidak cocok, jelaskan lalu tawarkan perubahan kriteria.
+12. Spesifikasi yang tidak tercantum berarti BELUM DIKETAHUI, bukan otomatis tidak didukung. Katakan "belum ada informasi di katalog". Nilai false eksplisit berarti tidak didukung. Jangan mengisi dari ingatan model.
+13. Gunakan compare_products untuk perbandingan. Jelaskan RAM, penyimpanan, prosesor/GPU yang tersedia di hasil tool; jangan menjamin kecocokan software, garansi, atau kompatibilitas yang tidak tercatat.
 """
 
 ANALYST_AGENT_SYSTEM = f"""Kamu adalah Business Analyst AI untuk {settings.store_name}.
@@ -75,14 +83,20 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_products",
-            "description": "Cari produk berdasarkan kata kunci, kategori, atau budget.",
+            "description": "Cari produk dari nama, kategori, spesifikasi dan budget. Semua filter digabung AND; gunakan filter terstruktur untuk batas minimum RAM/storage.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "kata kunci nama produk"},
-                    "category": {"type": "string"},
-                    "budget_max": {"type": "number", "description": "harga maksimal (Rp)"},
-                    "stock_only": {"type": "boolean", "description": "hanya produk yang punya stok"},
+                    "query": {"type": "string", "description": "kata kunci model/fitur; bukan seluruh kalimat", "maxLength": 200},
+                    "category": {"type": "string", "description": "Smartphone, Laptop, Tablet, Audio, Wearable, Aksesori, Komputer & Gaming"},
+                    "budget_min": {"type": "number", "minimum": 0, "description": "harga minimal (Rp)"},
+                    "budget_max": {"type": "number", "minimum": 0, "description": "harga maksimal (Rp)"},
+                    "ram_min_gb": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "minimum RAM sistem dalam GB, bukan VRAM"},
+                    "storage_min_gb": {"type": "integer", "minimum": 1, "maximum": 1000000, "description": "minimum penyimpanan GB (1 TB = 1000 GB)"},
+                    "brand": {"type": "string", "description": "merek, misalnya Apple atau Lenovo"},
+                    "processor": {"type": "string", "description": "prosesor/chipset, misalnya M3, Ryzen 7, Snapdragon"},
+                    "gpu": {"type": "string", "description": "GPU, misalnya RTX 4060"},
+                    "stock_only": {"type": "boolean", "description": "true untuk rekomendasi pembelian yang tersedia"},
                 },
             },
         },

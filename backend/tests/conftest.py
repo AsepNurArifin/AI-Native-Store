@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -16,9 +17,18 @@ from app.core.config import settings
 # dibuat kode produksi (menguji implementasi, bukan requirement).
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Pastikan environment test: DB test terpisah (DATABASE_URL_TEST bila ada)
-if settings.database_url_test:
-    settings.database_url = settings.database_url_test
+# Fail closed BEFORE importing the engine: this suite drops tables per test.
+# Never fall back to DATABASE_URL (which may point to the real Supabase store).
+if not settings.database_url_test:
+    raise RuntimeError("DATABASE_URL_TEST wajib diisi dengan PostgreSQL lokal khusus test.")
+_test_url = make_url(settings.database_url_test)
+if (
+    _test_url.host not in {"localhost", "127.0.0.1", "::1", "postgres-test", "db-test"}
+    or "test" not in (_test_url.database or "").lower()
+    or settings.database_url_test == settings.database_url
+):
+    raise RuntimeError("Test dibatalkan: gunakan database lokal terpisah bernama *test*, bukan database toko.")
+settings.database_url = settings.database_url_test
 
 # Rate-limit default OFF di suite test (isolasi); diaktifkan per-test oleh
 # test rate-limit itu sendiri. Lihat app/core/rate_limit.py.

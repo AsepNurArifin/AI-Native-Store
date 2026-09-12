@@ -1,5 +1,7 @@
 # PLAN — Peluncuran Produk: Landing + Subscribe + Demo SaaS
 
+> Checklist menuju final single-store elektronik: [`FINALIZATION_CHECKLIST.md`](FINALIZATION_CHECKLIST.md).
+>
 > **⚠️ SUPERSEDED (2026-09-12):** produk dipivot dari "SaaS fasad" ke
 > **single-user** (satu toko per instalasi) — lihat `docs/SRS_AMENDMENTS.md` §E.
 > Fase 1–2 (landing SaaS + funnel subscribe) **dicabut dari kode**;
@@ -154,4 +156,4 @@ admin → chat → Telegram).
 | Funnel subscribe | ~~✅ Fase 2~~ ❌ **dicabut** | POST/GET `/subscriptions` + tabel + halaman `/subscribe` dihapus (SRS_AMENDMENTS §E); rate-limit P5 dipindah ke `test_rate_limit.py` |
 | Adapter Telegram | ✅ Fase 3 | messaging_base + provider mock/bot + webhook secret + 16 test; docs/TELEGRAM_SETUP.md |
 | Deploy demo publik | ⬜ Fase 4 | FE Vercel + BE host |
-| Seed "Toko Bu Ratna" | ⬜ Fase 5 | |
+| Seed "Toko Bu Ratna" | ✅ Fase 5 | `app/seed/generate.py`: 98 SKU elektronik 7 kategori (Smartphone, Laptop, Tablet, Audio, Wearable, Aksesori, Komputer & Gaming), spesifikasi + harga simulasi (audit faktual belum seluruhnya selesai), stok historis non-negatif, Owner "Ratna Wulandari", pelanggan WA/Telegram/WEB, 2 order, 1 promo aktif |

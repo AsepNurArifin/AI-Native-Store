@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-09-12",
+    "scope": "page:/ (+/chat, ChatWidget, layout default, seed backend)",
+    "genre": "playful (soft-retail)",
+    "macrostructure": "storefront elektronik (hero toko -> rak kategori -> cara belanja -> manfaat pembeli -> CTA)",
+    "theme": "custom (Toko Digital)",
+    "theme_axes": "light-paper / geometric-sans / warm-accent",
+    "enrichment": "none (typography + token only)",
+    "brief": "Pivot domain: kelontong -> toko elektronik. Seed 98 SKU realistis (iPhone/MacBook/Galaxy/dll) dengan spesifikasi detail per kategori (chipset, RAM, storage, layar, baterai) yang mengalir ke Sales Agent via JSONB specification. Frontend: kategori rak, contoh prompt chat, metrik (98/7/24-7), dan SEO deskripsi disesuaikan. Tetap tanpa klaim yang tidak dapat dibuktikan."
+  },
+  {
+    "date": "2026-09-12",
+    "scope": "page:/ (+layout default, /chat, SEO global)",
+    "genre": "playful (soft-retail)",
+    "macrostructure": "storefront (hero toko -> rak kategori -> cara belanja -> manfaat pembeli -> CTA)",
+    "theme": "custom (Toko Digital)",
+    "theme_axes": "light-paper / geometric-sans / warm-accent",
+    "enrichment": "none (typography + token only)",
+    "brief": "Pivot single-user lanjutan: / bukan lagi landing produk SaaS menjadi storefront Toko Bu Ratna. Kategori dari seed riil (7 kategori, 96+ SKU), metrik jujur (hapus klaim <2dtk), nav/footer identitas toko, admin jadi link diskret di footer. SEO: lang=id, useSeoMeta + og tags, JSON-LD Store, title per halaman, prompt saran chat disesuaikan katalog kelontong."
+  },
+  {
     "date": "2026-09-11",
     "scope": "app",
     "genre": "playful",

@@ -10,6 +10,7 @@ diekspos ke LLM: konfirmasi order dan approval Owner adalah event manusia
 import uuid
 from datetime import datetime, timedelta
 
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -69,12 +70,22 @@ class ToolExecutor:
             return {"error": "Produk tidak ditemukan."}
         return await ProductService.with_stock(self.db, product)
 
-    async def search_products(self, query: str | None = None, category: str | None = None,
-                              budget_max: float | None = None, stock_only: bool = False) -> dict:
-        products = await ProductService.search(
-            self.db, query=query, category=category, status="ACTIVE",
-            stock_only=stock_only, budget_max=budget_max, limit=10,
-        )
+    async def search_products(
+        self, query: str | None = None, category: str | None = None,
+        budget_max: float | None = None, stock_only: bool = False,
+        budget_min: float | None = None, ram_min_gb: int | None = None,
+        storage_min_gb: int | None = None, brand: str | None = None,
+        processor: str | None = None, gpu: str | None = None,
+    ) -> dict:
+        try:
+            products = await ProductService.search(
+                self.db, query=query, category=category, status="ACTIVE",
+                stock_only=stock_only, budget_min=budget_min, budget_max=budget_max,
+                ram_min_gb=ram_min_gb, storage_min_gb=storage_min_gb,
+                brand=brand, processor=processor, gpu=gpu, limit=10,
+            )
+        except ValidationError:
+            return {"error": "Filter pencarian tidak valid. Gunakan budget non-negatif, RAM/penyimpanan dalam GB, dan budget_min <= budget_max."}
         items = [await ProductService.with_stock(self.db, p) for p in products]
         return {"count": len(items), "items": items}
 

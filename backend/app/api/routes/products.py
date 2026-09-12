@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_owner
@@ -12,13 +13,29 @@ router = APIRouter(prefix="/products", tags=["products"], dependencies=[Depends(
 
 @router.get("", response_model=list[ProductOut])
 async def list_products(
-    q: str | None = None,
-    category: str | None = None,
+    q: str | None = Query(default=None, max_length=200),
+    category: str | None = Query(default=None, max_length=50),
     status: str | None = Query(default="ACTIVE", pattern="^(ACTIVE|INACTIVE)$"),
+    budget_min: float | None = Query(default=None, ge=0),
+    budget_max: float | None = Query(default=None, ge=0),
+    ram_min_gb: int | None = Query(default=None, ge=1, le=4096),
+    storage_min_gb: int | None = Query(default=None, ge=1, le=1_000_000),
+    brand: str | None = Query(default=None, max_length=100),
+    processor: str | None = Query(default=None, max_length=100),
+    gpu: str | None = Query(default=None, max_length=100),
+    stock_only: bool = False,
     db: AsyncSession = Depends(get_session),
     _: User = Depends(require_owner),
 ):
-    products = await ProductService.search(db, query=q, category=category, status=status, stock_only=False, limit=500)
+    try:
+        products = await ProductService.search(
+            db, query=q, category=category, status=status, stock_only=stock_only,
+            budget_min=budget_min, budget_max=budget_max, ram_min_gb=ram_min_gb,
+            storage_min_gb=storage_min_gb, brand=brand, processor=processor, gpu=gpu,
+            limit=500,
+        )
+    except ValidationError:
+        raise HTTPException(status_code=422, detail="Filter pencarian tidak valid; periksa rentang budget dan spesifikasi.")
     return [await ProductService.with_stock(db, p) for p in products]
 
 

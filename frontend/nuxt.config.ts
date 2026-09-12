@@ -12,11 +12,18 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'AI-Native Store — Conversational Commerce',
+      htmlAttrs: { lang: 'id' },
+      title: 'Toko Bu Ratna — Toko Elektronik: HP, Laptop & Aksesoris',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Sistem Toko AI-Native dengan Conversational Commerce, stok real-time, dan multi-agent AI assistant.' }
+        {
+          name: 'description',
+          content:
+            'Demo toko elektronik: tanya spesifikasi dan stok HP, laptop, MacBook, iPhone, serta aksesori lewat chat. Katalog contoh 98 produk dengan harga simulasi.'
+        },
+        { property: 'og:site_name', content: 'Toko Bu Ratna' },
+        { name: 'theme-color', content: '#c2662c' }
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

@@ -27,15 +27,26 @@ Menangani percakapan customer: discovery → rekomendasi → comparison → orde
 ### 2.2 Tools (dari SRS §5.2)
 | Tool | Parameter | Return | FR |
 |---|---|---|---|
-| `search_products` | `{ category?, budget_min?, budget_max?, keywords?, use_case?, limit? }` | produk ACTIVE + stock>0 + harga | FR-SA-01/02 |
+| `search_products` | `{ query?, category?, budget_min?, budget_max?, ram_min_gb?, storage_min_gb?, brand?, processor?, gpu?, stock_only? }` | `{count, items}`: produk ACTIVE + spesifikasi + harga + stok; stock_only=true untuk rekomendasi pembelian; limit internal 10 | FR-SA-01/02 |
 | `get_product` | `{ product_id }` | detail + stok | FR-SA-06 |
 | `compare_products` | `{ product_ids: [≥2] }` | matriks atribut dari `specification` + harga | FR-SA-03 |
 | `get_stock` | `{ product_id }` | current_stock fresh | FR-SA-02 |
-| `build_order_summary` | `{ conversation_id, items: [{product_id, quantity}] }` | summary_ref + harga/stok saat itu | FR-SA-05 |
+| `build_order_summary` | `{ items: [{product_id, quantity}] }` | summary_ref + harga/stok saat itu | FR-SA-05 |
 
 > `create_order` **bukan** tool LLM. Order hanya ter-commit dari event tombol konfirmasi di channel layer → `OrderService` (SRS §5.2: "dipanggil hanya setelah konfirmasi UI eksplisit"). Ini perbedaan penting: LLM menyiapkan summary, sistem yang mengeksekusi konfirmasi.
 
 ### 2.3 System Prompt (draft — untuk iterasi)
+
+Implementasi aktif ada di `backend/app/ai/prompts.py`. Untuk katalog elektronik:
+- Pisahkan kalimat pelanggan menjadi filter tool, bukan seluruh kalimat ke `query`.
+- RAM/storage minimum dalam GB; 1 TB = 1000 GB.
+- Field hilang berarti belum diketahui, `false` eksplisit berarti tidak didukung.
+- Tidak melonggarkan filter tanpa persetujuan; perbandingan memakai `compare_products`.
+- Timeout/error provider menghasilkan respons unavailable eksplisit, bukan jawaban
+  mock yang seolah berhasil. Uji live model tetap diperlukan; scripted test tidak
+  membuktikan model bebas halusinasi.
+
+Detail kontrak: [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md).
 
 ```
 Kamu adalah asisten penjualan (Sales Agent) toko elektronik. Kamu membantu

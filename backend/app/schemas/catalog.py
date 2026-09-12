@@ -1,9 +1,33 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.base import ORMBase
+
+
+class ProductSearchParams(BaseModel):
+    """Shared validation for the owner API and LLM search tool (GB = decimal GB)."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, allow_inf_nan=False)
+
+    query: str | None = Field(default=None, max_length=200)
+    category: str | None = Field(default=None, max_length=50)
+    budget_min: float | None = Field(default=None, ge=0)
+    budget_max: float | None = Field(default=None, ge=0)
+    ram_min_gb: int | None = Field(default=None, ge=1, le=4096)
+    storage_min_gb: int | None = Field(default=None, ge=1, le=1_000_000)
+    brand: str | None = Field(default=None, max_length=100)
+    processor: str | None = Field(default=None, max_length=100)
+    gpu: str | None = Field(default=None, max_length=100)
+    stock_only: bool = False
+
+    @model_validator(mode="after")
+    def validate_budget(self):
+        if self.budget_min is not None and self.budget_max is not None:
+            if self.budget_min > self.budget_max:
+                raise ValueError("budget_min tidak boleh melebihi budget_max")
+        return self
 
 
 class ProductCreate(BaseModel):

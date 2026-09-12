@@ -46,8 +46,8 @@
 | `JWT_ALGORITHM` | `HS256` | Algoritma signing |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Umur access token |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Umur refresh token (opsional, jika dipakai) |
-| `SEED_OWNER_EMAIL` | `owner@tokodemo.test` | ⚠️ Saat ini DIABAIKAN seed — akun seed hardcoded `owner@store.demo` / `owner123` (lihat `app/seed/generate.py`). Selaraskan sebelum demo bila perlu |
-| `SEED_DEFAULT_PASSWORD` | *(ganti di prod)* | ⚠️ Sama — password seed hardcoded, bukan dari var ini |
+| `SEED_OWNER_EMAIL` | `owner@store.demo` | Email akun Owner seed "Toko Bu Ratna" (dipakai oleh `app/seed/generate.py`) |
+| `SEED_DEFAULT_PASSWORD` | *(ganti di prod)* | Password akun Owner seed — hanya untuk dev/demo; production guard menolak `SEED_ON_STARTUP=true` |
 
 ## 5. AI / LLM (`LLM_*`)
 
@@ -94,7 +94,7 @@
 | Nama | Contoh | Keterangan |
 |---|---|---|
 | `LOG_LEVEL` | `INFO` | Level logging backend |
-| `SEED_SKU_COUNT` | `100` | Jumlah SKU synthetic yang digenerate (max 500 per NFR-01) |
+| `SEED_SKU_COUNT` | `100` | Jumlah SKU seed "Toko Bu Ratna" (dibatasi ukuran katalog ±96; max 500 per NFR-01) |
 | `IDEMPOTENCY_TTL_MINUTES` | `30` | Umur idempotency key anti double-order (UC-02 E5) |
 
 ## 9. Matrix per Environment

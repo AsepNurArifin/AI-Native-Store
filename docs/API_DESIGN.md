@@ -57,11 +57,18 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
 
 | Method | Path | FR | Deskripsi |
 |---|---|---|---|
-| GET | `/api/v1/products` | | List + filter (status, kategori, q) + stok dari view |
+| GET | `/api/v1/products` | FR-SA-02 | List + filter status/kategori/q, budget_min/max, ram_min_gb, storage_min_gb, brand, processor, gpu, stock_only; stok dari agregasi transaksi |
 | POST | `/api/v1/products` | | Create |
 | GET | `/api/v1/products/{id}` | | Detail + current_stock |
 | PATCH | `/api/v1/products/{id}` | | Update (atribut/harga/status ACTIVE↔INACTIVE) |
 | DELETE | `/api/v1/products/{id}` | FR-SMS-01 | **Ditolak (409 PRODUCT_IN_USE)** bila direferensikan order_items/promotions/inventory_transactions → saran INACTIVE |
+
+Filter produk pada implementasi aktif digabung AND; `q` mencari token pada
+nama/kategori/spesifikasi, bukan parser kalimat penuh. RAM/storage minimum
+numerik (GB; 1 TB = 1000 GB), budget pada harga dasar. Nilai spec hilang/rusak
+tidak memenuhi minimum; `stock_only=true` disaring sebelum LIMIT. Response
+list berupa `ProductOut[]` (maksimum internal 500), bukan envelope pagination.
+Input invalid → 422. Lihat [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md).
 
 ### 2.6 Inventory (internal)
 

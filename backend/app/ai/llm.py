@@ -171,8 +171,11 @@ class LLM:
         try:
             return await self.provider.complete(system=system, messages=messages, tools=tools)
         except Exception as e:  # graceful degradation (NFR-12)
-            logger.warning("LLM call failed (%s) — fallback ke mock", e)
-            return await MockLLMProvider().complete(system=system, messages=messages, tools=tools)
+            logger.warning("LLM call failed (%s) — safe unavailable response", type(e).__name__)
+            return LLMResponse(
+                "Layanan AI sementara tidak tersedia. Silakan coba lagi sebentar. "
+                "Tidak ada pesanan atau perubahan data toko yang dibuat otomatis dari pesan ini."
+            )
 
 
 def model_for(role: str) -> str | None:

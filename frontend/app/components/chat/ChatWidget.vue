@@ -1,25 +1,23 @@
 <template>
-  <div class="overflow-hidden rounded-3xl border border-stone-200/80 bg-white/95 shadow-xl shadow-stone-200/50 transition-all">
+  <div class="min-w-0 overflow-hidden rounded-3xl border border-stone-200/80 bg-white/95 shadow-xl shadow-stone-200/50 transition-all">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-stone-100/90 bg-stone-50/70 px-5 py-4 backdrop-blur-sm">
-      <div class="flex items-center gap-3">
+    <div class="flex items-center justify-between gap-2 border-b border-stone-100/90 bg-stone-50/70 px-4 py-4 sm:px-5 backdrop-blur-sm">
+      <div class="flex min-w-0 items-center gap-3">
         <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-clay-600 text-white shadow-md">
           <Bot class="h-5 w-5" />
-          <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+          <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-stone-400" />
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h3 class="font-display font-bold text-stone-900 text-sm sm:text-base">AI Sales Assistant</h3>
-            <Badge variant="success" :dot="true">
-              Live
-            </Badge>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="font-display font-bold text-stone-900 text-sm sm:text-base">Asisten toko</h3>
+            <Badge variant="muted">Demo</Badge>
           </div>
           <p class="text-xs text-stone-500">Tanya produk, cek stok, & pesan via tombol</p>
         </div>
       </div>
       <button
         v-if="messages.length"
-        class="rounded-lg p-1.5 text-xs text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
+        class="shrink-0 rounded-lg p-1.5 text-xs text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
         title="Reset percakapan"
         @click="resetChat"
       >
@@ -36,7 +34,7 @@
         </div>
         <h4 class="font-display font-semibold text-stone-800">Mulai Tanya ke AI Sales</h4>
         <p class="mt-1 max-w-xs text-xs text-stone-500">
-          Ceritakan kebutuhan belanja Anda, misalnya: <i>“Cari laptop RAM 16GB budget 8 juta”</i> atau <i>“Ada diskon apa saja?”</i>
+          Ceritakan gadget yang kamu cari, misalnya: <i>“Laptop untuk desain grafis budget 15 juta”</i> atau <i>“iPhone 15 Pro ada stok?”</i>
         </p>
       </div>
 
@@ -59,7 +57,7 @@
         </div>
 
         <!-- Product Cards Recommendation -->
-        <div v-if="m.products?.length" class="ml-9 mt-2 grid gap-2.5 sm:grid-cols-2">
+        <div v-if="m.products?.length" class="min-w-0 sm:ml-9 mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div
             v-for="p in m.products"
             :key="p.id"
@@ -76,19 +74,23 @@
                 Stok: {{ p.current_stock }}
               </span>
             </div>
-            <h5 class="mt-2 font-medium text-stone-900 line-clamp-1 text-sm">{{ p.name }}</h5>
+            <h5 class="mt-2 font-medium text-stone-900 text-sm [overflow-wrap:anywhere]">{{ p.name }}</h5>
             <p class="mt-1 font-display font-bold text-clay-600 text-base">
               {{ formatIDR(p.price) }}
             </p>
+            <details class="mt-3 min-w-0">
+              <summary class="cursor-pointer rounded text-xs font-semibold text-clay-700 hover:text-clay-600 focus-visible:outline-2 focus-visible:outline-clay-600 focus-visible:outline-offset-2 active:text-clay-800">Lihat spesifikasi</summary>
+              <ProductSpecifications class="mt-3" :specification="p.specification" />
+            </details>
           </div>
         </div>
 
         <!-- Order Summary (Receipt Style) -->
         <div
           v-if="m.summary"
-          class="ml-9 mt-3 overflow-hidden rounded-2xl border-2 border-clay-500/30 bg-clay-50/50 shadow-md p-4 space-y-3"
+          class="min-w-0 sm:ml-9 mt-3 overflow-hidden rounded-2xl border-2 border-clay-500/30 bg-clay-50/50 shadow-md p-4 space-y-3"
         >
-          <div class="flex items-center justify-between border-b border-dashed border-stone-200 pb-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-stone-200 pb-2.5">
             <div class="flex items-center gap-2">
               <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-100 text-clay-700 text-xs font-bold">
                 ✓
@@ -103,15 +105,15 @@
             <div
               v-for="it in m.summary.items"
               :key="it.product_id"
-              class="flex items-center justify-between text-stone-700 py-0.5"
+              class="flex flex-wrap items-center justify-between gap-2 text-stone-700 py-0.5"
             >
               <div class="flex items-center gap-2">
                 <span class="rounded bg-stone-200/80 px-1.5 py-0.5 text-xs font-semibold text-stone-800">
                   {{ it.quantity }}x
                 </span>
-                <span class="font-medium line-clamp-1">{{ it.name }}</span>
+                <span class="font-medium [overflow-wrap:anywhere]">{{ it.name }}</span>
               </div>
-              <span class="font-semibold">{{ formatIDR(it.line_total) }}</span>
+              <span class="shrink-0 font-semibold">{{ formatIDR(it.line_total) }}</span>
             </div>
           </div>
 
@@ -143,7 +145,7 @@
             :loading="confirming"
             @click="confirm(m.summary!)"
           >
-            Konfirmasi Pesanan Sekarang
+            Konfirmasi pesanan
           </Button>
 
           <p v-if="confirmMsg" class="text-center text-xs font-medium" :class="confirmOk ? 'text-emerald-600 ' : 'text-rose-600 '">
@@ -163,7 +165,8 @@
 
     <!-- Input Footer -->
     <div class="border-t border-stone-100/90 bg-stone-50/50 p-3 sm:p-4">
-      <p v-if="error" class="mb-2 text-xs font-medium text-rose-600">{{ error }}</p>
+      <p class="mb-2 text-xs text-stone-500">Demo toko. Harga simulasi; chat memerlukan backend dan layanan AI yang aktif.</p>
+      <p v-if="error" role="alert" class="mb-2 text-xs font-medium text-rose-600">{{ error }}</p>
       <form class="flex items-center gap-2" @submit.prevent="send()">
         <Input
           v-model="draft"
