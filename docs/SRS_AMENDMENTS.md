@@ -145,6 +145,38 @@ JWT_SECRET_KEY default/lemah, `DEBUG=true`, `SEED_ON_STARTUP=true`,
 `debug=False` sebelum import session — scheduler maintenance nonaktif saat test,
 seed startup tidak pernah menyentuh DB test, endpoint dev terkunci.
 
+## E. Pivot model produk: SaaS fasad → single-user (2026-09-12)
+
+### E1. 🟢 Funnel subscribe dihapus — produk menjadi single-user (satu toko per instalasi)
+
+Keputusan pemilik produk: sistem tidak lagi diposisikan sebagai SaaS.
+Aplikasi kini menjadi sistem manajemen toko AI-native untuk **satu toko
+tunggal** (satu akun Owner per instalasi) — konsisten dengan realitas
+implementasi yang memang tidak pernah multi-tenant (tanpa `tenant_id`, tanpa
+billing, tanpa provisioning).
+
+**Yang dihapus:**
+- Model `Subscription`, schema, dan routes `POST/GET /api/v1/subscriptions`
+- Halaman `/subscribe` + semua CTA subscribe/pricing di landing page
+- Migrasi `006_drop_subscriptions.sql` (tabel `subscriptions` di-drop)
+- Test funnel subscribe (`test_subscriptions.py`, 7 test dihapus)
+
+**Yang dipertahankan:**
+- Rate-limit P5 tetap aktif di endpoint publik (chat, webhook); pengujian
+  429/Retry-After dipindah ke `test_rate_limit.py` (via webhook Telegram)
+- Landing page tetap ada — CTA kini "Lihat Demo Toko" (pembeli) dan "Masuk ke
+  Panel Admin" (pemilik); section pricing diganti section "akses sistem"
+- Admin panel, webchat `/chat`, dan bot Telegram tidak berubah (memang sudah
+  single-store)
+
+**Alasan:** narasi SaaS menggantung (billing mock, provisioning manual) lebih
+merugikan untuk sidang daripada positioning yang jujur dan konsisten.
+Jalur evolusi ke multi-tenant tetap terdokumentasi sebagai future work.
+
+**Dampak SRS/PRD:** bagian pricing/paket langganan pada dokumen produk tidak
+lagi mengikat untuk implementasi; requirement fungsional inti (FR-SMS, FR-AA,
+FR-BA, FR-AUTH) tidak terpengaruh.
+
 ---
 
 > **Status dokumen:** DRAFT — butuh review + tanda tangan tim (mirip mekanisme

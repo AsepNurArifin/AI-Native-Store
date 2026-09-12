@@ -15,7 +15,6 @@ from app.api.routes import (
     orders,
     products,
     promotions,
-    subscriptions,
     webhooks,
 )
 
@@ -25,7 +24,6 @@ api_router.include_router(products.router)
 api_router.include_router(inventory.router)
 api_router.include_router(orders.router)
 api_router.include_router(promotions.router)
-api_router.include_router(subscriptions.router)
 api_router.include_router(customers.router)
 api_router.include_router(conversations.router)
 api_router.include_router(analytics.router)

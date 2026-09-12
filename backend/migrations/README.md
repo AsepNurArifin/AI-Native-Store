@@ -23,6 +23,23 @@ uv run python -m app.db.migrate --url "postgresql+asyncpg://..."  # DSN lain
 Runner membuat tabel `schema_migrations`, lalu menerapkan file yang belum
 tercatat, masing-masing dalam satu transaksi (gagal → rollback seluruh file).
 
+### Baseline untuk DB ex-`create_all`
+
+DB dev yang schema-nya dibuat lewat `Base.metadata.create_all` (jalur dev,
+`app/db/init_db.py`) lalu beralih ke runner migration akan gagal di 001
+(`relation "users" already exists`) karena efeknya sudah ada tapi tidak
+tercatat. Solusi: baseline file yang efeknya sudah ada, lalu apply sisanya:
+
+```bash
+uv run python -m app.db.migrate --baseline 001_initial_schema.sql
+uv run python -m app.db.migrate   # lanjut 002..006
+```
+
+Catatan: **jangan** baseline 002 di DB ex-create_all — index query di 002
+TIDAK dibuat oleh create_all (beda nama dari index ORM), justru perlu
+di-apply sungguhan. File 003–005 idempotent (aman di-apply di DB yang
+efeknya sudah ada).
+
 ## Isi file
 
 | File | Isi |
@@ -31,7 +48,8 @@ tercatat, masing-masing dalam satu transaksi (gagal → rollback seluruh file).
 | `002_indexes_and_stock_view.sql` | Index query utama + view `v_product_stock` |
 | `003_audit_append_only_trigger.sql` | Trigger `trg_audit_no_modify` (FR-AA-04) |
 | `004_seed_marker.sql` | Tabel `seed_marker` (seed idempotent) |
-| `005_subscriptions.sql` | Tabel `subscriptions` — funnel subscribe SaaS (Fase 2 PLAN_PRODUCT_LAUNCH.md, mock billing) |
+| `005_subscriptions.sql` | Tabel `subscriptions` — funnel subscribe SaaS (Fase 2 PLAN_PRODUCT_LAUNCH.md, mock billing). **Dihapus** oleh 006 (pivot single-user) |
+| `006_drop_subscriptions.sql` | Drop `subscriptions` — pivot SaaS → single-user (SRS_AMENDMENTS §E) |
 
 ## Keputusan skema tercatat
 

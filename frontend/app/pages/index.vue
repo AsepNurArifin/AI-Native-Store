@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /*
- * Landing page promosi — AI-Native Store (SaaS).
+ * Landing page promosi — AI-Native Store (single-user, satu toko per instalasi).
+ * Pivot dari SaaS fasad ke single-user — lihat docs/SRS_AMENDMENTS.md §E.
  * Hallmark · genre: playful (soft-retail) · design-system: design.md
  * macrostructure: marketing landing (hero → masalah → cara kerja → fitur →
- * pricing → FAQ → CTA) · enrichment: none (typography + token only)
+ * akses → FAQ → CTA) · enrichment: none (typography + token only)
  * pre-emit critique: P4 H5 E5 S4 R5 V4
  */
 definePageMeta({ layout: 'default' })
@@ -12,7 +13,7 @@ useHead({ title: 'AI-Native Store — Kelola Tokomu Lewat Obrolan' })
 const faqs = [
   {
     q: 'Saya tidak paham teknologi, apakah bisa pakai?',
-    a: 'Bisa. Seluruh sistem dirancang untuk pemilik toko: Anda mengatur produk lewat panel sederhana, dan pembeli cukup mengobrol. Tidak ada instalasi, tidak ada server yang perlu Anda rawat.'
+    a: 'Bisa. Seluruh sistem dirancang untuk pemilik toko: Anda mengatur produk lewat panel sederhana, dan pembeli cukup mengobrol. Tidak ada server yang perlu Anda rawat.'
   },
   {
     q: 'Apakah pembeli harus install aplikasi?',
@@ -56,12 +57,12 @@ function toggleFaq(i: number) {
         </p>
 
         <div class="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
-          <Button size="lg" to="/subscribe">Coba Gratis 14 Hari</Button>
-          <Button size="lg" variant="outline" to="/chat">Lihat Demo Toko</Button>
+          <Button size="lg" to="/chat">Lihat Demo Toko</Button>
+          <Button size="lg" variant="outline" to="/login">Masuk ke Panel Admin</Button>
         </div>
 
         <p class="text-xs text-stone-500">
-          Tanpa kartu kredit · Batalkan kapan saja
+          Satu toko, satu sistem — semua fitur terbuka
         </p>
       </div>
 
@@ -134,8 +135,8 @@ function toggleFaq(i: number) {
             <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 text-sm font-bold text-stone-500">?</div>
             <h3 class="font-display text-base font-bold text-stone-900">Tidak ada waktu &amp; tenaga IT</h3>
             <p class="text-sm leading-relaxed text-stone-600">
-              Tidak bisa bikin website, tidak paham server. <span class="font-medium text-clay-700">Cukup daftar,
-              isi produk, toko Anda langsung online</span> — kami yang mengurus sisanya.
+              Tidak bisa bikin website, tidak paham server. <span class="font-medium text-clay-700">Masuk,
+              isi produk, toko Anda langsung melayani</span> — tanpa setup teknis.
             </p>
           </CardContent>
         </Card>
@@ -152,10 +153,10 @@ function toggleFaq(i: number) {
       <div class="grid gap-6 md:grid-cols-3">
         <div class="space-y-3">
           <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-clay-600 font-display text-base font-bold text-white">1</div>
-          <h3 class="font-display text-base font-bold text-stone-900">Daftar &amp; isi produk</h3>
+          <h3 class="font-display text-base font-bold text-stone-900">Masuk &amp; isi produk</h3>
           <p class="text-sm leading-relaxed text-stone-600">
-            Buat akun, isi nama toko, tambahkan produk &amp; stok. Panel admin kami
-            sederhana — selesai dalam hitungan menit.
+            Pemilik toko masuk ke panel admin, lalu menambahkan produk &amp; stok.
+            Panelnya sederhana — selesai dalam hitungan menit.
           </p>
         </div>
         <div class="space-y-3">
@@ -229,79 +230,55 @@ function toggleFaq(i: number) {
       </div>
     </section>
 
-    <!-- ============ PRICING ============ -->
-    <section id="harga" class="space-y-8 scroll-mt-20">
+    <!-- ============ AKSES SISTEM ============ -->
+    <section id="akses" class="space-y-8 scroll-mt-20">
       <div class="mx-auto max-w-2xl text-center">
-        <h2 class="font-display text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">Harga sederhana, tanpa kejutan</h2>
-        <p class="mt-3 text-sm text-stone-600 sm:text-base">Coba dulu gratis. Kalau cocok, lanjut satu paket — semua fitur terbuka.</p>
+        <h2 class="font-display text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">Dua pintu, satu toko</h2>
+        <p class="mt-3 text-sm text-stone-600 sm:text-base">Satu instalasi untuk satu toko — pembeli dan pemilik masing-masing punya pintunya sendiri.</p>
       </div>
 
-      <div class="mx-auto grid max-w-4xl gap-5 md:grid-cols-3 items-start">
-        <!-- Coba -->
+      <div class="mx-auto grid max-w-3xl gap-5 md:grid-cols-2 items-start">
+        <!-- Pintu pembeli -->
         <Card class="border-stone-200/70">
           <CardHeader>
-            <CardTitle class="text-base">Coba</CardTitle>
-            <CardDescription>Untuk melihat rasanya</CardDescription>
+            <Badge variant="info">Pembeli</Badge>
+            <CardTitle class="mt-2 text-base">Webchat &amp; bot Telegram</CardTitle>
+            <CardDescription>Tanpa install, tanpa daftar</CardDescription>
           </CardHeader>
-          <CardContent class="space-y-1">
-            <p class="font-display text-3xl font-extrabold text-stone-900">Gratis</p>
-            <p class="text-xs text-stone-500">14 hari penuh</p>
-            <ul class="mt-4 space-y-2 text-sm text-stone-600">
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Semua fitur terbuka</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Tanpa kartu kredit</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Data toko Anda tetap tersimpan</li>
+          <CardContent class="space-y-2 text-sm text-stone-600">
+            <ul class="space-y-2">
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Tanya produk &amp; cek stok lewat chat</li>
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Pesan lewat tombol konfirmasi</li>
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Bisa dari browser atau Telegram</li>
             </ul>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" class="w-full" to="/subscribe">Mulai Trial</Button>
+            <Button variant="outline" class="w-full" to="/chat">Buka Webchat Demo</Button>
           </CardFooter>
         </Card>
 
-        <!-- Toko (utama) -->
-        <Card class="relative border-clay-300 bg-white shadow-md md:-translate-y-2">
+        <!-- Pintu pemilik -->
+        <Card class="relative border-clay-300 bg-white shadow-md">
           <CardHeader>
-            <Badge variant="default" class="absolute -top-2.5 left-4 bg-clay-600">Paling populer</Badge>
-            <CardTitle class="text-base">Toko</CardTitle>
-            <CardDescription>Satu paket, semua fitur</CardDescription>
+            <Badge variant="default" class="bg-clay-600">Pemilik toko</Badge>
+            <CardTitle class="mt-2 text-base">Panel admin</CardTitle>
+            <CardDescription>Satu akun Owner, kendali penuh</CardDescription>
           </CardHeader>
-          <CardContent class="space-y-1">
-            <p class="font-display text-3xl font-extrabold text-stone-900">Rp79rb<span class="text-sm font-medium text-stone-500">/bln</span></p>
-            <p class="text-xs text-stone-500">atau Rp790rb/tahun — hemat 2 bulan</p>
-            <ul class="mt-4 space-y-2 text-sm text-stone-600">
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Produk &amp; pesanan tanpa batas</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Webchat + bot Telegram</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> 3 AI Agent (1.000 chat AI/bln)</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Panel admin &amp; laporan</li>
+          <CardContent class="space-y-2 text-sm text-stone-600">
+            <ul class="space-y-2">
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Katalog, stok, pesanan, promo, pelanggan</li>
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Setujui/tolak setiap aksi AI</li>
+              <li class="flex gap-2"><span class="text-clay-600">✓</span> Audit log &amp; laporan analitik</li>
             </ul>
           </CardContent>
           <CardFooter>
-            <Button class="w-full bg-clay-600 hover:bg-clay-500" to="/subscribe">Langganan Sekarang</Button>
-          </CardFooter>
-        </Card>
-
-        <!-- Top-up -->
-        <Card class="border-stone-200/70">
-          <CardHeader>
-            <CardTitle class="text-base">Top-up AI</CardTitle>
-            <CardDescription>Kalau kuota chat habis</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-1">
-            <p class="font-display text-3xl font-extrabold text-stone-900">Rp25rb</p>
-            <p class="text-xs text-stone-500">per 500 chat AI tambahan</p>
-            <ul class="mt-4 space-y-2 text-sm text-stone-600">
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Opsional, bukan keharusan</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Tanpa kedaluwarsa</li>
-              <li class="flex gap-2"><span class="text-clay-600">✓</span> Transparan, tanpa biaya tersembunyi</li>
-            </ul>
-          </CardContent>
-          <CardFooter>
-            <p class="w-full text-center text-xs text-stone-400">Aktif dari panel admin saat berlangganan</p>
+            <Button class="w-full bg-clay-600 hover:bg-clay-500" to="/login">Masuk sebagai Owner</Button>
           </CardFooter>
         </Card>
       </div>
 
       <p class="mx-auto max-w-xl text-center text-xs text-stone-400">
-        WhatsApp untuk skala lebih besar akan tersedia di paket lanjutan.
+        WhatsApp (Meta Cloud API) tersedia sebagai kanal tambahan — lihat dokumentasi setup.
       </p>
     </section>
 
@@ -339,12 +316,12 @@ function toggleFaq(i: number) {
           Toko Anda bisa mulai menjawab besok.
         </h2>
         <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-stone-600 sm:text-base">
-          Coba gratis 14 hari — tanpa kartu kredit, tanpa instalasi.
-          Kalau tidak cocok, tinggal berhenti.
+          Lihat langsung cara kerjanya — coba webchat sebagai pembeli,
+          lalu masuk ke panel untuk melihat sisanya.
         </p>
         <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button size="lg" class="bg-clay-600 hover:bg-clay-500" to="/subscribe">Coba Gratis 14 Hari</Button>
-          <Button size="lg" variant="ghost" to="/chat">Atau lihat dulu demonya</Button>
+          <Button size="lg" class="bg-clay-600 hover:bg-clay-500" to="/chat">Coba Webchat-nya</Button>
+          <Button size="lg" variant="ghost" to="/login">Masuk ke panel admin</Button>
         </div>
       </div>
     </section>

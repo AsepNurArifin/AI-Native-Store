@@ -12,11 +12,17 @@ Usage:
     uv run python -m app.db.migrate              # apply pending migrations
     uv run python -m app.db.migrate --status     # daftar applied/pending
     uv run python -m app.db.migrate --url <dsn>  # pakai DSN lain (default: settings.database_url)
+    uv run python -m app.db.migrate --baseline 001_initial_schema.sql
+                                                 # tandai sudah-applied tanpa eksekusi
+                                                 # (untuk DB yang dibuat via create_all)
 
 Catatan:
   - Jangan dijalankan terhadap DB test pytest (conftest drop/create per test).
   - Dev/test lokal tetap memakai Base.metadata.create_all (app/db/init_db.py);
     file ini adalah jalur kanonik untuk produksi/Supabase.
+  - DB yang dibuat via create_all LALU bermigrasi ke runner: baseline dulu file
+    yang efeknya sudah ada (mis. 001), lalu apply sisanya. Jangan baseline 002
+    di DB dev — index-nya belum dibuat oleh create_all, justru perlu di-apply.
 """
 
 from __future__ import annotations
@@ -81,7 +87,28 @@ async def _apply_one(conn: asyncpg.Connection, filepath: pathlib.Path) -> None:
     logger.info("Applied  %s", name)
 
 
-async def _run(dsn: str, only_status: bool) -> None:
+async def _baseline(conn: asyncpg.Connection, names: list[str]) -> None:
+    """Tandai migration 'sudah applied' TANPA mengeksekusi filenya.
+
+    Untuk DB yang schema-nya dibuat lewat Base.metadata.create_all (jalur dev)
+    lalu beralih ke runner migration: efek file sudah ada di DB, tinggal
+    dicatat supaya runner tidak mencoba menjalankannya ulang.
+    """
+    known = {f.name for f in _list_files()}
+    for name in names:
+        if name not in known:
+            raise SystemExit(
+                f"Nama migration tidak dikenal: {name!r}\n"
+                f"Yang tersedia: {', '.join(sorted(known))}"
+            )
+        await conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
+            name,
+        )
+        logger.info("Baselined %s (dicatat tanpa eksekusi)", name)
+
+
+async def _run(dsn: str, only_status: bool, baseline: list[str] | None) -> None:
     conn = await asyncpg.connect(**_parse_dsn(dsn))
     try:
         await conn.execute(
@@ -93,6 +120,10 @@ async def _run(dsn: str, only_status: bool) -> None:
             )
             """
         )
+        if baseline:
+            await _baseline(conn, baseline)
+            await _status(conn)
+            return
         if only_status:
             await _status(conn)
             return
@@ -113,8 +144,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Apply SQL migrations (backend/migrations).")
     parser.add_argument("--status", action="store_true", help="hanya tampilkan status")
     parser.add_argument("--url", default=DEFAULT_URL, help="DSN postgresql+asyncpg:// (default settings.database_url)")
+    parser.add_argument(
+        "--baseline",
+        nargs="+",
+        metavar="FILE",
+        default=None,
+        help="tandai FILE sudah-applied tanpa eksekusi (DB ex-create_all), lalu keluar",
+    )
     args = parser.parse_args()
-    asyncio.run(_run(args.url, only_status=args.status))
+    asyncio.run(_run(args.url, only_status=args.status, baseline=args.baseline))
 
 
 if __name__ == "__main__":

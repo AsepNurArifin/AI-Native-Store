@@ -27,7 +27,6 @@ from app.schemas.customer import (
     RecommendationOut,
 )
 from app.schemas.ai import AIActionOut, ApproveResponse, AuditLogOut, DraftRequest, RejectRequest
-from app.schemas.subscription import SubscriptionCreate, SubscriptionOut
 from app.schemas.chat import (
     AnalystQueryRequest,
     AnalystQueryResponse,
@@ -78,6 +77,4 @@ __all__ = [
     "OrderSummaryItem",
     "ApiError",
     "PageResult",
-    "SubscriptionCreate",
-    "SubscriptionOut",
 ]

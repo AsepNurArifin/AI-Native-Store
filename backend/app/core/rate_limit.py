@@ -1,6 +1,6 @@
 """Rate limiting in-memory sederhana (sliding window) — P5 / Fase 2 PLAN_PRODUCT_LAUNCH.
 
-Dirancang untuk melindungi endpoint publik demo (subscribe, chat, webhook)
+Dirancang untuk melindungi endpoint publik demo (chat, webhook)
 dari spam/abuse tanpa menambah dependensi eksternal (Redis dsb.).
 
 Batas desain (disadari, cocok untuk demo single-instance):

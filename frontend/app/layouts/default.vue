@@ -19,22 +19,10 @@
         <!-- Navigation Links -->
         <nav class="flex items-center gap-2 text-sm font-medium">
           <NuxtLink
-            to="/#harga"
-            class="rounded-xl px-3.5 py-2 text-stone-600 hover:bg-stone-100/80 hover:text-stone-900 transition-colors"
-          >
-            Harga
-          </NuxtLink>
-          <NuxtLink
             to="/chat"
             class="rounded-xl px-3.5 py-2 text-stone-600 hover:bg-stone-100/80 hover:text-stone-900 transition-colors"
           >
             Demo Toko
-          </NuxtLink>
-          <NuxtLink
-            to="/login"
-            class="rounded-xl px-3.5 py-2 text-stone-600 hover:bg-stone-100/80 hover:text-stone-900 transition-colors"
-          >
-            Login
           </NuxtLink>
           <NuxtLink
             to="/admin"
@@ -43,10 +31,10 @@
             Admin
           </NuxtLink>
           <NuxtLink
-            to="/subscribe"
+            to="/login"
             class="group inline-flex items-center gap-1.5 rounded-xl bg-clay-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-clay-500 transition-all duration-150"
           >
-            <span>Coba Gratis</span>
+            <span>Masuk</span>
             <span class="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
           </NuxtLink>
         </nav>

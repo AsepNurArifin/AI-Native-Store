@@ -1,9 +1,13 @@
 # PLAN — Peluncuran Produk: Landing + Subscribe + Demo SaaS
 
-> Supersedes `PLAN_OPEN_SOURCE.md` (ditunda — repo beralih ke **private**,
-> lihat §6). Turunan diskusi arah produk 2026-09-11.
+> **⚠️ SUPERSEDED (2026-09-12):** produk dipivot dari "SaaS fasad" ke
+> **single-user** (satu toko per instalasi) — lihat `docs/SRS_AMENDMENTS.md` §E.
+> Fase 1–2 (landing SaaS + funnel subscribe) **dicabut dari kode**;
+> Fase 3 (Telegram), Fase 4 (deploy), dan Fase 5 (seed demo) **tetap berlaku**
+> dengan penyesuaian narasi (landing kini mempromosikan demo single-store,
+> bukan langganan). Dokumen ini dipertahankan sebagai catatan sejarah keputusan.
 >
-> Arah yang diratifikasi pemilik produk:
+> Turunan diskusi arah produk 2026-09-11 (sebelum pivot):
 > 1. Repo **private** (open source release ditunda tanpa batas waktu).
 > 2. Skema produk: **SaaS fasad** — landing page promosi → subscribe →
 >    panel admin + webchat + bot Telegram per tenant.
@@ -146,8 +150,8 @@ admin → chat → Telegram).
 | Item | Status | Catatan |
 |---|---|---|
 | `PLAN_OPEN_SOURCE.md` → ditunda | ✅ Fase 0 | header status ditambahkan |
-| Landing page baru | ✅ Fase 1 | commit `d8d2784` |
-| Funnel subscribe | ✅ Fase 2 | POST/GET `/subscriptions` + rate-limit (P5 lunas) + 14 test |
+| Landing page baru | ✅ Fase 1 | commit `d8d2784`; **di-rework** saat pivot single-user (subscribe/pricing dihapus) |
+| Funnel subscribe | ~~✅ Fase 2~~ ❌ **dicabut** | POST/GET `/subscriptions` + tabel + halaman `/subscribe` dihapus (SRS_AMENDMENTS §E); rate-limit P5 dipindah ke `test_rate_limit.py` |
 | Adapter Telegram | ✅ Fase 3 | messaging_base + provider mock/bot + webhook secret + 16 test; docs/TELEGRAM_SETUP.md |
 | Deploy demo publik | ⬜ Fase 4 | FE Vercel + BE host |
 | Seed "Toko Bu Ratna" | ⬜ Fase 5 | |
