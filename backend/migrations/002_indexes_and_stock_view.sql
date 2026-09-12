@@ -14,8 +14,9 @@ CREATE INDEX ix_ai_actions_status           ON ai_actions (status);             
 
 -- ---------- v_product_stock ----------
 -- (product_id, current_stock, is_low_stock) — DATA_SCHEMA.md §2/D2.
--- LOW_STOCK_THRESHOLD_DEFAULT=5 dicerminkan di sini; jika diubah di
--- backend/.env, sesuaikan juga konstanta di bawah (documented in ENVIRONMENT.md).
+-- Catatan: konstanta 5 di bawah hanya skema awal. Backend me-recreate view ini
+-- saat startup (app/db/init_db.py) memakai LOW_STOCK_THRESHOLD_DEFAULT dari
+-- backend/.env — single source of truth ada di config, bukan di SQL ini.
 CREATE OR REPLACE VIEW v_product_stock AS
 SELECT
     p.id                  AS product_id,

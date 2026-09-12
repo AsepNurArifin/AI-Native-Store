@@ -23,7 +23,7 @@
 | `BACKEND_BASE_URL` | `http://localhost:8000` | Base URL publik API (untuk callback/webhook WA) |
 | `FRONTEND_BASE_URL` | `http://localhost:3000` | Base URL web chat/landing |
 | `CORS_ORIGINS` | `http://localhost:3000` | Origin yang diizinkan (koma-separated) |
-| `LOW_STOCK_THRESHOLD_DEFAULT` | `5` | Ambang low-stock default (FR-SMS-03, dapat dioverride per produk) |
+| `LOW_STOCK_THRESHOLD_DEFAULT` | `5` | Ambang low-stock default (FR-SMS-03, dapat dioverride per produk). View `v_product_stock` otomatis disinkronkan dengan nilai ini saat startup |
 | `STOCKOUT_RISK_DAYS` | `7` | Threshold stockout FR-BA-02 (default diusulkan SRS §11) |
 | `MAX_DISCOUNT_PERCENT` | `50` | Batas diskon FR-AA-05 (default diusulkan SRS §11) |
 

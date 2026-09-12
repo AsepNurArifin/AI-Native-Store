@@ -13,10 +13,6 @@
           </div>
           <div>
             <span class="font-display text-base font-bold tracking-tight text-stone-900">AI-Native <span class="text-clay-600">Store</span></span>
-            <div class="flex items-center gap-1.5 -mt-0.5">
-              <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span class="text-[10px] font-medium tracking-wide uppercase text-stone-400">AI Sales Online</span>
-            </div>
           </div>
         </NuxtLink>
 

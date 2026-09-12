@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0"
+      ]
+    },
+    "parallel-search": {
+      "url": "https://search.parallel.ai/mcp",
+      "protocolVersion": "auto",
+      "directTools": true
+    },
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "protocolVersion": "auto"
+    }
+  }
+}

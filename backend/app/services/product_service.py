@@ -1,6 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models import InventoryTransaction, OrderItem, Product, Promotion
 from app.schemas.catalog import ProductCreate, ProductUpdate
 from app.services.inventory_service import InventoryService
@@ -97,7 +98,11 @@ class ProductService:
     @staticmethod
     async def with_stock(db: AsyncSession, product: Product) -> dict:
         stock = await InventoryService.current_stock(db, str(product.id))
-        threshold = product.low_stock_threshold or 5
+        threshold = (
+            product.low_stock_threshold
+            if product.low_stock_threshold is not None
+            else settings.low_stock_threshold_default
+        )
         return {
             "id": str(product.id),
             "name": product.name,
@@ -105,7 +110,7 @@ class ProductService:
             "specification": product.specification,
             "price": float(product.price),
             "status": product.status,
-            "low_stock_threshold": product.low_stock_threshold,
+            "low_stock_threshold": threshold,
             "current_stock": stock,
             "is_low_stock": stock <= threshold,
         }

@@ -9,6 +9,7 @@ import logging
 
 from sqlalchemy import text
 
+from app.core.config import settings
 from app.db.session import engine
 from app.models import Base
 
@@ -68,6 +69,31 @@ async def _init_db_once(seed: bool = True) -> None:
             END $$;
             """
         ))
+        # v_product_stock: recreate dengan LOW_STOCK_THRESHOLD_DEFAULT dari config
+        # (single source of truth = backend/.env; migrations/002 hanya skema awal).
+        # Bind parameter tidak didukung asyncpg untuk DDL (CREATE VIEW), jadi nilai
+        # di-interpolasi — aman karena pydantic memvalidasi field sebagai int.
+        threshold = int(settings.low_stock_threshold_default)
+        await conn.execute(text(f"""
+            CREATE OR REPLACE VIEW v_product_stock AS
+            SELECT
+                p.id              AS product_id,
+                p.name            AS name,
+                p.category        AS category,
+                p.status          AS status,
+                COALESCE(SUM(
+                    CASE it.movement WHEN 'IN' THEN it.quantity ELSE -it.quantity END
+                ), 0)::BIGINT     AS current_stock,
+                p.low_stock_threshold AS low_stock_threshold,
+                (
+                    COALESCE(SUM(
+                        CASE it.movement WHEN 'IN' THEN it.quantity ELSE -it.quantity END
+                    ), 0)::BIGINT <= COALESCE(p.low_stock_threshold, {threshold})
+                )               AS is_low_stock
+            FROM products p
+            LEFT JOIN inventory_transactions it ON it.product_id = p.id
+            GROUP BY p.id
+        """))
     if seed:
         await _seed_if_empty()
 
