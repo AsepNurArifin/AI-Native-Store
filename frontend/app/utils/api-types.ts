@@ -53,6 +53,7 @@ export interface OrderOut {
   channel_origin: string
   total_amount: number
   promotion_snapshot: Record<string, unknown> | null
+  fulfillment: FulfillmentInfo | null
   created_at: string
   completed_at: string | null
   cancelled_at: string | null
@@ -144,6 +145,14 @@ export interface ChatReply {
   products: ProductOut[]
   order_summary: OrderSummary | null
   needs_customer_info: boolean
+}
+
+export interface FulfillmentInfo {
+  method: 'PICKUP' | 'DELIVERY'
+  recipient?: string
+  phone?: string
+  address?: string
+  notes?: string
 }
 
 export interface ConfirmOrderResponse {

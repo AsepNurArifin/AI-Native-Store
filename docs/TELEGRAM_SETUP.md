@@ -2,8 +2,8 @@
 
 > Fase 3 `PLAN_PRODUCT_LAUNCH.md`. Membuat bot Telegram itu **self-service,
 > gratis, dan tanpa verifikasi bisnis** — pemilik toko non-IT bisa
-> melakukannya sendiri dalam ±5 menit (bandingkan dengan WhatsApp Cloud API
-> yang butuh verifikasi Meta Business per tenant).
+> melakukannya sendiri dalam ±5 menit. (Channel WhatsApp Cloud API pernah
+> diimplementasikan lalu dihapus saat finalisasi — git history menyimpannya.)
 
 ## 1. Buat bot via BotFather (±2 menit)
 
@@ -42,6 +42,33 @@ Verifikasi:
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
 
+### Menjalankan lokal (tanpa hosting)
+
+Server Telegram tidak bisa mengirim webhook ke `localhost`. Solusi tanpa biaya:
+**tunnel publik** sementara (cloudflared / ngrok), lalu arahkan webhook ke URL tunnel.
+
+1. Jalankan backend seperti biasa (`localhost:8000`), lalu buka tunnel:
+
+   ```bash
+   # cloudflared (gratis, tanpa akun): https://github.com/cloudflare/cloudflared/releases
+   cloudflared tunnel --url http://localhost:8000
+   # → tercetak URL publik, mis. https://contoh-coba.trycloudflare.com
+   ```
+
+2. Daftarkan webhook memakai URL tunnel itu:
+
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -d "url=https://contoh-coba.trycloudflare.com/api/v1/webhooks/telegram" \
+     -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+   ```
+
+3. Kirim pesan ke bot dari akun Telegram pribadi → AI membalas.
+
+> **Catatan:** URL quick tunnel cloudflared **berubah setiap kali dijalankan** —
+> ulangi langkah 2 setelah tunnel baru aktif. Alternatif tanpa tunnel sama sekali:
+> `TELEGRAM_PROVIDER=mock` + `POST /api/v1/dev/mock-tg` (simulasi, hanya `DEBUG=true`).
+
 ## 4. Uji
 
 Kirim pesan apa pun ke bot Anda dari akun Telegram pribadi → AI Sales Agent
@@ -79,7 +106,7 @@ Telegram server --(Update + secret header)--> /api/v1/webhooks/telegram
   -> provider.send_message (Bot API sendMessage + inline keyboard)
 ```
 
-- Routing logic dibagi dengan WhatsApp via `app/channels/messaging_base.py`
+- Routing logic di `app/channels/messaging_base.py`
   (BR-09: Sales Agent channel-agnostic).
 - Konfirmasi order via `callback_query` dengan idempotency key `tg:<ref>`
   — retry webhook tidak mendobel order.

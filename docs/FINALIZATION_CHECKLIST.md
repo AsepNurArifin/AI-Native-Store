@@ -38,9 +38,9 @@ rencana lama, bukan acceptance checklist saat ini.
 | Konfirmasi ulang | `test_electronics_e2e.py`, `test_orders.py` | Satu order dan satu pengurangan stok |
 | Stok terakhir | `test_concurrency.py` | Dua summary asli dari chat, confirm paralel: 200 + 409 |
 | LLM timeout | `test_electronics_e2e.py` | Pesan unavailable eksplisit, tanpa order otomatis |
-| Keamanan webhook / rate limit | `test_webhook_security.py`, `test_rate_limit.py` | Test lokal |
+| Keamanan webhook / rate limit | `test_telegram.py`, `test_rate_limit.py` | Test lokal |
 
-Verifikasi pada pengerjaan finalisasi ini: **72 backend tests passed**;
+Verifikasi pada pengerjaan finalisasi ini: **63 backend tests passed** (setelah penghapusan channel WhatsApp — lihat `SRS_AMENDMENTS.md` E2; sebelumnya 72);
 `npm run build` berhasil. Ini bukan hasil uji LLM nyata.
 
 Test runner sekarang menolak `DATABASE_URL_TEST` kosong, host nonlokal, nama DB

@@ -13,7 +13,7 @@
           </form>
           <p v-if="askError" class="mt-2 text-sm text-red-600">{{ askError }}</p>
           <div v-if="answer" class="mt-3 rounded bg-stone-50 p-3 text-sm">
-            <p class="whitespace-pre-wrap">{{ answer.answer }}</p>
+            <MarkdownText :text="answer.answer" />
             <details class="mt-2 text-xs text-stone-500">
               <summary class="cursor-pointer">Traceability (query + data mentah)</summary>
               <pre class="mt-1 overflow-x-auto">{{ JSON.stringify({ query_used: answer.query_used, data: answer.data }, null, 2) }}</pre>
@@ -45,7 +45,7 @@
                 </tr></thead>
                 <tbody>
                   <tr v-for="(row, i) in sales.data" :key="row.key" class="border-b border-stone-100">
-                    <td class="py-2 pr-2 text-stone-400">{{ i + 1 }}</td>
+                    <td class="py-2 pr-2 text-stone-500">{{ i + 1 }}</td>
                     <td class="pr-2">{{ salesLabel(row.key) }}</td>
                     <td class="pr-2 text-right">{{ row.units }}</td>
                     <td class="pr-2 text-right font-medium">{{ formatIDR(row.revenue) }}</td>
@@ -98,7 +98,7 @@
                   >
                     <td class="py-2 pr-2">
                       {{ row.name }}
-                      <span class="block text-xs text-stone-400">{{ row.category }}</span>
+                      <span class="block text-xs text-stone-500">{{ row.category }}</span>
                     </td>
                     <td class="pr-2 text-right">{{ row.current_stock }}</td>
                     <td class="pr-2 text-right text-stone-500">{{ row.avg_daily_sales_30d }}</td>
@@ -137,7 +137,7 @@
             </div>
             <p v-else class="mt-2 text-sm text-stone-500">Tidak ada pesanan pada rentang ini.</p>
           </template>
-          <p v-else class="mt-2 text-xs text-stone-400">Isi rentang tanggal di kartu &ldquo;Penjualan per produk&rdquo; dulu.</p>
+          <p v-else class="mt-2 text-xs text-stone-500">Isi rentang tanggal di kartu &ldquo;Penjualan per produk&rdquo; dulu.</p>
         </CardContent>
       </Card>
     </div>
@@ -180,7 +180,7 @@ function revenueBar(revenue: number): string {
 }
 const riskCount = computed(() => inv.value?.data.filter(r => r.stockout_risk).length ?? 0)
 function channelLabel(channel: string): string {
-  return channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'WEB' ? 'Web Chat' : channel
+  return channel === 'TELEGRAM' ? 'Telegram' : channel === 'WEB' ? 'Web Chat' : channel
 }
 
 async function ask() {

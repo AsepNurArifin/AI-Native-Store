@@ -1,4 +1,4 @@
-"""Base Telegram provider interface — paralel whatsapp/provider_base.py."""
+"""Base Telegram provider interface."""
 
 from abc import ABC, abstractmethod
 

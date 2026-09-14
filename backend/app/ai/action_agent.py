@@ -5,7 +5,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.llm import get_llm, model_for
+from app.ai.llm import get_llm, model_for, tool_roundtrip_messages
 from app.ai.prompts import action_assistant_system, ACTION_TOOLS
 from app.ai.tools import ToolExecutor
 from app.models import AIAction
@@ -37,16 +37,17 @@ class ActionAssistant:
             )
             if not resp.tool_calls:
                 break
+            roundtrip_results = []
             for tc in resp.tool_calls:
                 result = await self.tools.call(tc.name, tc.arguments)
                 if "draft" in result:
                     draft_payload = result["draft"]
                     break
                 # kirim hasil tool balik ke LLM (bukan draft -> lanjut iterasi)
-                messages.append({"role": "assistant", "content": f"tool: {tc.name}"})
-                messages.append({"role": "user", "content": f"hasil tool {tc.name}: {result}"})
+                roundtrip_results.append(result)
             if draft_payload:
                 break
+            messages.extend(tool_roundtrip_messages(resp, roundtrip_results))
         if not draft_payload:
             # fallback: LLM menjawab teks — coba parse JSON
             draft_payload = self._parse_json_fallback(resp.content, instruction)

@@ -72,10 +72,10 @@ products ──▶ inventory_transactions
 | Kolom | Tipe | Constraint |
 |---|---|---|
 | `id` | UUID | PK |
-| `channel` | VARCHAR(10) | NOT NULL CHECK (channel IN ('WEB','WHATSAPP')) |
-| `identifier` | VARCHAR(150) | NOT NULL — WEB: `name|contact`; WHATSAPP: `+62...` |
-| `name` | VARCHAR(100) | NOT NULL (WA: diisi nomor/label jika belum dikenal) |
-| `contact` | VARCHAR(100) | NULL — WA selalu isi nomor; WEB diisi saat order |
+| `channel` | VARCHAR(10) | NOT NULL — nilai: `WEB` / `TELEGRAM` (tanpa CHECK; validasi di service) |
+| `identifier` | VARCHAR(150) | NOT NULL — WEB: `name|contact`; TELEGRAM: chat id |
+| `name` | VARCHAR(100) | NOT NULL (TELEGRAM: first_name profil; fallback chat id) |
+| `contact` | VARCHAR(100) | NULL — TELEGRAM: NULL; WEB diisi saat order |
 | `registered_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **UNIQUE** | | `(channel, identifier)` — profil ganda orang sama DIIZINKAN lintas channel (tidak ada FK penyatu) |
 
@@ -102,7 +102,7 @@ products ──▶ inventory_transactions
 | `customer_id` | UUID | NOT NULL FK customers(id) |
 | `status` | VARCHAR(12) | NOT NULL CHECK (status IN ('DRAFT','CONFIRMED','COMPLETED','CANCELLED')) |
 | `conversation_id` | UUID | NULL FK conversations(id) — traceability order→percakapan (PRD §16) |
-| `channel_origin` | VARCHAR(10) | NOT NULL CHECK (channel_origin IN ('WEB','WHATSAPP')) |
+| `channel_origin` | VARCHAR(10) | NOT NULL — nilai: `WEB` / `TELEGRAM` (tanpa CHECK) |
 | `total_amount` | NUMERIC(14,2) | NOT NULL DEFAULT 0 — dihitung saat commit |
 | `promotion_snapshot` | JSONB | NULL — promosi aktif yang diterapkan saat order (traceability harga) |
 | `created_at`, `completed_at`, `cancelled_at` | TIMESTAMPTZ | NULL sesuai status |
@@ -126,9 +126,9 @@ products ──▶ inventory_transactions
 |---|---|---|
 | `id` | UUID | PK |
 | `customer_id` | UUID | NOT NULL FK customers(id) |
-| `channel` | VARCHAR(10) | NOT NULL CHECK (channel IN ('WEB','WHATSAPP')) — FR-SMS-08 |
+| `channel` | VARCHAR(10) | NOT NULL — nilai: `WEB` / `TELEGRAM` (tanpa CHECK) — FR-SMS-08 |
 | `started_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
-| `last_activity_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() — untuk 24h window WA |
+| `last_activity_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() — untuk idle/expiry sesi |
 | `ended_at` | TIMESTAMPTZ | NULL |
 | `outcome` | VARCHAR(20) | NULL CHECK (outcome IN ('OPEN','ORDERED','NO_MATCH','ABANDONED','ERROR')) |
 

@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex min-h-[75vh] items-center justify-center py-10">
     <div class="relative w-full max-w-md">
-      <div class="overflow-hidden rounded-3xl border border-stone-200/80 bg-white/90 p-8 shadow-2xl shadow-stone-200/50 backdrop-blur-xl">
+      <div class="overflow-hidden rounded-3xl border border-stone-200/80 bg-white p-8 shadow-lg shadow-stone-200/60">
         <!-- Logo & Header -->
         <div class="mb-6 text-center">
           <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-clay-600 text-white shadow-lg">
@@ -14,13 +14,13 @@
         <!-- Form -->
         <form class="space-y-4" @submit.prevent="onLogin">
           <div>
-            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-stone-600">Email Admin</label>
+            <label class="mb-1.5 block text-sm font-semibold text-stone-700">Email Admin</label>
             <Input v-model="email" type="email" placeholder="owner@store.demo" required />
           </div>
 
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-semibold uppercase tracking-wider text-stone-600">Password</label>
+              <label class="block text-sm font-semibold text-stone-700">Password</label>
             </div>
             <Input v-model="password" type="password" placeholder="••••••••" required />
           </div>
@@ -59,21 +59,36 @@
 <script setup lang="ts">
 import { Lock } from '@lucide/vue'
 definePageMeta({ layout: 'default' })
-useHead({ title: 'Masuk Admin — Toko Bu Ratna' })
+// Halaman internal: jangan diindeks.
+useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
+useSeoMeta({ title: 'Masuk Admin: Toko Bu Ratna' })
 const auth = useAuthStore()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
-function fillDemoOwner() {
-  email.value = 'owner@store.demo'
-  password.value = 'owner123'
+/** Tujuan setelah login: halaman asal (bila di-redirect dari admin) atau /admin. */
+function targetAfterLogin() {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.startsWith('/admin') ? redirect : '/admin'
 }
 
-onMounted(() => {
+function fillDemoOwner() {
+  // Kredensial seed backend (SEED_OWNER_EMAIL / SEED_DEFAULT_PASSWORD di backend/.env)
+  email.value = 'owner@store.demo'
+  password.value = 'ChangeMe123!'
+}
+
+onMounted(async () => {
   auth.hydrate()
-  if (auth.token && auth.user) navigateTo('/admin')
+  // Pemulihan sesi: full reload di halaman admin me-redirect ke sini sebelum
+  // hydrate client jalan. Bila token masih valid, kembalikan user ke tujuan asal.
+  if (auth.token) {
+    const me = await auth.fetchMe()
+    if (me) { await navigateTo(targetAfterLogin()); return }
+  }
 })
 
 async function onLogin() {
@@ -81,7 +96,7 @@ async function onLogin() {
   loading.value = true
   try {
     await auth.login(email.value.trim(), password.value)
-    await navigateTo('/admin')
+    await navigateTo(targetAfterLogin())
   }
   catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Login gagal'

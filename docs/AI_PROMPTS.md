@@ -94,9 +94,9 @@ inbound → SalesAgent.handle():
   5. simpan ConversationMessage(AI) + Recommendations (jika ada)
 ```
 
-### 2.5 Kasus khusus WhatsApp (FR-SA-07)
-- Pengetahuan 24h window **ada di adapter, bukan prompt**. Bila window tertutup, adapter memilih template/menahan pesan — agent tetap channel-agnostic (BR-09).
-- Tombol konfirmasi → interactive reply button dengan payload `CONFIRM:<summary_ref>`.
+### 2.5 Kasus khusus channel messaging (Telegram)
+- Logika channel-specific (parsing update, secret token, inline keyboard) **ada di adapter, bukan prompt** — agent tetap channel-agnostic (BR-09).
+- Tombol konfirmasi → inline keyboard dengan `callback_data` `CONFIRM:<summary_ref>`.
 
 ### 2.6 Guardrail test cases (NFR-10, TC-SA-06)
 | Uji | Input | Expected |

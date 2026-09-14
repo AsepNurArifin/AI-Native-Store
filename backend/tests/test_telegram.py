@@ -8,7 +8,7 @@
 - Idempotensi retry webhook (update_id sama -> skip) & CONFIRM ulang (idempotency
   key tg:<ref> -> tidak dobel order).
 """
-import re
+import json
 import uuid
 
 import pytest
@@ -36,16 +36,18 @@ class SummaryScriptedLLM:
         self.quantity = quantity
 
     async def complete(self, *, system, messages, tools=None):
-        if not any("hasil tool" in m.get("content", "") for m in messages):
+        if not any(m.get("role") == "tool" for m in messages):
             return LLMResponse("", [LLMToolCall(
                 "build_order_summary",
                 {"items": [{"product_id": self.product_id, "quantity": self.quantity}]},
             )])
         ref = ""
         for m in messages:
-            match = re.search(r"'summary_ref': '([0-9a-f]+)'", m.get("content", ""))
-            if match:
-                ref = match.group(1)
+            if m.get("role") == "tool":
+                try:
+                    ref = json.loads(m["content"])["summary"]["summary_ref"]
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
         return LLMResponse(f"Berikut ringkasan pesanan Anda (ref: {ref}).", [])
 
 
@@ -111,8 +113,10 @@ def test_parse_update_ignores_non_text():
 
 # ------------------------------------------------- unit: verify secret
 
-async def test_verify_mock_accepts_without_secret(db):
-    assert settings.telegram_provider == "mock"
+async def test_verify_mock_accepts_without_secret(db, monkeypatch):
+    # hermetik: paksa mock — jangan bergantung TELEGRAM_PROVIDER di .env
+    # (dev/demo menjalankan provider bot asli, suite test tetap harus hijau)
+    monkeypatch.setattr(settings, "telegram_provider", "mock")
     adapter = TelegramAdapter(db)
     assert adapter.verify_request(None) is True
 
@@ -281,3 +285,117 @@ async def test_tool_rejects_non_uuid_product_id_graceful(client: AsyncClient, db
 
     r = await tool.get_stock(product_id="G066")
     assert "error" in r and "search_products" in r["error"]
+
+
+# ----------------------------------- regresi: render ulang tombol konfirmasi
+
+class VerbalConfirmScriptedLLM:
+    """Reproduksi bug demo (14/09): giliran 1 memanggil build_order_summary,
+    giliran berikutnya ("confirm order" verbal) membalas narasi TANPA memanggil
+    tool apa pun — dulu reply.order_summary menjadi None sehingga inline
+    keyboard tidak pernah dirender ulang dan customer terjebak."""
+
+    def __init__(self, product_id: str, quantity: int = 1):
+        self.product_id = product_id
+        self.quantity = quantity
+
+    async def complete(self, *, system, messages, tools=None):
+        last = messages[-1]["content"] if messages else ""
+        has_tool_result = any(m.get("role") == "tool" for m in messages)
+        if "kopi" in last.lower() and not has_tool_result:
+            return LLMResponse("", [LLMToolCall(
+                "build_order_summary",
+                {"items": [{"product_id": self.product_id, "quantity": self.quantity}]},
+            )])
+        if has_tool_result:
+            ref = ""
+            for m in messages:
+                if m.get("role") == "tool":
+                    try:
+                        ref = json.loads(m["content"])["summary"]["summary_ref"]
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
+            return LLMResponse(f"Berikut ringkasan pesanan Anda (ref: {ref}).", [])
+        # giliran verbal: balasan menyebut "tombol" TANPA membangun summary baru
+        return LLMResponse("Siap! Silakan tekan tombol Konfirmasi untuk menyelesaikan pesanan. 😊", [])
+
+
+@pytest.mark.asyncio
+async def test_telegram_summary_rerendered_when_llm_skips_tool(client: AsyncClient, db, monkeypatch):
+    """LLM skip tool pada giliran "confirm order" -> summary aktif sesi tetap
+    dikirim kembali (order_summary terisi) sehingga inline keyboard
+    CONFIRM:<ref> dirender ulang, dan tombol itu tetap berfungsi end-to-end."""
+    import app.ai.sales_agent as sa
+    from app.schemas.chat import ChatReply
+
+    h, pid = await _setup(client, db)
+    monkeypatch.setattr(sa, "get_llm", lambda model=None: VerbalConfirmScriptedLLM(pid, quantity=1))
+
+    chat_id = 770066
+    r = await client.post("/api/v1/dev/mock-tg", json=_tg_message(chat_id, "saya mau 1 kopi toraja", 60))
+    assert r.status_code == 200, r.text
+    ref = r.json()["order_summary"]["summary_ref"]
+
+    # giliran "confirm order" verbal — LLM tidak memanggil tool apa pun
+    r = await client.post("/api/v1/dev/mock-tg", json=_tg_message(chat_id, "confirm order", 61))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "tombol" in data["reply"]  # narasi LLM tetap tersampaikan apa adanya
+    assert data["order_summary"] is not None, "summary sesi harus dirender ulang saat LLM skip tool"
+    assert data["order_summary"]["summary_ref"] == ref
+
+    # adapter membentuk inline keyboard dari summary hasil render ulang
+    buttons = TelegramAdapter(db)._build_confirm_buttons(ChatReply.model_validate(data))
+    assert buttons is not None
+    assert buttons["inline_keyboard"][0][0]["callback_data"] == f"CONFIRM:{ref}"
+
+    # tombol hasil render ulang tetap berfungsi end-to-end (order + stok turun)
+    r = await client.post("/api/v1/dev/mock-tg", json=_tg_callback(chat_id, f"CONFIRM:{ref}", 62))
+    assert r.status_code == 200 and "berhasil dicatat" in r.json()["reply"]
+    orders = (await db.execute(select(Order))).scalars().all()
+    assert len(orders) == 1
+    assert float(orders[0].total_amount) == 60000
+
+    # setelah order jadi, sesi berikutnya TIDAK lagi membawa summary lama
+    r = await client.post("/api/v1/dev/mock-tg", json=_tg_message(chat_id, "makasih ya", 63))
+    assert r.status_code == 200
+    assert r.json()["order_summary"] is None
+
+
+async def test_webhook_http_malformed_body_returns_400(client: AsyncClient, bot_mode):
+    """Body webhook bukan JSON valid -> 400 (dulu JSONDecodeError -> 500)."""
+    resp = await client.post(
+        "/api/v1/webhooks/telegram",
+        content=b"{not-valid-json",
+        headers={"X-Telegram-Bot-Api-Secret-Token": SECRET},
+    )
+    assert resp.status_code == 400
+
+
+def test_summary_store_conversation_index():
+    """Indeks per-conversation: lookup, pop, dan TTL."""
+    from app.schemas.chat import OrderSummary, OrderSummaryItem
+    from app.services import summary_store as ss
+
+    item = OrderSummaryItem(
+        product_id=str(uuid.uuid4()), name="Kopi Toraja", quantity=1,
+        unit_price=60000.0, discount=0.0, line_total=60000.0,
+    )
+    s = OrderSummary(summary_ref=f"ref-{uuid.uuid4().hex[:8]}", items=[item], total=60000.0)
+    ss.put(s)
+    conv = f"conv-{uuid.uuid4().hex[:8]}"
+
+    assert ss.get_for_conversation(conv) is None  # belum ada summary di sesi ini
+    ss.put_for_conversation(conv, s)
+    got = ss.get_for_conversation(conv)
+    assert got is not None and got.summary_ref == s.summary_ref
+
+    ss.pop_for_conversation(conv)
+    assert ss.get_for_conversation(conv) is None
+
+    # TTL: indeks kedaluwarsa -> None meski entri per-ref masih disimpan
+    conv2 = f"conv-{uuid.uuid4().hex[:8]}"
+    ss.put_for_conversation(conv2, s)
+    ts, ref = ss._conv_index[conv2]
+    ss._conv_index[conv2] = (ts - ss._TTL_SECONDS - 1, ref)
+    assert ss.get_for_conversation(conv2) is None

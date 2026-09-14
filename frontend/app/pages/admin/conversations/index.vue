@@ -5,7 +5,7 @@
       <CardContent>
         <div class="mb-3 flex gap-2">
           <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
-            <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
+            <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option><option>WHATSAPP</option>
           </select>
           <Button size="sm" variant="secondary" @click="load()">Muat</Button>
         </div>
@@ -16,6 +16,14 @@
               <th class="py-2 pr-2">ID</th><th class="pr-2">Channel</th><th class="pr-2">Outcome</th><th class="pr-2">Aktivitas</th><th></th>
             </tr></thead>
             <tbody>
+              <tr v-if="loading">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Memuat daftar percakapan…</td>
+              </tr>
+              <tr v-else-if="!items.length">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">
+                  Belum ada percakapan. Obrolan customer lewat chat toko akan tercatat di sini.
+                </td>
+              </tr>
               <tr v-for="c in items" :key="c.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ c.id.slice(0, 8) }}…</td>
                 <td class="pr-2">{{ c.channel }}</td>
@@ -39,16 +47,19 @@ definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
 const items = ref<ConversationOut[]>([])
 const error = ref('')
+const loading = ref(false)
 const fChannel = ref('')
 
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     items.value = await request<ConversationOut[]>('/conversations', {
       query: { channel: fChannel.value || undefined, page: 1, page_size: 50 }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 }
 onMounted(load)
 </script>

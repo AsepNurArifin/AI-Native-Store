@@ -58,7 +58,7 @@ CREATE INDEX ix_inventory_transactions_timestamp ON inventory_transactions (time
 -- ---------- customers (FR-SMS-04a — identitas per channel) ----------
 CREATE TABLE customers (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    channel       VARCHAR(10)  NOT NULL,      -- WEB | WHATSAPP
+    channel       VARCHAR(10)  NOT NULL,      -- WEB | TELEGRAM
     identifier    VARCHAR(150) NOT NULL,      -- WEB: name|contact | WA: phone
     name          VARCHAR(100) NOT NULL,
     contact       VARCHAR(100),
@@ -70,7 +70,7 @@ CREATE TABLE customers (
 CREATE TABLE conversations (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id      UUID NOT NULL REFERENCES customers (id),
-    channel          VARCHAR(10) NOT NULL,          -- WEB | WHATSAPP
+    channel          VARCHAR(10) NOT NULL,          -- WEB | TELEGRAM
     started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     ended_at         TIMESTAMPTZ,
@@ -107,7 +107,7 @@ CREATE TABLE orders (
     customer_id       UUID NOT NULL REFERENCES customers (id),
     status            VARCHAR(12)  NOT NULL DEFAULT 'CONFIRMED',
     conversation_id   UUID REFERENCES conversations (id),
-    channel_origin    VARCHAR(10)  NOT NULL,          -- WEB | WHATSAPP
+    channel_origin    VARCHAR(10)  NOT NULL,          -- WEB | TELEGRAM
     total_amount      NUMERIC(14,2) NOT NULL DEFAULT 0,
     promotion_snapshot JSONB,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),

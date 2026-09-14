@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">Audit Log <span class="text-sm font-normal text-stone-500">(Owner only, append-only)</span></h1>
+    <h1 class="text-2xl font-bold">Audit Log <span class="text-sm font-normal text-stone-500">(khusus Owner, append-only)</span></h1>
     <Card>
       <CardContent>
         <div class="mb-3 flex flex-wrap gap-2">
@@ -22,6 +22,14 @@
               <th class="py-2 pr-2">Waktu</th><th class="pr-2">Event</th><th class="pr-2">Actor</th><th class="pr-2">Aksi</th><th>Detail</th>
             </tr></thead>
             <tbody>
+              <tr v-if="loading">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Memuat log…</td>
+              </tr>
+              <tr v-else-if="!items.length">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">
+                  Belum ada log. Setiap keputusan approve/reject aksi AI akan tercatat di sini.
+                </td>
+              </tr>
               <tr v-for="l in items" :key="l.id" class="border-b border-stone-100 align-top">
                 <td class="py-1 pr-2 text-xs">{{ formatWIB(l.timestamp) }}</td>
                 <td class="pr-2"><Badge :variant="statusVariant(l.event)">{{ l.event }}</Badge></td>
@@ -45,12 +53,14 @@ definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const items = ref<AuditLogOut[]>([])
 const error = ref('')
+const loading = ref(false)
 const fAction = ref('')
 const fEvent = ref('')
 const fActor = ref('')
 
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     items.value = await request<AuditLogOut[]>('/audit/logs', {
       query: {
@@ -62,6 +72,7 @@ async function load() {
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 }
 onMounted(load)
 </script>

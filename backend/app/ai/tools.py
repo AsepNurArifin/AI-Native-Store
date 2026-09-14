@@ -151,7 +151,7 @@ class ToolExecutor:
             items=lines,
             total=round(total, 2),
         )
-        # simpan summary supaya bisa dikonfirmasi (UC-02 E5) — Web & WhatsApp.
+        # simpan summary supaya bisa dikonfirmasi (UC-02 E5) — Web & Telegram.
         # Tanpa ini, chat_confirm selalu 410 SUMMARY_EXPIRED.
         put_summary(summary)
         return {"summary": summary.model_dump()}

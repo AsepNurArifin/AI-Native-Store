@@ -1,7 +1,7 @@
 # AI-Native Store Management System
 
 Capstone project — sistem manajemen toko **AI-native** dengan *conversational commerce*:
-pelanggan memesan lewat **Web Chat Widget** dan **WhatsApp**, sementara Owner mengelola
+pelanggan memesan lewat **Web Chat Widget** dan **Bot Telegram**, sementara Owner mengelola
 toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
 
 > **Baseline requirement (normatif):** [`SRS_v3.3_AI_Native_Store_Management_System.md`](SRS_v3.3_AI_Native_Store_Management_System.md)
@@ -17,7 +17,7 @@ toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
    Customer  ──▶    │  Web Chat Widget (FE)   │──┐
                     └─────────────────────────┘  │
                     ┌─────────────────────────┐  │   HTTPS/JSON
-   Customer  ──▶    │  WhatsApp (Meta Cloud)  │──┤
+   Customer  ──▶    │  Bot Telegram (Bot API)  │──┤
                     └─────────────────────────┘  │
                                                  ▼
                                      ┌─────────────────────────┐
@@ -46,7 +46,7 @@ toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
   mengaktifkan promosi; approval wajib Owner.
 
 **Tech stack:** Nuxt 4 (frontend) · Python 3.12 + FastAPI (backend) · Supabase PostgreSQL ·
-Meta WhatsApp Cloud API · Groq/Qwen LLM.
+Telegram Bot API · Groq/Qwen LLM.
 
 ---
 
@@ -58,7 +58,7 @@ capstone/
 │   ├── app/
 │   │   ├── api/routes/       # endpoint REST (auth, products, orders, chat, ai_actions, webhooks…)
 │   │   ├── ai/               # sales_agent, analyst_agent, action_agent, tools, llm
-│   │   ├── channels/         # whatsapp adapter + provider (mock | meta)
+│   │   ├── channels/         # telegram adapter + provider (mock | bot)
 │   │   ├── core/             # config, security (JWT), validasi runtime
 │   │   ├── db/               # session, init_db, migrate (runner SQL)
 │   │   ├── models/           # ORM (sumber kebenaran skema)
@@ -106,9 +106,9 @@ Isi minimal di `backend/.env`:
 | `JWT_SECRET_KEY` | ya (produksi) | min 32 char acak |
 | `LLM_PROVIDER` | ya | `mock` untuk dev, `groq`/`openai`/`google` untuk nyata |
 | `GROQ_API_KEY` | bila `groq` | dari console.groq.com |
-| `WA_PROVIDER` | ya | `mock` (dev) atau `meta` (WABA) |
+| `TELEGRAM_PROVIDER` | ya | `mock` (dev) atau `bot` (Bot API asli) |
 
-> **Penting:** dev/test boleh `LLM_PROVIDER=mock` dan `WA_PROVIDER=mock`.
+> **Penting:** dev/test boleh `LLM_PROVIDER=mock` dan `TELEGRAM_PROVIDER=mock`.
 > Untuk `APP_ENV=production`, config divalidasi saat startup — nilai tidak aman
 > (JWT default, `DEBUG=true`, `SEED_ON_STARTUP=true`, `LLM_PROVIDER=mock`, CORS `*`)
 > akan **menggagalkan startup** dengan pesan jelas.
@@ -258,12 +258,12 @@ npm run build                 # verifikasi build produksi
 | Analyst | `POST /chat/analyst/ask` | Owner (JWT) |
 | AI Action | `POST /ai-actions/draft`, `…/approve`, `…/reject` | Owner (JWT) |
 | Audit | `/audit-logs` | Owner (JWT) |
-| Webhook WA | `GET/POST /webhooks/whatsapp` | verify token + HMAC |
-| Dev | `POST /dev/mock-wa` | hanya saat `DEBUG=true` |
+| Webhook Telegram | `POST /webhooks/telegram` | secret token |
+| Dev | `POST /dev/mock-tg` | hanya saat `DEBUG=true` |
 
 Detail: [`docs/API_DESIGN.md`](docs/API_DESIGN.md) · Swagger `/docs`.
 
-**Konfirmasi order kanonik:** tombol/payload = `CONFIRM:<summary_ref>` (Web & WhatsApp).
+**Konfirmasi order kanonik:** tombol/payload = `CONFIRM:<summary_ref>` (Web & Telegram).
 Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 
 ---
@@ -277,7 +277,7 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 | `ModuleNotFoundError: app` saat pytest | `pythonpath` belum diset | jalankan pytest dari `backend/` (ada `pytest.ini`) |
 | Test gagal di `_prepare_db` | Postgres test belum jalan | jalankan container `ai-store-test-pg` + buat `store_test` |
 | `DB tetap tidak terjangkau` saat startup | `DATABASE_URL` salah / transaction pooler | pakai Supabase **session pooler** port **5432**, bukan 6543 |
-| WA tidak membalas di luar 24 jam | aturan Meta | gunakan template (`WA_TEMPLATE_ORDER_CONFIRM`) |
+| Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat `docs/TELEGRAM_SETUP.md`) |
 | Startup produksi gagal + pesan CONFIG | guard keamanan | perbaiki nilai sesuai pesan (lihat §4.1) |
 
 ---
@@ -285,10 +285,10 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 ## 10. Keamanan
 
 - **Jangan pernah commit `.env`** — hanya `.env.example` (sudah di `.gitignore`).
-- `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `WA_ACCESS_TOKEN`, `JWT_SECRET_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET_KEY`
   adalah secret backend — jangan kirim ke frontend.
-- Webhook WhatsApp memverifikasi `X-Hub-Signature-256` (HMAC SHA256) untuk provider
-  Meta sebelum diproses.
+- Webhook Telegram memverifikasi header `X-Telegram-Bot-Api-Secret-Token` (fail-closed
+  tanpa secret terkonfigurasi) sebelum diproses.
 - `audit_logs` bersifat **append-only** (ditegakkan trigger DB + service).
 - Endpoint `/api/v1/dev/*` hanya aktif saat `DEBUG=true` — wajib `false` di produksi.
 

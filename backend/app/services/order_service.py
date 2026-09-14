@@ -67,6 +67,7 @@ class OrderService:
         customer_identity: dict,  # {channel, identifier, name, contact?}
         items: list[dict],  # [{product_id, quantity}]
         idempotency_key: str | None = None,
+        fulfillment: dict | None = None,  # {method, recipient?, phone?, address?, notes?}
     ) -> tuple[Order, bool]:
         """One atomic operation: validate stock+price -> Order + OrderItems +
         InventoryTransaction(OUT). Returns (order, replayed).
@@ -108,6 +109,7 @@ class OrderService:
             conversation_id=conversation_id,
             channel_origin=channel,
             total_amount=0,
+            fulfillment=fulfillment,
         )
         db.add(order)
         await db.flush()

@@ -13,7 +13,7 @@ router = APIRouter(prefix="/orders", tags=["orders"], dependencies=[Depends(requ
 @router.get("", response_model=list[OrderOut])
 async def list_orders(
     status_: str | None = Query(default=None, alias="status"),
-    channel: str | None = Query(default=None, pattern="^(WEB|WHATSAPP)$"),
+    channel: str | None = Query(default=None, pattern="^(WEB|TELEGRAM)$"),
     page: int = 1,
     page_size: int = 20,
     db: AsyncSession = Depends(get_session),

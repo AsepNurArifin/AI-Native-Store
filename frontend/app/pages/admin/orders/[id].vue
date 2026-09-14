@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <NuxtLink to="/admin/orders" class="text-sm text-clay-600 hover:underline">← Kembali</NuxtLink>
+    <NuxtLink to="/admin/orders" class="text-sm text-clay-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Order</h1>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="order">
@@ -16,6 +16,16 @@
           <div><dt class="text-stone-500">Total</dt><dd class="font-bold">{{ formatIDR(order.total_amount) }}</dd></div>
           <div><dt class="text-stone-500">Dibuat</dt><dd>{{ formatWIB(order.created_at) }}</dd></div>
           <div><dt class="text-stone-500">Percakapan</dt><dd class="font-mono text-xs">{{ order.conversation_id || '-' }}</dd></div>
+          <div v-if="order.fulfillment" class="md:col-span-2">
+            <dt class="text-stone-500">Pengambilan</dt>
+            <dd v-if="order.fulfillment.method === 'PICKUP'">Ambil di toko</dd>
+            <dd v-else>
+              Diantar ke {{ order.fulfillment.recipient || '-' }}
+              <span v-if="order.fulfillment.phone">({{ order.fulfillment.phone }})</span>:
+              <span class="block text-stone-600">{{ order.fulfillment.address || '-' }}</span>
+              <span v-if="order.fulfillment.notes" class="block text-xs text-stone-500">Catatan: {{ order.fulfillment.notes }}</span>
+            </dd>
+          </div>
         </dl>
         <h2 class="mb-2 mt-4 font-semibold">Item</h2>
         <table class="w-full text-sm">

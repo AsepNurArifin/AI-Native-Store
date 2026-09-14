@@ -28,12 +28,12 @@
 │         ▼          └──────────────────┬────────────────────────────┘     │
 │  ┌────────────────────────────────────▼─────────────────────────────┐    │
 │  │                     CHANNEL LAYER (Adapters)                     │    │
-│  │  ┌──────────────────┐    ┌──────────────────────────────────┐   │    │
-│  │  │   Web Adapter     │    │  WhatsApp Adapter                │   │    │
-│  │  │  (REST polling /  │    │  ┌────────────┐ ┌─────────────┐  │   │    │
-│  │  │   SSE / WS)       │    │  │ Provider:  │ │ Provider:   │  │   │    │
-│  │  │                   │    │  │ Mock       │ │ Meta Cloud  │  │   │    │
-│  │  └──────────────────┘    │  │ (WA_       │ │ (WA_        │  │   │    │
+│  │  ┌──────────────────┐    ┌──────────────────────────────┐   │    │
+│  │  │   Web Adapter     │    │  Telegram Adapter             │   │    │
+│  │  │  (REST polling /  │    │  ┌────────────┐ ┌──────────┐  │   │    │
+│  │  │   SSE / WS)       │    │  │ Provider:  │ │ Provider:│  │   │    │
+│  │  │                   │    │  │ Mock       │ │ Bot API  │  │   │    │
+│  │  └──────────────────┘    │  └────────────┘ └──────────┘  │   │    │
 │  │                          │  │ PROVIDER=  │ │ PROVIDER=   │  │   │    │
 │  │                          │  │ mock)      │ │ meta)       │  │   │    │
 │  │                          │  └────────────┘ └─────────────┘  │   │    │
@@ -64,7 +64,7 @@
                           │   docker compose         │
                           └──────────────────────────┘
           (eksternal) LLM API ──────── hanya dipanggil backend
-          (eksternal) Meta Graph API ─ hanya dipanggil WhatsApp Adapter
+          (eksternal) Telegram Bot API ─ hanya dipanggil Telegram Adapter
 ```
 
 Prinsip: **AI interprets; backend validates and executes** (PRD §50). Panah lintas layer selalu ke bawah; tidak ada shortcut (mis. router → ORM tanpa service, atau AI → ORM langsung).
@@ -75,27 +75,27 @@ Prinsip: **AI interprets; backend validates and executes** (PRD §50). Panah lin
 
 ### 2.1 `app/api/` — Router (thin)
 - Hanya parsing request, auth dependency, memanggil service, membungkus response.
-- Dua kelompok: **public** (web chat, WA webhook — tanpa JWT) dan **internal** (seluruhnya wajib JWT, FR-AUTH-02).
+- Dua kelompok: **public** (web chat, webhook Telegram — tanpa JWT) dan **internal** (seluruhnya wajib JWT, FR-AUTH-02).
 
 ### 2.2 `app/channels/` — Channel Adapter Layer
 Bertugas memenuhi BR-09 (channel independence) & SRS §2.5.
 
 ```
 channels/
-├── base.py              # interface ChannelAdapter + WhatsAppProvider (protocol/ABC)
-├── web_adapter.py       # pesan dari Web Chat Widget → format internal
-├── whatsapp/
-│   ├── adapter.py       # normalisasi webhook Meta → format internal; render keluar
-│   ├── provider_meta.py # implementasi Meta Cloud API (httpx)
-│   └── provider_mock.py # implementasi synthetic untuk dev/test
+├── base.py              # format pesan internal (InboundMessage/OutboundMessage)
+├── messaging_base.py    # routing bersama (dedupe, CONFIRM/CANCEL, SalesAgent)
+└── telegram/
+    ├── adapter.py       # normalisasi Update Telegram → format internal; inline keyboard
+    ├── provider_bot.py  # implementasi Bot API asli (httpx)
+    └── provider_mock.py # implementasi synthetic untuk dev/test
 ```
 
 **Kontrak kunci:**
 - `receive_channel_message(channel, payload)` → `InboundMessage{conversation_ref, customer_ref, text | button_id, timestamp}`
 - `send_channel_message(channel, customer_ref, content, is_template)` → outbound
-- `check_24h_window(customer_ref)` → bool (hanya relevan WhatsApp, FR-SA-07)
+- `check_24h_window(customer_ref)` → bool (konsep window messaging; kini tak dipakai Telegram)
 
-**Format internal pesan** harus identik dari kedua channel — AI core tidak tahu bedanya. Tombol konfirmasi order dari Web (button UI) dan WhatsApp (interactive reply button) dinormalisasi menjadi event yang sama: `CONFIRM` dengan `summary_ref` (FR-SA-05). Payload kanonik: `CONFIRM:<summary_ref>`.
+**Format internal pesan** harus identik dari semua channel — AI core tidak tahu bedanya. Tombol konfirmasi order dari Web (button UI) dan Telegram (inline keyboard) dinormalisasi menjadi event yang sama: `CONFIRM` dengan `summary_ref` (FR-SA-05). Payload kanonik: `CONFIRM:<summary_ref>`.
 
 ### 2.3 `app/ai/` — AI Layer (SELL / UNDERSTAND / ACT)
 ```
@@ -203,24 +203,23 @@ Owner mengetik pertanyaan (Admin Panel)
 
 ---
 
-## 5. WhatsApp Adapter — Detail
+## 5. Telegram Adapter — Detail
 
-### 5.1 Webhook masuk (Meta → backend)
-- `GET /api/v1/webhooks/whatsapp` — handshake verifikasi (hub.challenge + `WA_VERIFY_TOKEN`).
-- `POST /api/v1/webhooks/whatsapp` — event pesan; wajib verifikasi header `X-Hub-Signature-256` (HMAC SHA256 body dengan `WA_APP_SECRET`).
-- Payload dinormalisasi ke `InboundMessage`; statuses delivery dibatalkan/failed dicatat.
+### 5.1 Webhook masuk (Telegram → backend)
+- `POST /api/v1/webhooks/telegram` — Update (message/callback_query); wajib verifikasi header `X-Telegram-Bot-Api-Secret-Token` (fail-closed tanpa secret terkonfigurasi).
+- Payload dinormalisasi ke `InboundMessage`; update non-pesan (edited, channel_post, dsb.) diabaikan. Dedupe `update_id`/`message_id` (in-memory MVP).
 
-### 5.2 Keluar (backend → Meta)
-- Free-form message hanya bila `check_24h_window(customer_ref)` = open (FR-SA-07).
-- Di luar window: tahan pesan + log jelas, atau kirim template (`WA_TEMPLATE_ORDER_CONFIRM`) bila tersedia.
-- Interactive reply button untuk konfirmasi order: tombol payload = `CONFIRM:<summary_ref>`.
+### 5.2 Keluar (backend → Bot API)
+- `sendMessage` dengan `reply_markup` inline keyboard untuk konfirmasi order: `callback_data` = `CONFIRM:<summary_ref>` / `CANCEL`.
+- Konfirmasi order idempoten via key stabil `tg:{summary_ref}` — retry webhook tidak mendobel order.
 
 ### 5.3 Mock Provider (synthetic dev)
-- API sama dengan provider Meta (method-level): `send_text`, `send_interactive`, `send_template`, `simulate_inbound(payload)` — simulasi pesan customer dari nomor uji.
-- Endpoint dev-only (mis. `POST /api/v1/dev/mock-wa/simulate`) untuk men-trigger inbound tanpa Meta — memungkinkan UC-01/02 e2e test tanpa jaringan. **Wajib dinonaktifkan saat `APP_ENV=production`**.
+- Endpoint dev-only `POST /api/v1/dev/mock-tg` untuk men-trigger inbound tanpa Bot API — memungkinkan UC-01/02 e2e test tanpa jaringan. **Wajib dinonaktifkan saat `APP_ENV=production`** (guard `DEBUG`).
 
-### 5.4 Identitas customer WA
-Nomor telepon = `Customer.identifier` (channel=WHATSAPP), dibuat otomatis pada pesan pertama (FR-AUTH-03) — customer tidak pernah mengetik ulang kontaknya.
+### 5.4 Identitas customer Telegram
+Chat id = `Customer.identifier` (channel=TELEGRAM), dibuat otomatis pada pesan pertama (FR-AUTH-03) — customer tidak pernah mengetik ulang kontaknya. Nama diambil dari `first_name` profil.
+
+Setup bot lokal (BotFather, secret, tunnel): lihat `docs/TELEGRAM_SETUP.md`.
 
 ---
 

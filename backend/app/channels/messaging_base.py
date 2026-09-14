@@ -1,6 +1,6 @@
 """Routing logic bersama untuk channel messaging — BR-09 + Fase 3 PLAN_PRODUCT_LAUNCH.
 
-WhatsAppAdapter dan TelegramAdapter punya alur identik:
+TelegramAdapter (dan channel messaging baru nanti) memiliki alur identik:
 
     parse webhook (provider) -> InboundMessage -> dedupe message_id
       -> shortcut CONFIRM:<ref> / CANCEL (UC-02 E5)
@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 class MessagingChannelAdapter(ABC):
-    """Base adapter channel messaging (WA / Telegram / channel baru nanti)."""
+    """Base adapter channel messaging (Telegram / channel baru nanti)."""
 
-    CHANNEL: str = ""            # "WHATSAPP" | "TELEGRAM" | ...
-    CONFIRM_KEY_PREFIX: str = ""  # prefix idempotency key order ("wa" / "tg")
+    CHANNEL: str = ""            # "TELEGRAM" | ...
+    CONFIRM_KEY_PREFIX: str = ""  # prefix idempotency key order ("tg" / ...)
 
     def __init__(self, db: AsyncSession, provider) -> None:
         self.db = db
@@ -107,11 +107,14 @@ class MessagingChannelAdapter(ABC):
 
         # 2) Pembatalan eksplisit
         if msg.content.strip().upper() == "CANCEL":
+            from app.services.summary_store import pop_for_conversation
+
             await ConversationService.add_message(
                 self.db, conversation_id, sender="CUSTOMER", content=msg.content,
                 message_type="BUTTON_REPLY", raw_payload={"reply_id": msg.content},
             )
             await ConversationService.set_outcome(self.db, conversation_id, "ABANDONED")
+            pop_for_conversation(conversation_id)  # summary dikonsumsi — jangan render ulang tombol
             await self.db.commit()
             return ChatReply(reply="Baik, pesanan dibatalkan. Ada lagi yang bisa saya bantu? 🙏")
 
@@ -137,6 +140,7 @@ class MessagingChannelAdapter(ABC):
         from app.services.conversation_service import ConversationService
         from app.services.order_service import OrderError, OrderService
         from app.services.summary_store import get as get_summary
+        from app.services.summary_store import pop_for_conversation
 
         ref = content.split(":", 1)[1].strip()
         summary = get_summary(ref)
@@ -169,6 +173,7 @@ class MessagingChannelAdapter(ABC):
             raw_payload={"reply_id": content},
         )
         await ConversationService.set_outcome(self.db, conversation_id, "ORDERED")
+        pop_for_conversation(conversation_id)  # summary sudah jadi order — tombol tidak dikirim ulang
 
         total = float(order.total_amount)
         status_txt = "(sudah diproses sebelumnya)" if replayed else "berhasil dicatat ✅"

@@ -1,0 +1,23 @@
+INFO:     Started server process [26044]
+INFO:     Waiting for application startup.
+2026-09-15 01:23:10,416 ERROR    app.main: CONFIG: JWT_SECRET_KEY default/lemah — wajib ganti (min 32 char acak) di production
+2026-09-15 01:23:10,416 INFO     app.main: Initializing database...
+2026-09-15 01:23:15,430 INFO     app.main: Startup complete.
+2026-09-15 01:23:15,464 INFO     apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-15 01:23:15,464 INFO     apscheduler.scheduler: Added job "_maintenance_job" to job store "default"
+2026-09-15 01:23:15,464 INFO     apscheduler.scheduler: Scheduler started
+2026-09-15 01:23:15,464 INFO     app.main: Maintenance scheduler started (every 5 min)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53660 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53664 - "POST /api/v1/chat/start HTTP/1.1" 200 OK
+2026-09-15 01:23:39,507 INFO     httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-15 01:23:39,509 INFO     app.ai.sales_agent: sales conv=f8c9f71c-a1dd-4e5c-b78c-a611a2647776: tool=search_products args={'query': 'ASUS ROG Zephyrus G14 RTX 4060', 'stock_only': True}
+2026-09-15 01:23:39,904 INFO     app.ai.sales_agent: sales conv=f8c9f71c-a1dd-4e5c-b78c-a611a2647776: tool=search_products args={'query': 'Logitech G502 Hero', 'stock_only': True}
+2026-09-15 01:23:40,744 INFO     httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-15 01:23:40,744 INFO     app.ai.sales_agent: sales conv=f8c9f71c-a1dd-4e5c-b78c-a611a2647776: iterasi tanpa tool call
+INFO:     127.0.0.1:53666 - "POST /api/v1/chat/f8c9f71c-a1dd-4e5c-b78c-a611a2647776/messages HTTP/1.1" 200 OK
+2026-09-15 01:28:15,474 INFO     apscheduler.executors.default: Running job "_maintenance_job (trigger: interval[0:05:00], next run at: 2026-09-15 01:33:15 +07)" (scheduled at 2026-09-15 01:28:15.464254+07:00)
+2026-09-15 01:28:16,473 INFO     apscheduler.executors.default: Job "_maintenance_job (trigger: interval[0:05:00], next run at: 2026-09-15 01:33:15 +07)" executed successfully
+2026-09-15 01:33:15,469 INFO     apscheduler.executors.default: Running job "_maintenance_job (trigger: interval[0:05:00], next run at: 2026-09-15 01:38:15 +07)" (scheduled at 2026-09-15 01:33:15.464254+07:00)
+2026-09-15 01:33:16,221 INFO     apscheduler.executors.default: Job "_maintenance_job (trigger: interval[0:05:00], next run at: 2026-09-15 01:38:15 +07)" executed successfully

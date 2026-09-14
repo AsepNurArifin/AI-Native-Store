@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { HTMLAttributes } from 'vue'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { LoaderCircle } from '@lucide/vue'
 import { cn } from '~/lib/utils'
 
 /**
- * shadcn-vue (new-york) — tema "Toko Digital" (design.md).
+ * shadcn-vue (new-york), tema "Toko Digital" (design.md).
  * - Varian `ai` = aksen brand terracotta solid (tanpa gradient).
  * - `size="md"` = alias `default` (kompatibilitas migrasi dari ScButton).
  * - `loading` menampilkan spinner lucide dan otomatis men-disable tombol.
@@ -22,7 +23,7 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        ai: 'bg-clay-600 text-white shadow-md hover:bg-clay-500',
+        ai: 'bg-clay-700 text-white shadow-md hover:bg-clay-800',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
@@ -46,7 +47,7 @@ const props = withDefaults(
     disabled?: boolean
     /** Jika diisi, tombol dirender sebagai NuxtLink (CTA navigasi). */
     to?: string
-    class?: any
+    class?: HTMLAttributes['class']
   }>(),
   { variant: 'default', size: 'default', loading: false, disabled: false },
 )

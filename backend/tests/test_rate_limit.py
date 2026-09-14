@@ -23,6 +23,7 @@ _UPDATE = {"update_id": 999, "edited_message": {"text": "x"}}
 async def test_rate_limit_returns_429_with_retry_after(client: AsyncClient, monkeypatch):
     """P5: lewat 60 request/menit/IP dari IP sama -> 429 + Retry-After."""
     monkeypatch.setattr(settings, "rate_limit_enabled", True, raising=False)
+    monkeypatch.setattr(settings, "telegram_provider", "mock")  # hermetik: jangan kena verifikasi secret provider bot di .env
     monkeypatch.setattr(rl, "_buckets", {})  # bucket bersih per test
 
     for i in range(60):
@@ -46,6 +47,7 @@ async def test_rate_limit_returns_429_with_retry_after(client: AsyncClient, monk
 async def test_rate_limit_per_ip(client: AsyncClient, monkeypatch):
     """IP berbeda punya bucket terpisah — satu IP kena limit tidak memblokir lainnya."""
     monkeypatch.setattr(settings, "rate_limit_enabled", True, raising=False)
+    monkeypatch.setattr(settings, "telegram_provider", "mock")  # hermetik: jangan kena verifikasi secret provider bot di .env
     monkeypatch.setattr(rl, "_buckets", {})
 
     for i in range(60):

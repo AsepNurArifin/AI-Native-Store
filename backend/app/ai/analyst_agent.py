@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.llm import get_llm, model_for
+from app.ai.llm import get_llm, model_for, tool_roundtrip_messages
 from app.ai.prompts import ANALYST_AGENT_SYSTEM, ANALYST_TOOLS
 from app.ai.tools import ToolExecutor
 from app.schemas.chat import AnalystQueryResponse
@@ -29,14 +29,15 @@ class AnalystAgent:
             resp = await self.llm.complete(system=ANALYST_AGENT_SYSTEM, messages=msg_history, tools=ANALYST_TOOLS)
             if not resp.tool_calls:
                 break
+            results = []
             for tc in resp.tool_calls:
                 # normalisasi tanggal relatif (default: 30 hari terakhir)
                 args = self._normalize_dates(tc.name, tc.arguments)
                 result = await self.tools.call(tc.name, args)
                 query_used = tc.name
                 data = result
-                msg_history.append({"role": "assistant", "content": f"tool: {tc.name}"})
-                msg_history.append({"role": "user", "content": f"hasil tool {tc.name}: {result}"})
+                results.append(result)
+            msg_history.extend(tool_roundtrip_messages(resp, results))
 
         narration = await self._narrate(question, data, msg_history)
         # FR-BA-05 (§2.6): disclaimer khusus bila jawaban menyangkut data customer/

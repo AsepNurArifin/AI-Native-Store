@@ -67,21 +67,15 @@
 | `LLM_MAX_RETRIES` | `2` | Retry saat LLM gagal (UC-01 E1) |
 | `LLM_MONTHLY_BUDGET_IDR` | `300000` | Batas NFR-08 untuk monitoring |
 
-## 6. WhatsApp / WABA (`WA_*`)
+## 6. Telegram (`TELEGRAM_*`)
 
 | Nama | Contoh | Keterangan |
 |---|---|---|
-| `WA_PROVIDER` | `mock` \| `meta` | `mock` = MockWhatsAppProvider (dev/synthetic), `meta` = Meta Cloud API (F7). Default: `mock` |
-| `WA_VERIFY_TOKEN` | *(random string)* | Token verifikasi webhook (Meta akan memanggil GET dengan `hub.verify_token`) |
-| `WA_PHONE_NUMBER_ID` | `123456789012345` | Phone number ID dari Meta dashboard |
-| `WA_BUSINESS_ACCOUNT_ID` | `9876543210` | WABA ID |
-| `WA_ACCESS_TOKEN` | `EAAG...` | Access token (sementara 24 jam) atau system user token permanen |
-| `WA_APP_SECRET` | `app_secret` | Untuk verifikasi signature header `X-Hub-Signature-256` pada webhook |
-| `WA_API_VERSION` | `v21.0` | Versi Graph API |
-| `WA_TEST_NUMBERS` | `+6281234567890,+6289876543210` | Daftar nomor uji yang diizinkan saat masih pakai test number (max 5) |
-| `WA_TEMPLATE_ORDER_CONFIRM` | `order_confirmation` | Nama template message untuk konfirmasi di luar 24h window (opsional, FR-SA-07) |
+| `TELEGRAM_PROVIDER` | `mock` \| `bot` | `mock` = simulasi tanpa API nyata (dev/test), `bot` = Bot API asli (api.telegram.org). Default: `mock` |
+| `TELEGRAM_BOT_TOKEN` | `123456:ABC-DEF...` | Token dari @BotFather — wajib bila `provider=bot` |
+| `TELEGRAM_WEBHOOK_SECRET` | *(random string)* | Secret token setWebhook → diverifikasi dari header `X-Telegram-Bot-Api-Secret-Token` (fail-closed) |
 
-> Detail langkah setup semua nilai Meta ada di [`WABA_SETUP.md`](WABA_SETUP.md).
+> Detail langkah setup ada di [`TELEGRAM_SETUP.md`](TELEGRAM_SETUP.md).
 
 ## 7. Frontend (`frontend/.env` — public only)
 
@@ -101,7 +95,7 @@
 
 | Variabel | Development | Testing (CI) | Production/Demo |
 |---|---|---|---|
-| `WA_PROVIDER` | `mock` | `mock` | `meta` (atau `mock` bila verifikasi belum selesai) |
+| `TELEGRAM_PROVIDER` | `mock` | `mock` | `bot` (atau `mock` bila bot belum disetup) |
 | `DATABASE_URL` | Supabase project dev | Supabase project test / fresh DB | Supabase project prod/demo |
 | `LLM_*` | API key dev | API key dev (atau mock LLM) | API key prod |
 | `APP_ENV` | `development` | `testing` | `production` |
@@ -113,5 +107,5 @@
 - [ ] Tidak ada secret yang hardcode di source code
 - [ ] `JWT_SECRET_KEY` berbeda antar environment
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` tidak pernah dikirim ke frontend
-- [ ] Webhook WA memverifikasi `X-Hub-Signature-256` dengan `WA_APP_SECRET`
-- [ ] Access token Meta disimpan aman & di-rotate (bearer token 24 jam) — pakai system user token untuk stabilitas
+- [ ] Webhook Telegram memverifikasi `X-Telegram-Bot-Api-Secret-Token` dengan `TELEGRAM_WEBHOOK_SECRET` (fail-closed)
+- [ ] `TELEGRAM_BOT_TOKEN` disimpan aman di `backend/.env` (tidak pernah dikirim ke frontend)

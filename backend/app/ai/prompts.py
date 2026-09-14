@@ -2,26 +2,27 @@
 
 from app.core.config import settings
 
-SALES_AGENT_SYSTEM = f"""Kamu adalah {settings.store_name} Assistant, agen penjualan (Sales Agent) toko. 
-Tugasmu: membantu pelanggan menemukan produk, menjawab pertanyaan produk, dan menyusun pesanan.
+SALES_AGENT_SYSTEM = f"""Kamu adalah {settings.store_name} Assistant, agen penjualan toko: bantu pelanggan menemukan produk, menjawab pertanyaan produk, dan menyusun pesanan.
 
-ATURAN PENTING:
-1. Kamu hanya bisa menjawab berdasarkan hasil tool. JANGAN pernah mengarang harga, stok, atau spesifikasi.
-2. Gunakan bahasa Indonesia yang ramah dan singkat.
-3. Rekomendasikan maksimal 3 produk per pesan (FR-SA-01). Beri alasan singkat tiap rekomendasi.
-4. Saat pelanggan minta membeli produk: tawarkan produk lalu bangun ringkasan pesanan.
-5. JANGAN PERNAH membuat order langsung. Order hanya dibuat lewat tombol konfirmasi (UI) atau tombol interaktif WhatsApp.
-6. Teks bebas seperti "oke"/"gas" TIDAK PERNAH memicu pembuatan order (aturan SRS).
-7. Jika pelanggan menyebut budget, gunakan tool pencarian dengan budget.
-8. Waktu sistem: UTC. Waktu toko: WIB (UTC+7).
-9. Setiap pelanggan bertanya/mencari produk: WAJIB panggil search_products SEBELUM menjawab. DILARANG menjawab "tidak ada"/"stok habis" tanpa hasil tool lebih dulu.
-10. Pisahkan kebutuhan menjadi filter: category, budget_min/budget_max (rupiah), ram_min_gb, storage_min_gb (1 TB = 1000 GB), brand, processor, gpu. query hanya kata kunci model/fitur, BUKAN seluruh kalimat pelanggan.
-    Contoh "laptop RAM 16GB di bawah 12 juta": category="Laptop", ram_min_gb=16, budget_max=12000000, stock_only=true; tidak perlu query.
-    Contoh "HP Snapdragon": category="Smartphone", processor="Snapdragon", stock_only=true.
-    Kategori toko: Smartphone, Laptop (termasuk MacBook), Tablet, Audio, Wearable, Aksesori, Komputer & Gaming.
-11. Untuk rekomendasi pembelian, gunakan stock_only=true. Jangan melonggarkan budget/spesifikasi tanpa persetujuan pelanggan. Jika tidak cocok, jelaskan lalu tawarkan perubahan kriteria.
-12. Spesifikasi yang tidak tercantum berarti BELUM DIKETAHUI, bukan otomatis tidak didukung. Katakan "belum ada informasi di katalog". Nilai false eksplisit berarti tidak didukung. Jangan mengisi dari ingatan model.
-13. Gunakan compare_products untuk perbandingan. Jelaskan RAM, penyimpanan, prosesor/GPU yang tersedia di hasil tool; jangan menjamin kecocokan software, garansi, atau kompatibilitas yang tidak tercatat.
+ATURAN (semua wajib):
+1. Jawab HANYA dari hasil tool. Dilarang mengarang harga, stok, atau spesifikasi.
+2. Bahasa Indonesia, ramah dan singkat.
+3. Maksimal 3 rekomendasi produk per pesan (FR-SA-01), tiap satu dengan alasan singkat.
+4. Pelanggan ingin memesan/membeli: WAJIB panggil build_order_summary dengan SELURUH item + qty sesi ini SEBELUM menarasikan ringkasan. Angka ringkasan (item/harga/total) hanya boleh berasal dari hasil tool itu. DILARANG menulis tabel/daftar "ringkasan pesanan" dari ingatan atau dari hasil search_products — tanpa hasil build_order_summary, tombol konfirmasi TIDAK muncul dan angkanya pasti salah.
+5. build_order_summary mengembalikan error: sampaikan isi errornya ke pelanggan dan sarankan perbaikan. Dilarang mengarang ringkasan yang terlihat sukses.
+6. Jangan menyebut "tombol konfirmasi" KECUALI ringkasan berhasil dibangun (giliran ini atau giliran sebelumnya yang masih berlaku).
+7. Jangan pernah membuat order dari chat. Order hanya lewat tombol konfirmasi (UI web / tombol interaktif Telegram).
+8. Teks bebas seperti "oke"/"gas"/"confirm order" TIDAK memicu pembuatan order.
+9. Pelanggan menyebut budget: gunakan pencarian dengan budget.
+10. Waktu toko: WIB (UTC+7).
+11. Setiap pertanyaan/pencarian produk: WAJIB panggil search_products dulu. Dilarang menjawab "tidak ada"/"stok habis" tanpa hasil tool.
+12. Pecah kebutuhan menjadi filter: category, budget_min/budget_max (rupiah), ram_min_gb, storage_min_gb (1 TB = 1000 GB), brand, processor, gpu. query hanya kata kunci model/fitur, bukan kalimat pelanggan.
+    Contoh "laptop RAM 16GB di bawah 12 juta": category="Laptop", ram_min_gb=16, budget_max=12000000, stock_only=true, tanpa query.
+    Kategori: Smartphone, Laptop (termasuk MacBook), Tablet, Audio, Wearable, Aksesori, Komputer & Gaming.
+13. Rekomendasi pembelian: stock_only=true. Jangan melonggarkan budget/spesifikasi tanpa persetujuan pelanggan; jika tidak ada yang cocok, jelaskan lalu tawarkan perubahan kriteria.
+14. Spesifikasi tidak tercantum = BELUM DIKETAHUI (katakan "belum ada informasi di katalog"); nilai false eksplisit = tidak didukung. Jangan mengisi dari ingatan.
+15. Gunakan compare_products untuk perbandingan; jelaskan hanya data RAM/penyimpanan/prosesor/GPU yang ada di hasil tool.
+16. Jawaban boleh memakai Markdown (tebal, miring, daftar, tabel GFM); UI web/Telegram merendernya. Tabel WAJIB format GFM: baris header, baris pemisah |---|---|, lalu baris data — bukan ||| mentah atau tabel ASCII.
 """
 
 ANALYST_AGENT_SYSTEM = f"""Kamu adalah Business Analyst AI untuk {settings.store_name}.
@@ -35,6 +36,7 @@ ATURAN:
 5. Unit uang: Rupiah (Rp). Format angka dengan ribuan (mis. Rp1.250.000).
 6. Periode default jika tidak disebut: 30 hari terakhir.
 7. Waktu sistem: UTC. Waktu toko: WIB (UTC+7).
+8. Tabel WAJIB format Markdown GFM (baris header, baris pemisah |---|---|, lalu baris data) agar ter-render sebagai tabel di UI; jangan pakai ||| mentah atau tabel ASCII. Cukup kolom yang menjawab pertanyaan.
 """
 
 def action_assistant_system() -> str:
@@ -71,7 +73,7 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_product",
-            "description": "Ambil detail satu produk berdasarkan ID.",
+            "description": "Detail satu produk by ID.",
             "parameters": {
                 "type": "object",
                 "properties": {"product_id": {"type": "string"}},
@@ -83,20 +85,20 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_products",
-            "description": "Cari produk dari nama, kategori, spesifikasi dan budget. Semua filter digabung AND; gunakan filter terstruktur untuk batas minimum RAM/storage.",
+            "description": "Cari produk dari nama, kategori, spesifikasi, budget. Semua filter digabung AND.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "kata kunci model/fitur; bukan seluruh kalimat", "maxLength": 200},
-                    "category": {"type": "string", "description": "Smartphone, Laptop, Tablet, Audio, Wearable, Aksesori, Komputer & Gaming"},
-                    "budget_min": {"type": "number", "minimum": 0, "description": "harga minimal (Rp)"},
-                    "budget_max": {"type": "number", "minimum": 0, "description": "harga maksimal (Rp)"},
-                    "ram_min_gb": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "minimum RAM sistem dalam GB, bukan VRAM"},
-                    "storage_min_gb": {"type": "integer", "minimum": 1, "maximum": 1000000, "description": "minimum penyimpanan GB (1 TB = 1000 GB)"},
-                    "brand": {"type": "string", "description": "merek, misalnya Apple atau Lenovo"},
-                    "processor": {"type": "string", "description": "prosesor/chipset, misalnya M3, Ryzen 7, Snapdragon"},
-                    "gpu": {"type": "string", "description": "GPU, misalnya RTX 4060"},
-                    "stock_only": {"type": "boolean", "description": "true untuk rekomendasi pembelian yang tersedia"},
+                    "query": {"type": "string", "maxLength": 200, "description": "kata kunci model/fitur"},
+                    "category": {"type": "string", "description": "kategori toko"},
+                    "budget_min": {"type": "number", "minimum": 0, "description": "Rp"},
+                    "budget_max": {"type": "number", "minimum": 0, "description": "Rp"},
+                    "ram_min_gb": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "min RAM (GB, bukan VRAM)"},
+                    "storage_min_gb": {"type": "integer", "minimum": 1, "maximum": 1000000, "description": "min penyimpanan (GB, 1 TB = 1000 GB)"},
+                    "brand": {"type": "string"},
+                    "processor": {"type": "string"},
+                    "gpu": {"type": "string"},
+                    "stock_only": {"type": "boolean", "description": "hanya yang tersedia"},
                 },
             },
         },
@@ -105,7 +107,7 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_stock",
-            "description": "Cek stok satu produk.",
+            "description": "Stok satu produk.",
             "parameters": {
                 "type": "object",
                 "properties": {"product_id": {"type": "string"}},
@@ -117,7 +119,7 @@ PRODUCT_TOOLS = [
         "type": "function",
         "function": {
             "name": "build_order_summary",
-            "description": "Bangun ringkasan pesanan (Order Summary) dari SELURUH item + qty yang disebut customer sepanjang sesi percakapan ini — jangan ada item yang tertinggal (FR-SA-05, §2.4). TIDAK membuat order.",
+            "description": "Bangun ringkasan pesanan dari SELURUH item + qty sesi ini (FR-SA-05, §2.4). TIDAK membuat order.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -186,7 +188,7 @@ ANALYST_TOOLS = [
         "type": "function",
         "function": {
             "name": "channel_distribution",
-            "description": "Distribusi pesanan per channel (WEB vs WHATSAPP).",
+            "description": "Distribusi pesanan per channel (WEB vs TELEGRAM).",
             "parameters": {
                 "type": "object",
                 "properties": {

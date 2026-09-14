@@ -3,9 +3,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between gap-2 border-b border-stone-100/90 bg-stone-50/70 px-4 py-4 sm:px-5 backdrop-blur-sm">
       <div class="flex min-w-0 items-center gap-3">
-        <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-clay-600 text-white shadow-md">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-clay-600 text-white shadow-md">
           <Bot class="h-5 w-5" />
-          <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-stone-400" />
         </div>
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
@@ -17,7 +16,7 @@
       </div>
       <button
         v-if="messages.length"
-        class="shrink-0 rounded-lg p-1.5 text-xs text-stone-400 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
+        class="shrink-0 rounded-lg p-1.5 text-xs text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
         title="Reset percakapan"
         @click="resetChat"
       >
@@ -32,7 +31,7 @@
         <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-clay-50 text-clay-600">
           <MessageSquare class="h-7 w-7" />
         </div>
-        <h4 class="font-display font-semibold text-stone-800">Mulai Tanya ke AI Sales</h4>
+        <h4 class="font-display font-semibold text-stone-800">Mulai tanya stok</h4>
         <p class="mt-1 max-w-xs text-xs text-stone-500">
           Ceritakan gadget yang kamu cari, misalnya: <i>“Laptop untuk desain grafis budget 15 juta”</i> atau <i>“iPhone 15 Pro ada stok?”</i>
         </p>
@@ -44,15 +43,16 @@
         <div class="flex items-end gap-2" :class="m.role === 'me' ? 'justify-end' : 'justify-start'">
           <div
             v-if="m.role === 'ai'"
-            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-clay-600 text-white text-[10px] font-bold"
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-clay-700 text-white text-[10px] font-bold"
           >
             AI
           </div>
           <div
             class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-xs"
-            :class="m.role === 'me' ? 'rounded-br-xs bg-stone-900 text-white ' : 'rounded-bl-xs border border-stone-200/80 bg-stone-50 text-stone-800 '"
+            :class="m.role === 'me' ? 'rounded-br-xs bg-stone-900 text-white ' : 'rounded-bl-xs border border-stone-200/80 bg-stone-50 text-stone-800 '" 
           >
-            <p class="whitespace-pre-wrap">{{ m.text }}</p>
+            <MarkdownText v-if="m.role === 'ai'" :text="m.text" />
+            <p v-else class="whitespace-pre-wrap">{{ m.text }}</p>
           </div>
         </div>
 
@@ -64,18 +64,18 @@
             class="group relative rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-clay-300 hover:shadow-md"
           >
             <div class="flex items-start justify-between gap-2">
-              <span class="rounded-lg bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
+              <span class="rounded-lg bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
                 {{ p.category }}
               </span>
               <span
                 class="text-[11px] font-medium"
-                :class="p.current_stock > 5 ? 'text-emerald-600 ' : 'text-amber-600 '"
+                :class="p.current_stock > 5 ? 'text-emerald-600 ' : 'text-amber-700 '"
               >
                 Stok: {{ p.current_stock }}
               </span>
             </div>
             <h5 class="mt-2 font-medium text-stone-900 text-sm [overflow-wrap:anywhere]">{{ p.name }}</h5>
-            <p class="mt-1 font-display font-bold text-clay-600 text-base">
+            <p class="mt-1 font-display font-bold text-clay-700 text-base">
               {{ formatIDR(p.price) }}
             </p>
             <details class="mt-3 min-w-0">
@@ -97,7 +97,7 @@
               </span>
               <span class="font-display font-bold text-stone-900 text-sm">Ringkasan Pesanan</span>
             </div>
-            <span class="text-[11px] font-mono text-stone-400">Ref: {{ m.summary.summary_ref.slice(0, 8) }}</span>
+            <span class="text-[11px] font-mono text-stone-500">Ref: {{ m.summary.summary_ref.slice(0, 8) }}</span>
           </div>
 
           <!-- Items list -->
@@ -125,7 +125,7 @@
                 {{ formatIDR(m.summary.total) }}
               </span>
             </div>
-            <p class="mt-0.5 text-[10px] text-stone-400">Harga & stok diverifikasi secara atomik saat konfirmasi.</p>
+            <p class="mt-0.5 text-[10px] text-stone-500">Harga & stok diverifikasi secara atomik saat konfirmasi.</p>
           </div>
 
           <!-- Customer Input fields if needed -->
@@ -133,17 +133,47 @@
             <p class="text-xs font-semibold text-stone-700">Data Pemesan:</p>
             <div class="grid gap-2 sm:grid-cols-2">
               <Input v-model="custName" placeholder="Nama lengkap" class="h-8 text-xs" />
-              <Input v-model="custContact" placeholder="No. WhatsApp / HP" class="h-8 text-xs" />
+              <Input v-model="custContact" placeholder="No. HP / Telegram" class="h-8 text-xs" />
             </div>
           </div>
 
-          <!-- Confirm Button -->
+          <!-- Fulfillment: tanya ambil di toko vs diantar SEBELUM order dibuat -->
+          <div v-if="fulfillment && fulfillment.ref === m.summary.summary_ref && fulfillment.stage === 'choice'" class="space-y-2">
+            <p class="text-xs font-semibold text-stone-700">Mau diambil di toko, atau diantar ke alamat?</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <Button variant="outline" size="md" class="h-11 justify-center" @click="choosePickup(m.summary!)">
+                Ambil di toko
+              </Button>
+              <Button variant="ai" size="md" class="h-11 justify-center" @click="fulfillment.stage = 'delivery'">
+                Diantar ke alamat
+              </Button>
+            </div>
+          </div>
+
+          <!-- Form alamat pengiriman (khusus delivery) -->
+          <div v-else-if="fulfillment && fulfillment.ref === m.summary.summary_ref && fulfillment.stage === 'delivery'" class="space-y-2 rounded-xl bg-white/80 p-3 ring-1 ring-stone-200/80">
+            <p class="text-xs font-semibold text-stone-700">Kirim ke mana?</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <Input v-model="dlvRecipient" placeholder="Nama penerima" class="h-9 text-xs" />
+              <Input v-model="dlvPhone" placeholder="No. HP penerima" class="h-9 text-xs" />
+            </div>
+            <Textarea v-model="dlvAddress" placeholder="Alamat lengkap (jalan, nomor, kota, kode pos)" rows="2" class="text-xs" />
+            <Input v-model="dlvNotes" placeholder="Catatan kurir (opsional)" class="h-9 text-xs" />
+            <div class="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button variant="ghost" size="md" class="justify-center" @click="fulfillment.stage = 'choice'">Kembali</Button>
+              <Button variant="ai" size="md" class="flex-1 justify-center font-semibold" :loading="confirming" @click="submitDelivery(m.summary!)">
+                Buat pesanan &amp; kirim
+              </Button>
+            </div>
+          </div>
+
           <Button
+            v-else
             variant="ai"
             size="md"
             class="w-full justify-center shadow-md font-semibold"
             :loading="confirming"
-            @click="confirm(m.summary!)"
+            @click="startConfirm(m.summary!)"
           >
             Konfirmasi pesanan
           </Button>
@@ -152,14 +182,17 @@
             {{ confirmMsg }}
           </p>
         </div>
+
+        <!-- Panel QRIS muncul setelah order tercatat (pickup: langsung; delivery: setelah detail tujuan) -->
+        <QrisPanel v-if="m.payment" class="mt-3 sm:ml-9" :amount="m.payment.amount" :reference="m.payment.orderId" />
       </div>
 
       <!-- Typing Indicator -->
-      <div v-if="sending" class="flex items-center gap-2 text-xs text-stone-400">
+      <div v-if="sending" class="flex items-center gap-2 text-xs text-stone-500">
         <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-600/10 text-clay-600">
           <span class="inline-block h-2 w-2 rounded-full bg-current animate-ping" />
         </div>
-        <span>AI Sales sedang mencari stok toko…</span>
+        <span>Asisten sedang mengecek katalog toko…</span>
       </div>
     </div>
 
@@ -171,9 +204,9 @@
         <Input
           v-model="draft"
           placeholder="Ketik produk atau pertanyaan belanja kamu di sini…"
-          class="flex-1 bg-white"
+          class="h-11 flex-1 bg-white"
         />
-        <Button type="submit" variant="ai" size="md" :loading="sending" class="shrink-0 px-4">
+        <Button type="submit" variant="ai" size="lg" :loading="sending" class="shrink-0">
           <span>Kirim</span>
           <Send class="h-4 w-4" />
         </Button>
@@ -185,14 +218,22 @@
 <script setup lang="ts">
 import { Bot, MessageSquare, RefreshCw, Send } from '@lucide/vue'
 import { formatIDR } from '~/utils/format'
-import type { ChatReply, OrderSummary, ProductOut } from '~/utils/api-types'
+import type { ChatReply, ConfirmOrderResponse, FulfillmentInfo, OrderSummary, ProductOut } from '~/utils/api-types'
 import { NormalizedApiError } from '~/composables/useApi'
+
+interface PaymentInfo {
+  orderId: string
+  amount: number
+  method: FulfillmentInfo['method']
+  destination?: { recipient: string, phone: string, address: string, notes?: string }
+}
 
 interface Msg {
   role: 'me' | 'ai'
   text: string
   products?: ProductOut[]
   summary?: OrderSummary | null
+  payment?: PaymentInfo
 }
 
 const CONV_KEY = 'ai_store_conversation_id'
@@ -210,6 +251,11 @@ const conversationId = ref<string | null>(null)
 const needsInfo = ref(false)
 const custName = ref('')
 const custContact = ref('')
+const fulfillment = ref<{ ref: string, stage: 'choice' | 'delivery' } | null>(null)
+const dlvRecipient = ref('')
+const dlvPhone = ref('')
+const dlvAddress = ref('')
+const dlvNotes = ref('')
 const idemKeys = new Map<string, string>()
 const scrollBox = ref<HTMLElement | null>(null)
 
@@ -227,6 +273,7 @@ function resetChat() {
   messages.value = []
   error.value = ''
   confirmMsg.value = ''
+  fulfillment.value = null
 }
 
 /** Mulai sesi guest. customer_ref lazy "Tamu|guest". */
@@ -284,33 +331,89 @@ async function send(customText?: string) {
   finally { sending.value = false; scrollDown() }
 }
 
-async function confirm(summary: OrderSummary) {
+function startConfirm(summary: OrderSummary) {
   if (confirming.value) return
   if (needsInfo.value && (!custName.value.trim() || !custContact.value.trim())) {
     confirmOk.value = false
     confirmMsg.value = 'Isi nama & kontak dulu sebelum konfirmasi.'
     return
   }
+  confirmMsg.value = ''
+  fulfillment.value = { ref: summary.summary_ref, stage: 'choice' }
+}
+
+function choosePickup(summary: OrderSummary) {
+  const info: FulfillmentInfo = { method: 'PICKUP' }
+  fulfillment.value = null
+  void confirmOrder(summary, info)
+}
+
+function submitDelivery(summary: OrderSummary) {
+  if (!dlvRecipient.value.trim() || !dlvPhone.value.trim() || !dlvAddress.value.trim()) {
+    confirmOk.value = false
+    confirmMsg.value = 'Isi nama penerima, no. HP, dan alamat lengkap dulu.'
+    return
+  }
+  const info: FulfillmentInfo = {
+    method: 'DELIVERY',
+    recipient: dlvRecipient.value.trim(),
+    phone: dlvPhone.value.trim(),
+    address: dlvAddress.value.trim(),
+    notes: dlvNotes.value.trim() || undefined,
+  }
+  fulfillment.value = null
+  void confirmOrder(summary, info)
+}
+
+function orderMessage(orderId: string, total: number, info: FulfillmentInfo, replayed: boolean): string {
+  const replayNote = replayed ? '\n\n(Order ini sudah tercatat sebelumnya, tidak ada duplikasi.)' : ''
+  if (info.method === 'PICKUP') {
+    return `**Pesanan #${orderId.slice(0, 8)} tercatat.**\nAmbil di toko: tunjukkan ID pesanan ini ke kasir saat pengambilan.\n\nTotal tagihan: **${formatIDR(total)}**${replayNote}`
+  }
+  const dest = [`- **Penerima:** ${info.recipient} (${info.phone})`, `- **Alamat:** ${info.address}`]
+  if (info.notes) dest.push(`- **Catatan kurir:** ${info.notes}`)
+  return `**Pesanan #${orderId.slice(0, 8)} tercatat.**\nPaket akan dikirim ke:\n\n${dest.join('\n')}\n\nTotal tagihan: **${formatIDR(total)}**${replayNote}`
+}
+
+async function confirmOrder(summary: OrderSummary, fulfillmentInfo: FulfillmentInfo) {
+  if (confirming.value) return
   confirming.value = true; confirmMsg.value = ''
   try {
     if (!idemKeys.has(summary.summary_ref)) idemKeys.set(summary.summary_ref, uuid())
     const conv = await ensureSession()
-    const res = await $fetch<{ order_id: string, status: string, total: number, replayed?: boolean }>(
+    const res = await $fetch<ConfirmOrderResponse>(
       `${base}/chat/${conv}/confirm`,
       {
         method: 'POST',
         body: {
           order_summary_ref: summary.summary_ref,
           idempotency_key: idemKeys.get(summary.summary_ref),
-          customer: { name: custName.value.trim() || 'Tamu', contact: custContact.value.trim() || 'guest' }
+          customer: { name: custName.value.trim() || 'Tamu', contact: custContact.value.trim() || 'guest' },
+          fulfillment: fulfillmentInfo
         }
       }
     )
     confirmOk.value = true
     confirmMsg.value = res.replayed
       ? `Order sudah tercatat sebelumnya (${res.order_id.slice(0, 8)}…). Tidak ada duplikasi.`
-      : `Order ${res.status}! ID: ${res.order_id.slice(0, 8)}… — Total: ${formatIDR(res.total)}`
-    messages.value.push({ role: 'ai', text: confirmMsg.value })
+      : ''
+    messages.value.push({
+      role: 'ai',
+      text: orderMessage(res.order_id, res.total, fulfillmentInfo, res.replayed),
+      payment: {
+        orderId: res.order_id,
+        amount: res.total,
+        method: fulfillmentInfo.method,
+        destination: fulfillmentInfo.method === 'DELIVERY' && fulfillmentInfo.address
+          ? {
+              recipient: fulfillmentInfo.recipient || '',
+              phone: fulfillmentInfo.phone || '',
+              address: fulfillmentInfo.address,
+              notes: fulfillmentInfo.notes,
+            }
+          : undefined,
+      },
+    })
   }
   catch (e: unknown) {
     confirmOk.value = false

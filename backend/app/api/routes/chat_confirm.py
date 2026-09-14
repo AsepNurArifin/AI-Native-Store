@@ -34,8 +34,8 @@ async def confirm_order(conversation_id: str, body: ConfirmOrderRequest, db: Asy
         )
 
     # identity channel-specific
-    if conv.channel == "WHATSAPP":
-        customer_identity = {"channel": "WHATSAPP", "identifier": customer.identifier, "name": customer.name, "contact": customer.contact}
+    if conv.channel == "TELEGRAM":
+        customer_identity = {"channel": "TELEGRAM", "identifier": customer.identifier, "name": customer.name, "contact": customer.contact}
     else:
         customer_identity = {
             "channel": "WEB",
@@ -52,6 +52,7 @@ async def confirm_order(conversation_id: str, body: ConfirmOrderRequest, db: Asy
             customer_identity=customer_identity,
             items=[{"product_id": i.product_id, "quantity": i.quantity} for i in summary.items],
             idempotency_key=body.idempotency_key or str(uuid.uuid4()),
+            fulfillment=body.fulfillment.model_dump(exclude_none=True) if body.fulfillment else None,
         )
     except OrderError as e:
         raise HTTPException(

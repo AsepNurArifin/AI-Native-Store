@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <NuxtLink to="/admin/customers" class="text-sm text-clay-600 hover:underline">← Kembali</NuxtLink>
+    <NuxtLink to="/admin/customers" class="text-sm text-clay-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Customer</h1>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="detail">

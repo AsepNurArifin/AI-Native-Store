@@ -9,7 +9,7 @@
         <form class="flex flex-wrap items-end gap-2" @submit.prevent="onAdjust">
           <div class="min-w-52 flex-1"><label class="mb-1 block text-sm">Produk</label>
             <select v-model="adj.product_id" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
-              <option value="">— pilih —</option>
+              <option value="">pilih produk…</option>
               <option v-for="s in summary" :key="s.product_id" :value="s.product_id">{{ s.name }} ({{ s.current_stock }})</option>
             </select>
           </div>
@@ -36,6 +36,9 @@
               <th class="py-2 pr-2">Produk</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th><th class="pr-2">Stok</th><th>Status</th>
             </tr></thead>
             <tbody>
+              <tr v-if="!summary.length">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Belum ada data stok.</td>
+              </tr>
               <tr v-for="s in summary" :key="s.product_id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">{{ s.name }}</td>
                 <td class="pr-2">{{ s.category }}</td>
@@ -65,6 +68,9 @@
               <th class="py-2 pr-2">Waktu</th><th class="pr-2">Type</th><th class="pr-2">Arah</th><th class="pr-2">Qty</th><th>Ref</th>
             </tr></thead>
             <tbody>
+              <tr v-if="!tx.length">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Belum ada transaksi stok.</td>
+              </tr>
               <tr v-for="t in tx" :key="t.id" class="border-b border-stone-100">
                 <td class="py-1 pr-2">{{ formatWIB(t.timestamp) }}</td>
                 <td class="pr-2">{{ t.type }}</td><td class="pr-2">{{ t.movement }}</td>

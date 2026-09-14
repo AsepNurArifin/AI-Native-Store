@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">Customer</h1>
+    <h1 class="text-2xl font-bold">Pelanggan</h1>
     <p class="text-sm text-stone-500">Identitas per-channel (tidak disatukan lintas channel).</p>
     <Card>
       <CardContent>
@@ -11,6 +11,14 @@
               <th class="py-2 pr-2">Nama</th><th class="pr-2">Channel</th><th class="pr-2">Identifier</th><th class="pr-2">Kontak</th><th></th>
             </tr></thead>
             <tbody>
+              <tr v-if="loading">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Memuat daftar pelanggan…</td>
+              </tr>
+              <tr v-else-if="!items.length">
+                <td colspan="5" class="py-4 text-center text-sm text-stone-500">
+                  Belum ada pelanggan. Identitas tercatat saat customer pertama kali chat atau memesan.
+                </td>
+              </tr>
               <tr v-for="c in items" :key="c.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">{{ c.name }}</td>
                 <td class="pr-2">{{ c.channel }}</td>
@@ -33,9 +41,12 @@ definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
 const items = ref<CustomerOut[]>([])
 const error = ref('')
+const loading = ref(false)
 
 onMounted(async () => {
+  loading.value = true
   try { items.value = await request<CustomerOut[]>('/customers') }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 })
 </script>

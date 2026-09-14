@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">AI Actions <span class="text-sm font-normal text-stone-500">(Owner only)</span></h1>
-    <p class="text-sm text-stone-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject — eksekusi hanya bila validasi lolos.</p>
+    <h1 class="text-2xl font-bold">Aksi AI <span class="text-sm font-normal text-stone-500">(khusus Owner)</span></h1>
+    <p class="text-sm text-stone-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject; eksekusi hanya bila validasi lolos.</p>
     <Card>
       <CardContent>
         <div class="mb-3 flex gap-2">
@@ -24,7 +24,7 @@
           <div class="mt-2 flex items-center gap-3">
             <Button size="sm" :loading="creating" @click="createDraft()">Buat Draft</Button>
             <span v-if="draftError" class="text-sm text-red-600">{{ draftError }}</span>
-            <span v-if="draftOk" class="text-sm text-green-600">Draft dibuat ✓</span>
+            <span v-if="draftOk" class="text-sm text-green-600">Draft dibuat.</span>
           </div>
         </div>
 
@@ -43,7 +43,8 @@
               </tr>
             </tbody>
           </table>
-          <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft.</p>
+          <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat antrean draft…</p>
+          <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft. Tulis instruksi di kotak AI di atas, lalu tekan Buat Draft.</p>
         </div>
       </CardContent>
     </Card>
@@ -61,6 +62,7 @@ const error = ref('')
 const fStatus = ref('')
 const instruction = ref('')
 const creating = ref(false)
+const loading = ref(false)
 const draftError = ref('')
 const draftOk = ref(false)
 
@@ -81,12 +83,14 @@ async function createDraft() {
 
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     items.value = await request<AIActionOut[]>('/ai-actions', {
       query: { status_: fStatus.value || undefined, page: 1, page_size: 50 }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 }
 onMounted(load)
 </script>

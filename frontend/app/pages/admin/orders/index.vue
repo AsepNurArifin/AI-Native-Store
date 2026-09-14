@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-bold">Order</h1>
+    <h1 class="text-2xl font-bold">Pesanan</h1>
     <Card>
       <CardContent>
         <div class="mb-3 flex flex-wrap gap-2">
@@ -9,7 +9,7 @@
             <option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option>
           </select>
           <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
-            <option value="">Semua channel</option><option>WEB</option><option>WHATSAPP</option>
+            <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option>
           </select>
           <Button size="sm" variant="secondary" @click="load()">Muat</Button>
         </div>
@@ -21,6 +21,14 @@
               <th class="pr-2">Total</th><th class="pr-2">Dibuat</th><th>Aksi</th>
             </tr></thead>
             <tbody>
+              <tr v-if="loading">
+                <td colspan="6" class="py-4 text-center text-sm text-stone-500">Memuat daftar pesanan…</td>
+              </tr>
+              <tr v-else-if="!items.length">
+                <td colspan="6" class="py-4 text-center text-sm text-stone-500">
+                  Belum ada pesanan yang cocok. Pesanan tercatat saat customer mengonfirmasi lewat chat.
+                </td>
+              </tr>
               <tr v-for="o in items" :key="o.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ o.id.slice(0, 8) }}…</td>
                 <td class="pr-2">{{ o.channel_origin }}</td>
@@ -49,17 +57,20 @@ definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
 const items = ref<OrderOut[]>([])
 const error = ref('')
+const loading = ref(false)
 const fStatus = ref('')
 const fChannel = ref('')
 
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     items.value = await request<OrderOut[]>('/orders', {
       query: { status: fStatus.value || undefined, channel: fChannel.value || undefined, page: 1, page_size: 50 }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 }
 onMounted(load)
 async function complete(o: OrderOut) {

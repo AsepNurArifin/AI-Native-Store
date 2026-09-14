@@ -12,8 +12,8 @@
             </svg>
           </div>
           <div class="min-w-0">
-            <div class="whitespace-nowrap font-display text-base font-bold tracking-tight text-stone-900">Toko <span class="text-clay-600">Bu Ratna</span></div>
-            <div class="text-[10px] font-medium text-stone-400">HP, laptop &amp; aksesoris</div>
+            <div class="whitespace-nowrap font-display text-base font-bold tracking-tight text-stone-900">Toko <span class="text-clay-700">Bu Ratna</span></div>
+            <div class="text-[10px] font-medium text-stone-500">HP, laptop &amp; aksesoris</div>
           </div>
         </NuxtLink>
 
@@ -33,11 +33,10 @@
           </NuxtLink>
           <NuxtLink
             to="/chat"
-            class="group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-clay-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-clay-500 transition-all duration-150 sm:px-4"
+            class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-clay-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-clay-500 transition-colors duration-150 sm:px-4"
           >
             <span class="sm:hidden">Chat Toko</span>
             <span class="hidden sm:inline">Belanja via Chat</span>
-            <span class="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
           </NuxtLink>
         </nav>
       </div>
@@ -52,12 +51,7 @@
     <footer class="border-t border-stone-200/80 py-8 text-xs text-stone-500">
       <div class="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="text-center sm:text-left">
-          <p class="font-semibold text-stone-700">Toko Bu Ratna</p>
-          <p>Belanja elektronik cukup lewat chat · situs demo untuk peragaan sistem</p>
-        </div>
-        <div class="flex items-center gap-4">
-          <NuxtLink to="/chat" class="font-medium text-stone-500 hover:text-clay-600 transition-colors">Chat Toko</NuxtLink>
-          <NuxtLink to="/login" class="font-medium text-stone-400 hover:text-stone-600 transition-colors">Masuk Admin</NuxtLink>
+          <p>© 2026 · Toko demo</p>
         </div>
       </div>
     </footer>

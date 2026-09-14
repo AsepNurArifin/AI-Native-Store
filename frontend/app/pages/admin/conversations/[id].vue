@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <NuxtLink to="/admin/conversations" class="text-sm text-clay-600 hover:underline">← Kembali</NuxtLink>
+    <NuxtLink to="/admin/conversations" class="text-sm text-clay-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Percakapan</h1>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <div v-if="detail" class="grid gap-4 lg:grid-cols-3">
@@ -16,8 +16,9 @@
             <div class="max-h-[480px] space-y-2 overflow-y-auto">
               <div v-for="m in detail.messages" :key="m.id" class="flex" :class="m.sender === 'CUSTOMER' ? 'justify-end' : 'justify-start'">
                 <div class="max-w-[80%] rounded-lg px-3 py-2 text-sm" :class="m.sender === 'CUSTOMER' ? 'bg-stone-900 text-white' : 'bg-stone-100 '">
-                  <p class="whitespace-pre-wrap">{{ m.content }}</p>
-                  <p class="mt-1 text-[10px] opacity-60">{{ m.message_type }} · {{ formatWIB(m.timestamp) }}</p>
+                  <MarkdownText v-if="m.sender === 'AI'" :text="m.content" />
+                  <p v-else class="whitespace-pre-wrap">{{ m.content }}</p>
+                  <p class="mt-1 text-[10px] text-stone-500">{{ m.message_type }} · {{ formatWIB(m.timestamp) }}</p>
                 </div>
               </div>
               <p v-if="!detail.messages.length" class="text-sm text-stone-500">Belum ada pesan.</p>

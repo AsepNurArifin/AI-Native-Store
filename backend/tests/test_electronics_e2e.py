@@ -2,7 +2,7 @@
 
 These tests prove orchestration, not the quality/accuracy of a live model.
 """
-import ast
+import json
 
 import httpx
 import pytest
@@ -15,9 +15,16 @@ from app.seed.generate import _flat_catalog
 
 
 def tool_result(messages, name):
-    prefix = f"hasil tool {name}: "
-    message = next(m["content"] for m in reversed(messages) if m["content"].startswith(prefix))
-    return ast.literal_eval(message[len(prefix):])
+    """Ambil hasil tool dari pesan role 'tool'; nama fungsi dipetakan dari
+    tool_call_id pada pesan assistant ber-tool_calls yang mendahuluinya."""
+    id_to_name = {
+        tc["id"]: tc["function"]["name"]
+        for m in messages
+        for tc in m.get("tool_calls") or []
+    }
+    for m in reversed(messages):
+        if m.get("role") == "tool" and id_to_name.get(m.get("tool_call_id")) == name:
+            return json.loads(m["content"])
 
 
 class ElectronicsLLM:

@@ -5,6 +5,10 @@
 > Referensi audit: laporan konsistensi code-vs-SRS + `docs/REMEDIATION_PLAN.md`.
 >
 > Status: 🟢 = deviasi disetujui (ratifikasi disarankan) · 🟡 = butuh keputusan tim.
+>
+> **Catatan 2026-09-12:** entri lama yang menyebut WhatsApp (F4, F5, B6, B7, D1,
+> D5, dll.) mendeskripsikan kode yang telah dihapus — lihat **E2**. Mekanisme
+> yang sama (CONFIRM/CANCEL, idempotency, dedupe) kini berlaku untuk Telegram.
 
 ---
 
@@ -176,6 +180,34 @@ Jalur evolusi ke multi-tenant tetap terdokumentasi sebagai future work.
 **Dampak SRS/PRD:** bagian pricing/paket langganan pada dokumen produk tidak
 lagi mengikat untuk implementasi; requirement fungsional inti (FR-SMS, FR-AA,
 FR-BA, FR-AUTH) tidak terpengaruh.
+
+### E2. 🟢 Channel WhatsApp dihapus — Telegram menjadi satu-satunya channel bot (2026-09-12)
+
+Keputusan pemilik produk: seluruh integrasi WhatsApp Cloud API (WABA) dihapus
+dari kode dan dokumentasi aktif. Channel bot messaging tersisa **Telegram**
+(plus Web Chat Widget). Git history tetap menyimpan implementasi WA jika suatu
+saat diperlukan lagi.
+
+**Yang dihapus:**
+- Paket `app/channels/whatsapp/` (adapter, provider mock/meta, util) beserta
+  route `GET/POST /webhooks/whatsapp` dan `POST /dev/mock-wa`
+- Seluruh konfigurasi `WA_*` (config, `.env.example`, `docs/ENVIRONMENT.md`)
+  dan dokumen `docs/WABA_SETUP.md`
+- Nilai enum `CustomerChannel.WHATSAPP`; demo customer seed WA; 9 test
+  WA (3 e2e flow + 6 signature Meta) — padanannya sudah ter-cover
+  `test_telegram.py` (15 test: security secret token, e2e, idempotency)
+
+**Yang tidak berubah:** arsitektur channel-agnostic (`messaging_base.py`,
+BR-09), mekanisme `CONFIRM:<summary_ref>` + idempotency, Sales Agent,
+dan skema DB (kolom `channel` String bebas — tidak perlu migration).
+
+**Alasan:** WhatsApp Cloud API menuntut verifikasi Meta Business yang tidak
+realistis untuk capstone single-store tanpa budget hosting; bot Telegram
+self-service (BotFather) memenuhi kebutuhan demo yang sama tanpa biaya.
+
+**Dampak SRS:** FR yang menyebut WhatsApp (mis. FR-SA-07 24h window, template
+  message) tidak lagi mengikat; UC inti (UC-02 konversasi→order) berjalan
+  penuh via Web dan Telegram.
 
 ---
 

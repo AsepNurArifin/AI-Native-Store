@@ -60,31 +60,12 @@ class Settings(BaseSettings):
     groq_model_fast: str = "qwen/qwen3.8-27b"       # Sales Agent
     groq_model_reasoning: str = "qwen/qwen3.8-27b"  # Analyst + Action Assistant
 
-    # WhatsApp / WABA
-    wa_provider: str = "mock"  # mock | meta
-    wa_verify_token: str = "my-verify-token"
-    wa_phone_number_id: str = ""
-    wa_business_account_id: str = ""
-    wa_access_token: str = ""
-    wa_app_secret: str = ""
-    wa_api_version: str = "v21.0"
-    wa_test_numbers: str = ""
-    wa_template_order_confirm: str = "order_confirmation"
-
     # Telegram (Fase 3 PLAN_PRODUCT_LAUNCH.md — bot self-service via BotFather,
     # tanpa verifikasi bisnis seperti WABA Meta)
     telegram_provider: str = "mock"  # mock | bot
     telegram_bot_token: str = ""  # dari @BotFather
     telegram_webhook_secret: str = ""  # secret_token setWebhook -> header X-Telegram-Bot-Api-Secret-Token
     telegram_api_base: str = "https://api.telegram.org"
-
-    @property
-    def wa_webhook_verify_token(self) -> str:
-        return self.wa_verify_token
-
-    @property
-    def wa_template_name(self) -> str:
-        return self.wa_template_order_confirm
 
     # Seed
     seed_owner_email: str = "owner@store.demo"
@@ -94,10 +75,6 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
-
-    @property
-    def wa_test_number_list(self) -> list[str]:
-        return [n.strip() for n in self.wa_test_numbers.split(",") if n.strip()]
 
 
 settings = Settings()
@@ -116,10 +93,9 @@ def validate_runtime_config() -> list[str]:
 
     Aturan tambahan (plan.md §4 B6 / §5 P5):
       - JWT secret lemah/default selalu dicatat, fatal di production;
-      - DEBUG=true membuka /api/v1/dev/* (mock WA) — fatal di production;
+      - DEBUG=true membuka /api/v1/dev/* (mock channel) — fatal di production;
       - SEED_ON_STARTUP=true di production bisa menulis data demo ke DB nyata — fatal;
       - LLM_PROVIDER=mock di production — fatal;
-      - WA_PROVIDER=mock di production — warning (fallback demo yang disadari tim);
       - CORS wildcard di production — fatal.
     """
     problems: list[str] = []
@@ -138,8 +114,8 @@ def validate_runtime_config() -> list[str]:
             problems.append("SEED_ON_STARTUP=true pada production (seed otomatis tidak boleh di DB nyata)")
         if settings.llm_provider == "mock":
             problems.append("LLM_PROVIDER=mock pada production (harus provider nyata: openai|google|groq)")
-        if settings.wa_provider == "mock":
-            problems.append("WA_PROVIDER=mock pada production (fallback demo — pastikan disadari tim)")
+        if settings.telegram_provider == "mock":
+            problems.append("TELEGRAM_PROVIDER=mock pada production (fallback demo — pastikan disadari tim)")
         if "*" in settings.cors_origin_list:
             problems.append("CORS_ORIGINS mengandung '*' pada production")
     elif settings.llm_provider != "mock" and not (settings.llm_api_key or settings.groq_api_key):

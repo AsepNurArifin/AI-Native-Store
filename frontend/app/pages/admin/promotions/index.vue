@@ -9,8 +9,8 @@
         <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
           <div class="md:col-span-2"><label class="mb-1 block text-sm">Produk</label>
             <select v-model="form.product_id" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
-              <option value="">— pilih —</option>
-              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} — {{ formatIDR(p.price) }}</option>
+              <option value="">pilih produk…</option>
+              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} · {{ formatIDR(p.price) }}</option>
             </select>
           </div>
           <div><label class="mb-1 block text-sm">Diskon % (maks 50)</label><Input v-model.number="form.discount_percentage" type="number" /></div>
@@ -61,6 +61,7 @@ const { request } = useApi()
 const items = ref<PromotionOut[]>([])
 const products = ref<ProductOut[]>([])
 const error = ref('')
+const loading = ref(false)
 const showForm = ref(false)
 const saving = ref(false)
 const formError = ref('')
@@ -71,11 +72,13 @@ function productName(id: string) {
 }
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     items.value = await request<PromotionOut[]>('/promotions')
     products.value = await request<ProductOut[]>('/products', { query: { status: 'ACTIVE' } })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  finally { loading.value = false }
 }
 onMounted(load)
 async function onSave() {

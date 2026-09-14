@@ -9,7 +9,7 @@ from app.models.base import Base, UUID_PK
 
 class CustomerChannel(str, enum.Enum):
     WEB = "WEB"
-    WHATSAPP = "WHATSAPP"
+    TELEGRAM = "TELEGRAM"
 
 
 class Customer(Base):
@@ -20,7 +20,7 @@ class Customer(Base):
 
     id = UUID_PK()
     channel: Mapped[str] = mapped_column(String(10), nullable=False)
-    identifier: Mapped[str] = mapped_column(String(150), nullable=False)  # WEB: name|contact | WA: phone
+    identifier: Mapped[str] = mapped_column(String(150), nullable=False)  # WEB: name|contact | TELEGRAM: chat_id
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     contact: Mapped[str | None] = mapped_column(String(100), nullable=True)
     registered_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

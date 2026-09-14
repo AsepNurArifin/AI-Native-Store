@@ -10,16 +10,15 @@ LLM di-script per test (ScriptedLLM) supaya deterministik; ToolExecutor,
 service, dan DB tetap jalur produksi penuh.
 """
 
-import re
+import json
 import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 
 from app.ai.llm import LLMResponse, LLMToolCall
 from app.core.security import hash_password
-from app.models import Conversation, Order, User
+from app.models import User
 
 
 class ScriptedLLM:
@@ -36,7 +35,7 @@ class SummaryScriptedLLM:
     """LLM yang memanggil build_order_summary lalu menarasikan hasilnya.
 
     Narasi iterasi-2 menyertakan summary_ref yang diambil dari hasil tool —
-    sehingga ref bisa diparse dari balasan publik (termasuk webhook WA).
+    sehingga ref bisa diparse dari balasan publik (termasuk webhook Telegram).
     """
 
     def __init__(self, product_id: str, quantity: int = 2):
@@ -44,16 +43,18 @@ class SummaryScriptedLLM:
         self.quantity = quantity
 
     async def complete(self, *, system, messages, tools=None):
-        if not any("hasil tool" in m.get("content", "") for m in messages):
+        if not any(m.get("role") == "tool" for m in messages):
             return LLMResponse("", [LLMToolCall(
                 "build_order_summary",
                 {"items": [{"product_id": self.product_id, "quantity": self.quantity}]},
             )])
         ref = ""
         for m in messages:
-            match = re.search(r"'summary_ref': '([0-9a-f]+)'", m.get("content", ""))
-            if match:
-                ref = match.group(1)
+            if m.get("role") == "tool":
+                try:
+                    ref = json.loads(m["content"])["summary"]["summary_ref"]
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
         return LLMResponse(f"Berikut ringkasan pesanan Anda (ref: {ref}).", [])
 
 
@@ -110,106 +111,6 @@ async def test_web_flow_message_to_confirm_end_to_end(client: AsyncClient, db, m
     assert row["current_stock"] == 3
 
 
-# ---------------------------------------------------------------- WA e2e
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_flow_confirm_button_end_to_end(client: AsyncClient, db, monkeypatch):
-    """UC-02 via WhatsApp: pesan -> summary -> tombol CONFIRM:<ref> -> order (Fix 1.4).
-
-    Juga memastikan percakapan WA di-reuse (satu conversation), bukan baru per pesan.
-    """
-    from app.core.config import settings
-
-    import app.ai.sales_agent as sa
-
-    h, pid = await _setup(client, db)
-    monkeypatch.setattr(settings, "wa_test_numbers", "628123456789")
-    monkeypatch.setattr(sa, "get_llm", lambda model=None: SummaryScriptedLLM(pid, quantity=1))
-
-    sender = "628123456789"
-
-    # 1) pesan produk -> AI balas ringkasan + tombol CONFIRM:<ref>
-    r = await client.post("/api/v1/webhooks/whatsapp", json={
-        "from": sender, "text": "saya mau 1 kopi toraja", "message_id": f"m-{uuid.uuid4().hex}",
-    })
-    assert r.status_code == 200, r.text
-    reply = r.json()["reply"] or ""
-    match = re.search(r"ref: ([0-9a-f]+)", reply)
-    assert match, f"balasan WA harus memuat summary ref: {reply!r}"
-    ref = match.group(1)
-
-    # percakapan WA hanya satu (reuse, bukan baru per pesan)
-    n_conv = len((await db.execute(
-        select(Conversation).where(Conversation.channel == "WHATSAPP")
-    )).scalars().all())
-    assert n_conv == 1
-
-    # 2) tombol konfirmasi -> order dibuat
-    r = await client.post("/api/v1/webhooks/whatsapp", json={
-        "from": sender, "text": f"CONFIRM:{ref}", "message_id": f"m-{uuid.uuid4().hex}",
-    })
-    assert r.status_code == 200, r.text
-    wa_reply = r.json()["reply"] or ""
-    assert "dicatat" in wa_reply or "diproses sebelumnya" in wa_reply
-
-    orders = (await db.execute(select(Order))).scalars().all()
-    assert len(orders) == 1
-    assert orders[0].status == "CONFIRMED"
-    assert orders[0].channel_origin == "WHATSAPP"
-    assert float(orders[0].total_amount) == 60000
-
-    summary = await client.get("/api/v1/inventory/summary", headers=h)
-    row = next(x for x in summary.json() if x["product_id"] == pid)
-    assert row["current_stock"] == 4
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_confirm_expired_ref_graceful(client: AsyncClient, db, monkeypatch):
-    """E7: CONFIRM:<ref> tidak dikenal -> balasan ramah, bukan 500, tanpa order."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "wa_test_numbers", "628123456789")
-    r = await client.post("/api/v1/webhooks/whatsapp", json={
-        "from": "628123456789", "text": "CONFIRM:bogusref123", "message_id": f"m-{uuid.uuid4().hex}",
-    })
-    assert r.status_code == 200
-    assert "kedaluwarsa" in (r.json()["reply"] or "")
-    assert len((await db.execute(select(Order))).scalars().all()) == 0
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_confirm_retry_idempotent(client: AsyncClient, db, monkeypatch):
-    """UC-02 E5: tombol CONFIRM dikirim ulang (retry webhook) -> tidak dobel order."""
-    from app.core.config import settings
-
-    import app.ai.sales_agent as sa
-
-    h, pid = await _setup(client, db)
-    monkeypatch.setattr(settings, "wa_test_numbers", "628123456789")
-    monkeypatch.setattr(sa, "get_llm", lambda model=None: SummaryScriptedLLM(pid, quantity=1))
-
-    sender = "628123456789"
-    r = await client.post("/api/v1/webhooks/whatsapp", json={
-        "from": sender, "text": "saya mau 1 kopi", "message_id": f"m-{uuid.uuid4().hex}",
-    })
-    ref = re.search(r"ref: ([0-9a-f]+)", r.json()["reply"]).group(1)
-
-    # kirim CONFIRM dua kali (message_id beda — simulasi retry aplikasi)
-    for _ in range(2):
-        r = await client.post("/api/v1/webhooks/whatsapp", json={
-            "from": sender, "text": f"CONFIRM:{ref}", "message_id": f"m-{uuid.uuid4().hex}",
-        })
-        assert r.status_code == 200
-
-    orders = (await db.execute(select(Order))).scalars().all()
-    assert len(orders) == 1
-    # stok hanya berkurang sekali: 5 -> 4
-    summary = await client.get("/api/v1/inventory/summary", headers=h)
-    row = next(x for x in summary.json() if x["product_id"] == pid)
-    assert row["current_stock"] == 4
-
-
 # ---------------------------------------------------------------- Fix 2.2
 
 
@@ -247,3 +148,85 @@ async def test_scheduled_promo_price_consistency_summary_vs_order(client: AsyncC
     assert r.status_code == 200
     # total order SAMA dengan summary (UC-02 step 5)
     assert r.json()["total"] == data["order_summary"]["total"] == 60000
+
+
+# ------------------------------------------------- anti-halusinasi ringkasan
+
+
+class HallucinatingScriptedLLM:
+    """LLM yang MENARASIKAN ringkasan pesanan tanpa memanggil tool
+    (angka karangan), lalu benar setelah dikoreksi sistem."""
+
+    def __init__(self, product_id: str, quantity: int = 1):
+        self.product_id = product_id
+        self.quantity = quantity
+        self.corrected = False
+
+    async def complete(self, *, system, messages, tools=None):
+        corrected = any("(koreksi sistem)" in m.get("content", "") for m in messages)
+        if tools and corrected and not self.corrected:
+            self.corrected = True
+            return LLMResponse("", [LLMToolCall(
+                "build_order_summary",
+                {"items": [{"product_id": self.product_id, "quantity": self.quantity}]},
+            )])
+        if corrected:
+            return LLMResponse("Berikut ringkasan pesanan Anda yang sudah diverifikasi.", [])
+        return LLMResponse(
+            "Siap! Berikut ringkasan pesanan Anda:\n\n"
+            "| Produk | Qty | Subtotal |\n|---|---|---|\n"
+            f"| Kopi Toraja | {self.quantity} | Rp60.000 |\n"
+            "Total: Rp60.000\n\nSilakan tekan tombol konfirmasi di bawah.",
+            [],
+        )
+
+
+@pytest.mark.asyncio
+async def test_hallucinated_summary_gets_corrected_and_button_data_returned(client: AsyncClient, db, monkeypatch):
+    """LLM menulis ringkasan tanpa build_order_summary -> SalesAgent melakukan
+    iterasi koreksi; order_summary HARUS terisi agar tombol konfirmasi web
+    dirender (regresi: dulu order_summary null, tombol tidak muncul sama sekali)."""
+    import app.ai.sales_agent as sa
+
+    h, pid = await _setup(client, db)
+    monkeypatch.setattr(sa, "get_llm", lambda model=None: HallucinatingScriptedLLM(pid, quantity=1))
+
+    r = await client.post("/api/v1/chat/start", json={"channel": "WEB", "customer_ref": "Cici|0877"})
+    conv = r.json()["conversation_id"]
+    r = await client.post(f"/api/v1/chat/{conv}/messages", json={"content": "gas, jadi pesan 1 kopi"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["order_summary"] is not None, "koreksi harus menghasilkan order_summary (tombol konfirmasi)"
+    assert data["order_summary"]["total"] == 60000
+    assert "sudah diverifikasi" in data["reply"]
+
+
+class StubbornHallucinatingScriptedLLM:
+    """LLM yang tetap tidak memanggil tool meski sudah dikoreksi."""
+
+    def __init__(self, product_id: str):
+        self.product_id = product_id
+
+    async def complete(self, *, system, messages, tools=None):
+        return LLMResponse("Berikut ringkasan pesanan Anda: Kopi Toraja 1x, total Rp60.000. "
+                           "Silakan tekan tombol konfirmasi di bawah.", [])
+
+
+@pytest.mark.asyncio
+async def test_stubborn_hallucination_replaced_with_honest_reply(client: AsyncClient, db, monkeypatch):
+    """Koreksi gagal -> narasi halusinatif DIGANTI pesan jujur, bukan dibiarkan
+    (jangan tampilkan 'tekan tombol di bawah' tanpa tombol)."""
+    import app.ai.sales_agent as sa
+
+    h, pid = await _setup(client, db)
+    monkeypatch.setattr(sa, "get_llm", lambda model=None: StubbornHallucinatingScriptedLLM(pid))
+
+    r = await client.post("/api/v1/chat/start", json={"channel": "WEB", "customer_ref": "Dedi|0866"})
+    conv = r.json()["conversation_id"]
+    r = await client.post(f"/api/v1/chat/{conv}/messages", json={"content": "ya, jadi pesan"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["order_summary"] is None
+    assert "belum berhasil" in data["reply"]
+    # pesan jujur menyuruh mengulang, bukan mengonfirmasi
+    assert "tulis ulang" in data["reply"].lower()

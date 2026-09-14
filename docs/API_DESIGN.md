@@ -32,18 +32,17 @@ Kode umum: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLI
 
 > Chat update realtime: SSE `GET /api/v1/chat/sessions/{id}/stream` *(usulan D1 ARCHITECTURE.md — fallback: polling)*.
 
-### 2.2 Webhook WhatsApp (public, verifikasi signature — ARCHITECTURE §5.1)
+### 2.2 Webhook Telegram (public, verifikasi secret token — lihat TELEGRAM_SETUP.md)
 
 | Method | Path | Deskripsi |
 |---|---|---|
-| GET | `/api/v1/webhooks/whatsapp` | Handshake verifikasi Meta (`hub.challenge`) |
-| POST | `/api/v1/webhooks/whatsapp` | Event inbound (pesan/button/status) → proses async → `200` cepat |
+| POST | `/api/v1/webhooks/telegram` | Update Telegram (pesan/callback_query) → SalesAgent → balas via Bot API. Diverifikasi header `X-Telegram-Bot-Api-Secret-Token` |
 
 ### 2.3 Dev-only (nonaktif saat `APP_ENV=production`)
 
 | Method | Path | Deskripsi |
 |---|---|---|
-| POST | `/api/v1/dev/mock-wa/simulate` | Simulasi inbound WA synthetic (Mock provider) |
+| POST | `/api/v1/dev/mock-tg` | Simulasi inbound Telegram synthetic (Mock provider) |
 
 ### 2.4 Auth
 
@@ -130,7 +129,7 @@ Input invalid → 422. Lihat [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md
 
 | Method | Path | Deskripsi |
 |---|---|---|
-| GET | `/health` | Liveness: `{ status, db: ok|fail, llm: ok|fail, wa_provider: mock|meta }` (tanpa auth) |
+| GET | `/health` | Liveness: `{ status, db: ok|fail, llm: provider, telegram_provider: mock|bot }` (tanpa auth) |
 
 ---
 
@@ -196,7 +195,7 @@ Input invalid → 422. Lihat [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md
   "data": { "top_products": [ { "product_id": "...", "name": "Produk X", "units_sold": 45 } ] },
   "query_used": "analyze_sales",
   "disclaimer": "Dihasilkan AI berdasarkan data toko. Angka dapat berbeda dari laporan resmi." }
-// topik distribusi channel → disclaimer: "Disclaimer lintas channel: angka WhatsApp dapat lebih rendah dari aktual ..."
+// topik distribusi channel → disclaimer: "Disclaimer lintas channel: angka Telegram dapat lebih rendah dari aktual ..."
 ```
 
 ---
@@ -208,7 +207,7 @@ Input invalid → 422. Lihat [`CATALOG_DATA_QUALITY.md`](CATALOG_DATA_QUALITY.md
 | `/auth/*` | FR-AUTH-01/02/04 | TC-AUTH-01/02/04 |
 | `/chat/*` | FR-AUTH-03, FR-SA-01..06 | TC-AUTH-03, TC-SA-01..06 |
 | `/chat/*/confirm` | FR-SA-05, FR-SMS-06 | TC-SA-05, TC-SMS-06a/b/c |
-| `/webhooks/whatsapp` | FR-SA-07 | TC-SA-07, NFR-TC-12 |
+| `/webhooks/telegram` | FR-SA-05/07 | TC-SA-05/07, NFR-TC-12 |
 | `/products/*` | FR-SMS-01 | TC-SMS-01 |
 | `/inventory/*` | FR-SMS-02/03 | TC-SMS-02/03 |
 | `/orders/*` | FR-SMS-06 | TC-SMS-06a/b/c |

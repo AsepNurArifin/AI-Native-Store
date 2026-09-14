@@ -76,7 +76,7 @@ async def test_seed_catalog_ledger_and_order_integrity(db):
     assert (await db.execute(select(func.count(User.id)))).scalar_one() == 1
     assert (await db.execute(select(func.count(Product.id)))).scalar_one() == 98
     assert (await db.execute(select(func.count(InventoryTransaction.id)))).scalar_one() == before
-    assert (await db.execute(select(func.count(Customer.id)))).scalar_one() == 3
+    assert (await db.execute(select(func.count(Customer.id)))).scalar_one() == 2
 
 
 @pytest.mark.asyncio

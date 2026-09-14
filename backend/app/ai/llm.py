@@ -5,6 +5,7 @@ Providers: mock | openai | google (gemini) | groq (OpenAI-compatible, semua Qwen
 Semua akses LLM lewat kelas ini (NFR-06: LLM tidak pernah query DB langsung).
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -16,9 +17,42 @@ logger = logging.getLogger(__name__)
 
 
 class LLMToolCall:
-    def __init__(self, name: str, arguments: dict):
+    def __init__(self, name: str, arguments: dict, id: str | None = None):
         self.name = name
         self.arguments = arguments
+        self.id = id
+
+
+def tool_roundtrip_messages(resp: "LLMResponse", results: list) -> list[dict]:
+    """Pasangan pesan standar OpenAI untuk mengirim hasil tool balik ke LLM:
+    satu pesan assistant ber-`tool_calls`, lalu satu pesan role 'tool' per
+    pemanggilan (dipasangkan via tool_call_id).
+
+    Konvensi lama ('tool: X' / 'hasil tool X: ...' sebagai teks user) DIPENSIUNKAN:
+    model kecil meniru pola itu sebagai teks biasa sehingga menulis
+    'tool: build_order_summary' di bubble chat TANPA benar-benar memanggil
+    tool — summary tidak pernah dibuat dan tombol konfirmasi tidak muncul
+    (bug demo 14/09, reproduksi di log backend 15/09 01:23).
+    """
+    msgs: list[dict] = [{
+        "role": "assistant",
+        "content": resp.content or "",
+        "tool_calls": [
+            {
+                "id": tc.id or f"call_{i}",
+                "type": "function",
+                "function": {"name": tc.name, "arguments": json.dumps(tc.arguments, default=str)},
+            }
+            for i, tc in enumerate(resp.tool_calls)
+        ],
+    }]
+    for i, result in enumerate(results):
+        msgs.append({
+            "role": "tool",
+            "tool_call_id": resp.tool_calls[i].id or f"call_{i}",
+            "content": result if isinstance(result, str) else json.dumps(result, default=str),
+        })
+    return msgs
 
 
 class LLMResponse:
@@ -59,10 +93,15 @@ class MockLLMProvider(BaseLLMProvider):
 class OpenAILLMProvider(BaseLLMProvider):
     """Chat Completions dengan tool calling (OpenAI-compatible)."""
 
+    # retry hanya untuk status transient; delay maksimum di-clamp agar total
+    # waktu giliran chat tidak menggantung lama (webhook Telegram menunggu)
+    RETRY_STATUS = (429, 503)
+    MAX_RETRY_DELAY = 15.0
+
     def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
         import httpx
 
-        self._client = httpx.AsyncClient(timeout=30)
+        self._client = httpx.AsyncClient(timeout=settings.llm_timeout_seconds)
         self.api_key = api_key or settings.llm_api_key
         self.model = model or settings.llm_model
         self.base_url = (base_url or settings.llm_base_url).rstrip("/")
@@ -76,12 +115,7 @@ class OpenAILLMProvider(BaseLLMProvider):
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
-        resp = await self._client.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=body,
-        )
-        resp.raise_for_status()
+        resp = await self._post_with_retry(body)
         msg = resp.json()["choices"][0]["message"]
         tool_calls = []
         for tc in msg.get("tool_calls") or []:
@@ -89,8 +123,47 @@ class OpenAILLMProvider(BaseLLMProvider):
                 args = json.loads(tc["function"]["arguments"])
             except json.JSONDecodeError:
                 args = {}
-            tool_calls.append(LLMToolCall(tc["function"]["name"], args))
+            tool_calls.append(LLMToolCall(tc["function"]["name"], args, id=tc.get("id")))
         return LLMResponse(content=msg.get("content") or "", tool_calls=tool_calls)
+
+    async def _post_with_retry(self, body: dict):
+        """POST /chat/completions dengan retry saat 429/503 (NFR-12).
+
+        Rate limit token Groq tier gratis (8k TPM) terjangkau oleh satu giliran
+        chat Sales Agent (~3-4 panggilan x ~1.7k token). Tanpa retry, satu 429
+        mematikan giliran: fallback "layanan tidak tersedia", build_order_summary
+        tidak pernah dipanggil, tombol konfirmasi tidak muncul di semua channel
+        (regresi demo 14/09). Delay menghormati header Retry-After bila ada,
+        fallback backoff eksponensial. Jumlah percobaan diatur LLM_MAX_RETRIES.
+        """
+        for attempt in range(settings.llm_max_retries + 1):
+            resp = await self._client.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=body,
+            )
+            if resp.status_code in self.RETRY_STATUS and attempt < settings.llm_max_retries:
+                delay = self._retry_delay(resp, attempt)
+                logger.warning(
+                    "LLM %d (percobaan %d/%d) — tunggu %.1fs lalu ulang",
+                    resp.status_code, attempt + 1, settings.llm_max_retries, delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+            resp.raise_for_status()
+            return resp
+
+    @classmethod
+    def _retry_delay(cls, resp, attempt: int) -> float:
+        """Delay dari header Retry-After (detik, di-clamp); tanpa header pakai
+        backoff eksponensial 1s, 2s, 4s..."""
+        try:
+            delay = float(resp.headers.get("retry-after", ""))
+        except ValueError:
+            delay = 0.0
+        if delay <= 0:
+            delay = 2.0**attempt
+        return min(delay, cls.MAX_RETRY_DELAY)
 
 
 class GeminiLLMProvider(BaseLLMProvider):
@@ -110,7 +183,7 @@ class GeminiLLMProvider(BaseLLMProvider):
         )
         body = {
             "system_instruction": {"parts": [{"text": system}]},
-            "contents": [{"role": m["role"].replace("system", "user"), "parts": [{"text": m["content"]}]} for m in messages],
+            "contents": self._to_contents(messages),
         }
         if tools:
             body["tools"] = [{"function_declarations": [self._to_gemini_tool(t) for t in tools]}]
@@ -131,6 +204,42 @@ class GeminiLLMProvider(BaseLLMProvider):
         except (KeyError, IndexError):
             pass
         return LLMResponse(content=content, tool_calls=tool_calls)
+
+    @staticmethod
+    def _to_contents(messages: list[dict]) -> list[dict]:
+        """Terjemahkan format pesan OpenAI (termasuk round-trip tool) ke
+        contents Gemini: assistant tool_calls -> functionCall, role tool ->
+        functionResponse (nama fungsi dipetakan dari tool_call_id)."""
+        contents = []
+        id_to_name: dict[str, str] = {}
+        for m in messages:
+            if m.get("role") == "tool":
+                try:
+                    result_obj = json.loads(m["content"])
+                except (json.JSONDecodeError, TypeError):
+                    result_obj = {"raw": m["content"]}
+                contents.append({"role": "user", "parts": [{
+                    "functionResponse": {
+                        "name": id_to_name.get(m.get("tool_call_id"), "tool"),
+                        "response": result_obj,
+                    }
+                }]})
+                continue
+            role = "model" if m.get("role") == "assistant" else "user"
+            parts = []
+            if m.get("content"):
+                parts.append({"text": m["content"]})
+            for tc in m.get("tool_calls") or []:
+                try:
+                    args = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, TypeError):
+                    args = {}
+                id_to_name[tc["id"]] = tc["function"]["name"]
+                parts.append({"functionCall": {"name": tc["function"]["name"], "args": args}})
+            if not parts:
+                parts = [{"text": ""}]
+            contents.append({"role": role, "parts": parts})
+        return contents
 
     @staticmethod
     def _to_gemini_tool(t: dict) -> dict:

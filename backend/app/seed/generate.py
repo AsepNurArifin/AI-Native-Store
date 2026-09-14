@@ -257,7 +257,6 @@ async def generate_seed(
 
     # ---------- customers contoh (satu per channel aktif) ----------
     demo_customers = [
-        ("WHATSAPP", "6281234567890", "Budi", "6281234567890"),
         ("TELEGRAM", "628123450099", "Sari", None),
         ("WEB", "guest|Dewi|081234567", "Dewi", "081234567"),
     ]

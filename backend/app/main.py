@@ -8,6 +8,14 @@ from fastapi.responses import JSONResponse
 from app.api.router import api_router
 from app.core.config import settings
 
+# R4/debuggability: tanpa ini, log aplikasi (INFO tool-call SalesAgent, dll.)
+# tidak punya handler dan TIDAK pernah muncul di docker logs — hanya uvicorn
+# access log yang terlihat. basicConfig dipanggil saat import app, sebelum lifespan.
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 

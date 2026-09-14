@@ -55,13 +55,16 @@
                 <td class="py-2 pr-2 font-medium">
                   {{ p.name }}
                   <details class="mt-2 max-w-sm font-normal">
-                    <summary class="cursor-pointer rounded text-xs text-clay-700 hover:text-clay-600 focus-visible:outline-2 focus-visible:outline-clay-600 active:text-clay-800">Lihat spesifikasi</summary>
+                    <summary class="cursor-pointer rounded text-xs text-clay-700 hover:text-clay-800 focus-visible:outline-2 focus-visible:outline-clay-600 active:text-clay-900">Lihat spesifikasi</summary>
                     <ProductSpecifications class="mt-2" :specification="p.specification" />
                   </details>
                 </td>
                 <td class="pr-2">{{ p.category }}</td>
                 <td class="pr-2">{{ formatIDR(p.price) }}</td>
-                <td class="pr-2">{{ p.current_stock }} <span v-if="p.is_low_stock" title="stok menipis">⚠️</span></td>
+                <td class="pr-2">
+                  <span :class="p.is_low_stock ? 'font-semibold text-amber-700' : ''">{{ p.current_stock }}</span>
+                  <span v-if="p.is_low_stock" class="ml-1 inline-block h-2 w-2 rounded-full bg-amber-600 align-middle" title="stok menipis" aria-label="stok menipis" />
+                </td>
                 <td class="pr-2"><Badge :variant="statusVariant(p.status)">{{ p.status }}</Badge></td>
                 <td class="flex gap-1 py-1">
                   <Button size="sm" variant="outline" @click="startEdit(p)">Ubah</Button>
@@ -156,7 +159,7 @@ async function toggleStatus(p: ProductOut) {
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal ubah status' }
 }
 async function remove(p: ProductOut) {
-  if (!confirm(`Hapus "${p.name}"? Bila sudah dipakai order/promosi, backend menolak (409) — nonaktifkan saja.`)) return
+  if (!confirm(`Hapus "${p.name}"? Bila sudah dipakai order/promosi, backend menolak (409); nonaktifkan saja.`)) return
   try {
     await request(`/products/${p.id}`, { method: 'DELETE' })
     await load()

@@ -18,7 +18,7 @@ async def health(db: AsyncSession = Depends(get_session)):
       - `/api/v1/health`     → untuk frontend admin (`request('/health')`)
 
     Bentuk response mengikuti docs/API_DESIGN.md:
-      `{ status, db, llm, wa_provider, env, scheduler }`
+      `{ status, db, llm, telegram_provider, env, scheduler }`
 
     - 200 `status=ok`       : app hidup dan DB terjangkau.
     - 503 `status=degraded` : app hidup tetapi DB tidak terjangkau.
@@ -36,7 +36,7 @@ async def health(db: AsyncSession = Depends(get_session)):
                 "service": "ai-native-store-backend",
                 "db": db_status,
                 "llm": settings.llm_provider,
-                "wa_provider": settings.wa_provider,
+                "telegram_provider": settings.telegram_provider,
                 "env": settings.app_env,
                 "scheduler": "off",
             },
@@ -52,7 +52,7 @@ async def health(db: AsyncSession = Depends(get_session)):
         "service": "ai-native-store-backend",
         "db": db_status,
         "llm": settings.llm_provider,
-        "wa_provider": settings.wa_provider,
+        "telegram_provider": settings.telegram_provider,
         "env": settings.app_env,
         "scheduler": scheduler,
     }

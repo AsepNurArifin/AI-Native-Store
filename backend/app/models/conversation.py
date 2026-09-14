@@ -26,7 +26,7 @@ class Conversation(Base):
 
     id = UUID_PK()
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), nullable=False, index=True)
-    channel: Mapped[str] = mapped_column(String(10), nullable=False)  # WEB | WHATSAPP (FR-SMS-08)
+    channel: Mapped[str] = mapped_column(String(10), nullable=False)  # WEB | TELEGRAM | WHATSAPP (FR-SMS-08)
     started_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     last_activity_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     ended_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)

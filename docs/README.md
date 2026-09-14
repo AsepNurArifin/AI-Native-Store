@@ -14,7 +14,6 @@
 | [`DATA_SCHEMA.md`](DATA_SCHEMA.md) | Skema database Supabase: entitas, kolom, relasi, aturan integritas | F1 |
 | [`API_DESIGN.md`](API_DESIGN.md) | Kontrak REST API backend (BE↔FE), autentikasi, format error | F1, F6 |
 | [`AI_PROMPTS.md`](AI_PROMPTS.md) | Desain system prompt + tool/function calling untuk 3 AI agent | F4 |
-| [`WABA_SETUP.md`](WABA_SETUP.md) | Setup Meta WhatsApp Cloud API, test number, verifikasi bisnis | F0, F7 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | Daftar environment variable & secrets, contoh nilai | F0 |
 | [`TASK_ASSIGNMENT.md`](TASK_ASSIGNMENT.md) | Pembagian tugas 3 anggota + peta FR/NFR → pemilik | F0 |
 | [`REMEDIATION_PLAN.md`](REMEDIATION_PLAN.md) | Rencana perbaikan temuan audit konsistensi code-vs-SRS (fase, acceptance criteria, DoD) | Setelah audit konsistensi |

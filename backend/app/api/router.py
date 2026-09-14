@@ -5,6 +5,7 @@ from app.api.routes import (
     analytics,
     audit,
     auth,
+    catalog,
     chat,
     chat_confirm,
     conversations,
@@ -20,6 +21,7 @@ from app.api.routes import (
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
+api_router.include_router(catalog.router)
 api_router.include_router(products.router)
 api_router.include_router(inventory.router)
 api_router.include_router(orders.router)

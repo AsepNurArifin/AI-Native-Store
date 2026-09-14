@@ -30,7 +30,7 @@
       <Card class="relative overflow-hidden">
         <CardContent>
           <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Koneksi Backend</p>
+            <p class="text-xs font-semibold text-stone-500">Koneksi backend</p>
             <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <Activity class="h-4 w-4" />
             </div>
@@ -43,7 +43,7 @@
               {{ health?.status || '...' }}
             </Badge>
           </div>
-          <p class="mt-1 truncate text-[11px] text-stone-400">API: {{ apiBase }}</p>
+          <p class="mt-1 truncate text-[11px] text-stone-500">API: {{ apiBase }}</p>
         </CardContent>
       </Card>
 
@@ -51,8 +51,8 @@
       <Card class="relative overflow-hidden">
         <CardContent>
           <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Stok Kritis</p>
-            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+            <p class="text-xs font-semibold text-stone-500">Stok kritis</p>
+            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
               <TriangleAlert class="h-4 w-4" />
             </div>
           </div>
@@ -62,8 +62,8 @@
             </span>
             <span class="text-xs font-medium text-stone-500">item butuh restok</span>
           </div>
-          <NuxtLink to="/admin/inventory" class="mt-1 inline-block text-[11px] font-medium text-amber-600 hover:underline">
-            Buka inventori stok →
+          <NuxtLink to="/admin/inventory" class="mt-1 inline-block text-[11px] font-medium text-amber-700 hover:underline">
+            Buka inventori stok
           </NuxtLink>
         </CardContent>
       </Card>
@@ -72,7 +72,7 @@
       <Card class="relative overflow-hidden">
         <CardContent>
           <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Pesanan Masuk</p>
+            <p class="text-xs font-semibold text-stone-500">Pesanan masuk</p>
             <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-clay-50 text-clay-600">
               <ShoppingCart class="h-4 w-4" />
             </div>
@@ -83,8 +83,8 @@
             </span>
             <span class="text-xs font-medium text-stone-500">order tercatat</span>
           </div>
-          <NuxtLink to="/admin/orders" class="mt-1 inline-block text-[11px] font-medium text-clay-600 hover:underline">
-            Lihat semua transaksi →
+          <NuxtLink to="/admin/orders" class="mt-1 inline-block text-[11px] font-medium text-clay-700 hover:underline">
+            Lihat semua transaksi
           </NuxtLink>
         </CardContent>
       </Card>
@@ -93,17 +93,17 @@
       <Card class="relative overflow-hidden">
         <CardContent>
           <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">AI Governance</p>
+            <p class="text-xs font-semibold text-stone-500">Antrean persetujuan AI</p>
             <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-clay-50 text-clay-600">
-              <Sparkles class="h-4 w-4" />
+              <ListChecks class="h-4 w-4" />
             </div>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
             <span class="font-display text-2xl font-bold text-clay-600">HITL</span>
             <span class="text-xs font-medium text-stone-500">Human-In-The-Loop</span>
           </div>
-          <NuxtLink to="/admin/actions" class="mt-1 inline-block text-[11px] font-medium text-clay-600 hover:underline">
-            Persetujuan Aksi AI →
+          <NuxtLink to="/admin/actions" class="mt-1 inline-block text-[11px] font-medium text-clay-700 hover:underline">
+            Persetujuan aksi AI
           </NuxtLink>
         </CardContent>
       </Card>
@@ -114,7 +114,7 @@
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="space-y-1">
           <div class="flex items-center gap-2">
-            <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-600 text-white text-xs font-bold">i</span>
+            <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-clay-700 text-white text-xs font-bold">i</span>
             <h3 class="font-display font-bold text-stone-900 text-sm">Prinsip Arsitektur: Dua Jalur Data Terisolasi</h3>
           </div>
           <p class="text-xs text-stone-600 max-w-2xl leading-relaxed">
@@ -137,11 +137,10 @@
         <CardHeader>
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-amber-500" />
               <span class="font-display font-bold text-sm text-stone-900">Peringatan Stok Menipis</span>
             </div>
             <NuxtLink to="/admin/inventory" class="text-xs font-semibold text-clay-600 hover:underline">
-              Lihat Semua →
+              Lihat semua
             </NuxtLink>
           </div>
         </CardHeader>
@@ -157,17 +156,17 @@
                 <p class="text-xs text-stone-500">ID: {{ p.product_id.slice(0, 8) }}…</p>
               </div>
               <div class="text-right">
-                <span class="font-display font-bold text-amber-600 text-sm">
+                <span class="font-display font-bold text-amber-700 text-sm">
                   Sisa {{ p.current_stock }} unit
                 </span>
-                <p class="text-[10px] text-stone-400">Ambang: {{ p.low_stock_threshold }} unit</p>
+                <p class="text-[10px] text-stone-500">Ambang: {{ p.low_stock_threshold }} unit</p>
               </div>
             </div>
           </div>
           <div v-else-if="lowError" class="py-6 text-center text-xs text-rose-600">
             {{ lowError }}
           </div>
-          <div v-else class="py-6 text-center text-xs text-stone-400">
+          <div v-else class="py-6 text-center text-xs text-stone-500">
             Semua stok berada dalam batas aman.
           </div>
         </CardContent>
@@ -178,11 +177,10 @@
         <CardHeader>
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-emerald-500" />
               <span class="font-display font-bold text-sm text-stone-900">Pesanan Terkini</span>
             </div>
             <NuxtLink to="/admin/orders" class="text-xs font-semibold text-clay-600 hover:underline">
-              Lihat Semua →
+              Lihat semua
             </NuxtLink>
           </div>
         </CardHeader>
@@ -197,8 +195,8 @@
                 <div class="flex items-center gap-2">
                   <span class="font-mono text-xs font-bold text-stone-800">#{{ o.id.slice(0, 8) }}</span>
                   <span
-                    class="rounded-md px-1.5 py-0.2 text-[10px] font-bold uppercase"
-                    :class="o.channel_origin === 'WHATSAPP' ? 'bg-emerald-100 text-emerald-800 ' : 'bg-stone-200 text-stone-700 '"
+                    class="rounded-md px-1.5 py-0.2 text-xs font-bold uppercase"
+                    :class="o.channel_origin === 'TELEGRAM' ? 'bg-emerald-100 text-emerald-800 ' : 'bg-stone-200 text-stone-700 '"
                   >
                     {{ o.channel_origin }}
                   </span>
@@ -215,7 +213,7 @@
           <div v-else-if="ordersError" class="py-6 text-center text-xs text-rose-600">
             {{ ordersError }}
           </div>
-          <div v-else class="py-6 text-center text-xs text-stone-400">
+          <div v-else class="py-6 text-center text-xs text-stone-500">
             Belum ada pesanan yang tercatat.
           </div>
         </CardContent>
@@ -225,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { Activity, ShoppingCart, Sparkles, TriangleAlert } from '@lucide/vue'
+import { Activity, ListChecks, ShoppingCart, TriangleAlert } from '@lucide/vue'
 import { formatIDR, statusVariant } from '~/utils/format'
 import type { OrderOut, StockSummaryItem } from '~/utils/api-types'
 

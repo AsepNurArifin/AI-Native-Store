@@ -206,7 +206,7 @@ regresi: assert nama toko di API dibaca dari settings/DB, bukan konstanta.
 | FE | **Vercel** (sudah diputuskan) | `NUXT_PUBLIC_API_BASE` → URL BE publik |
 | BE | host terpilih (§9.2) | Docker image yang sama dengan compose |
 | DB | **Supabase project terpisah khusus demo** | jangan campur dengan DB dev; reset berkala aman |
-| WA | `WA_PROVIDER=mock` | tanpa beban verifikasi Meta; endpoint `/api/v1/dev/*` untuk simulasi |
+| Telegram | `TELEGRAM_PROVIDER=mock` (atau `bot` bila webhook publik sudah diset) | tanpa beban verifikasi; endpoint `/api/v1/dev/*` untuk simulasi |
 | LLM | Groq (key milik sendiri) | set `LLM_MONTHLY_BUDGET_IDR`; pantau pemakaian |
 
 ### 6.2 Prasyarat keamanan demo publik

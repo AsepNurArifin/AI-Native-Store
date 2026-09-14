@@ -45,7 +45,7 @@ class ConversationService:
     async def find_open(db: AsyncSession, customer: Customer, channel: str) -> Conversation | None:
         """FR-SMS-07 — percakapan OPEN terakhir milik customer pada channel ini.
 
-        Dipakai channel WhatsApp supaya konteks sesi tidak terputus per pesan
+        Dipakai channel messaging (Telegram) supaya konteks sesi tidak terputus per pesan
         (setiap pesan masuk TIDAK membuat conversation baru).
         """
         return (

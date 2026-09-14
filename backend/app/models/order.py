@@ -24,9 +24,12 @@ class Order(Base):
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(12), nullable=False, default=OrderStatus.CONFIRMED.value)
     conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id"), nullable=True)
-    channel_origin: Mapped[str] = mapped_column(String(10), nullable=False)  # WEB | WHATSAPP
+    channel_origin: Mapped[str] = mapped_column(String(10), nullable=False)  # WEB | TELEGRAM | WHATSAPP
     total_amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     promotion_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # {method: PICKUP|DELIVERY, recipient?, phone?, address?, notes?} — dipilih
+    # pembeli saat konfirmasi (channel WEB); None = channel tanpa pilihan fulfillment
+    fulfillment: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)

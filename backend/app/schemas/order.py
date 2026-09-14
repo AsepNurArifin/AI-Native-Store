@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,12 +28,24 @@ class OrderOut(ORMBase):
     completed_at: datetime | None
     cancelled_at: datetime | None
     items: list[OrderItemOut] = []
+    fulfillment: dict | None = None
+
+
+class FulfillmentInfo(BaseModel):
+    """Pilihan pengambilan pesanan — dikirim UI WEB saat konfirmasi (UC-02 E5)."""
+
+    method: Literal["PICKUP", "DELIVERY"]
+    recipient: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    notes: str | None = None
 
 
 class ConfirmOrderRequest(BaseModel):
     order_summary_ref: str
     idempotency_key: str
     customer: dict  # {name, contact} for WEB; ignored for WA
+    fulfillment: FulfillmentInfo | None = None
 
 
 class ConfirmOrderResponse(BaseModel):

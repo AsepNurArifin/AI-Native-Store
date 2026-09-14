@@ -67,3 +67,52 @@ Pakai ramp **`stone`** bawaan Tailwind (pengganti `slate`/`zinc` yang dingin).
 
 ## Eksport
 Token lengkap ada di `app/assets/css/main.css` (`:root` + `@theme`).
+
+## Amendmen 2026-09 (redesign anti-slop)
+
+- **Motif identitas: nota & rak.** Garis putus-putus (`border-dashed`) untuk
+  ringkasan/struk (ChatWidget, seksi "cara belanja" di storefront); kategori
+  toko ditampilkan sebagai barisan merek di atas "papan rak" (garis
+  horizontal `rounded-full`). Alasan: soft-retail butuh gestur toko fisik,
+  bukan grid kartu seragam.
+- **Ikon: Lucide dipakai atas dasar relevansi glyph, bukan look library.**
+  Keputusan tertulis per kasus: `ListChecks` untuk antrean persetujuan AI
+  (HITL = daftar yang dicentang), `Bot` untuk agen asisten chat. Tidak
+  memakai Sparkles/glyph "AI magis".
+- **Tanpa emoji di UI** (kategori, manfaat, status stok). Status stok
+  menipis = angka amber + dot amber (`aria-label`), menandai state nyata.
+- **Tanpa panah dekoratif (→/↗) pada tombol/link.** Panah hanya untuk
+  transformasi nilai (mis. harga sebelum → sesudah diskon) dan rentang
+  tanggal di tabel admin.
+- **Label tanpa uppercase + wide tracking**; casing normal, semibold,
+  stone-500 (amandemen audit: stone-400 gagal WCAG AA 4.5:1 pada teks kecil).
+- **Satu permukaan blur** (sticky header) di seluruh app; sidebar & kartu
+  solid. Shadow hanya untuk elemen elevasi (kartu login, widget chat).
+- **Tanpa badge status dekoratif.** Dot + pulse hanya untuk status nyata
+  (health badge backend, skeleton loading).
+
+## Amendmen audit-001 (2026-09-14, pasca-audit anti-slop)
+
+Hasil audit penuh (lihat `anti-slop/audit-001-2026-09-14.md`) diterapkan:
+
+- **Kontras AA dipatok di seluruh teks kecil.** stone-500 untuk label
+  sekunder, clay-700 untuk link <18px, amber-700 untuk angka stok menipis.
+- **Token `--primary` dipindah ke clay-700** (dari clay-600): teks putih di
+  atas tombol utama kini 5.37:1. clay-600 tetap dipakai untuk aksen teks
+  besar (>=24px/18.66px bold, cukup 3:1) dan tile brand/ikon (non-teks,
+  3.87:1 >= 3:1). Permukaan dengan teks putih memakai clay-700.
+- **Navigasi admin mobile:** drawer `Menu` berlabel (bukan ikon hamburger
+  telanjang), backdrop + Escape menutup, fokus masuk drawer saat dibuka,
+  scroll body dikunci. Nav & tombol Keluar kini reachable di <768px.
+- **Empty state + loading state** untuk semua tabel admin (orders,
+  conversations, customers, audit, promotions, inventory, actions): teks
+  menjelaskan KAPAN baris akan muncul, bukan kalimat generik.
+- **Bahasa UI konsisten Indonesia:** Pesanan, Pelanggan, Aksi AI (khusus
+  Owner), Audit Log (khusus Owner, append-only); breadcrumb memakai peta
+  judul, bukan segmen URL Inggris.
+- **Tap target >=44px** untuk chip prompt chat, tombol Kirim, dan input chat.
+- **error.vue** bertema nota (border putus-putus, nomor kesalahan bergaya
+  struk) untuk 404/500; CTA tunggal `Kembali ke Toko`.
+- **Separator non-kalimat memakai titik tengah (·)**, bukan em-dash;
+  rentang tanggal memakai `s.d.`.
+- **Footer:** karakter copyright (©) yang benar.
