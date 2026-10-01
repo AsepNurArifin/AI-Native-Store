@@ -21,12 +21,11 @@ export default defineNuxtConfig({
     '/admin/**': { robots: false },
     '/login': { robots: false },
 
-    // SWR (cache edge 60 detik) — HANYA rute publik tanpa data user.
-    // Request pertama query DB, sisanya dilayani cache; setelah TTL, sajikan
-    // yang lama dulu sambil generate yang baru (tidak ada yang nunggu).
-    // JANGAN ditambah untuk /orders, /chat, /checkout, /admin, /auth — bisa oversell.
-    '/api/v1/catalog/**': { swr: 60 },
-    '/': { swr: 60 },
+    // SWR cache edge 60 detik — HANYA rute yang outputnya murni dari path.
+    // PENTING: cache key di Vercel mengabaikan query string. JANGAN pasang di
+    // rute yang bervariasi via query (/api/v1/catalog/search?..., '/?q=...')
+    // — response query A bocor ke query B (bug 24-vs-18, katalog kosong).
+    // JANGAN juga untuk /orders, /chat, /checkout, /admin, /auth — bisa oversell.
     '/rak/**': { swr: 60 },
     '/produk/**': { swr: 60 }
   },
