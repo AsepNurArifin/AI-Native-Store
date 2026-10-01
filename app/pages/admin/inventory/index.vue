@@ -99,11 +99,12 @@ const adjLoading = ref(false)
 const adjMsg = ref('')
 const adjOk = ref(false)
 
-onMounted(async () => {
+async function loadSummary() {
   try { summary.value = await request<StockSummaryItem[]>('/inventory/summary') }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
-  await loadTx()
-})
+}
+// Ringkasan + riwayat di-fetch paralel (bukan berurutan).
+onMounted(() => Promise.all([loadSummary(), loadTx()]))
 async function loadTx() {
   try {
     tx.value = await request<InventoryTx[]>('/inventory/transactions', {
@@ -117,8 +118,7 @@ async function onAdjust() {
   try {
     await request('/inventory/adjustments', { method: 'POST', body: { ...adj } })
     adjOk.value = true; adjMsg.value = 'Penyesuaian tercatat.'
-    summary.value = await request<StockSummaryItem[]>('/inventory/summary')
-    await loadTx()
+    await Promise.all([loadSummary(), loadTx()])
   }
   catch (e: unknown) { adjOk.value = false; adjMsg.value = e instanceof Error ? e.message : 'Gagal' }
   finally { adjLoading.value = false }

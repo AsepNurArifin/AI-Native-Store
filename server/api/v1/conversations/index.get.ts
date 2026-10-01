@@ -10,11 +10,13 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const page = Math.max(1, Number(q.page || 1))
   const pageSize = Math.min(100, Number(q.page_size || 50))
-  let all = await db.select().from(conversations).orderBy(desc(conversations.lastActivityAt))
-  if (q.channel) all = all.filter(c => c.channel === String(q.channel))
-  const total = all.length
-  const slice = all.slice((page - 1) * pageSize, page * pageSize)
-  return slice.map(c => ({
+  // Filter + paginasi di SQL (bukan full-table scan lalu filter di JS).
+  const rows = await db.select().from(conversations)
+    .where(q.channel ? eq(conversations.channel, String(q.channel)) : undefined)
+    .orderBy(desc(conversations.lastActivityAt))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
+  return rows.map(c => ({
     id: String(c.id), customer_id: String(c.customerId), channel: c.channel,
     started_at: (c.startedAt as Date).toISOString(), last_activity_at: (c.lastActivityAt as Date).toISOString(),
     ended_at: c.endedAt ? (c.endedAt as Date).toISOString() : null, outcome: c.outcome

@@ -242,20 +242,20 @@ const ordersError = ref('')
 const pendingActions = ref(0)
 
 onMounted(async () => {
-  try { health.value = await request('/health', { auth: false }) }
-  catch (e: unknown) { healthError.value = e instanceof Error ? e.message : 'Backend tidak terjangkau' }
-  try {
-    const all = await request<StockSummaryItem[]>('/inventory/summary')
-    low.value = all.filter(i => i.is_low_stock)
-  }
-  catch (e: unknown) { lowError.value = e instanceof Error ? e.message : 'Gagal memuat stok' }
-  try { orders.value = await request<OrderOut[]>('/orders', { query: { page: 1, page_size: 5 } }) }
-  catch (e: unknown) { ordersError.value = e instanceof Error ? e.message : 'Gagal memuat order' }
-  try {
-    const drafts = await request<AIActionOut[]>('/ai-actions', { query: { status: 'DRAFT', page: 1, page_size: 100 } })
-    pendingActions.value = drafts.length
-  }
-  catch { pendingActions.value = 0 }
+  // Semua kartu KPI di-fetch paralel (bukan berurutan/waterfall).
+  const [h, s, o, d] = await Promise.allSettled([
+    request<{ status: string }>('/health', { auth: false }),
+    request<StockSummaryItem[]>('/inventory/summary'),
+    request<OrderOut[]>('/orders', { query: { page: 1, page_size: 5 } }),
+    request<AIActionOut[]>('/ai-actions', { query: { status: 'DRAFT', page: 1, page_size: 100 } })
+  ])
+  if (h.status === 'fulfilled') health.value = h.value
+  else healthError.value = h.reason instanceof Error ? h.reason.message : 'Backend tidak terjangkau'
+  if (s.status === 'fulfilled') low.value = s.value.filter(i => i.is_low_stock)
+  else lowError.value = s.reason instanceof Error ? s.reason.message : 'Gagal memuat stok'
+  if (o.status === 'fulfilled') orders.value = o.value
+  else ordersError.value = o.reason instanceof Error ? o.reason.message : 'Gagal memuat order'
+  pendingActions.value = d.status === 'fulfilled' ? d.value.length : 0
 })
 </script>
 

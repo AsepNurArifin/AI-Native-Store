@@ -74,8 +74,14 @@ async function load() {
   error.value = ''
   loading.value = true
   try {
-    items.value = await request<PromotionOut[]>('/promotions')
-    products.value = await request<ProductOut[]>('/products', { query: { status: 'ACTIVE' } })
+    // Promosi + daftar produk di-fetch paralel (bukan berurutan).
+    const [iRes, pRes] = await Promise.allSettled([
+      request<PromotionOut[]>('/promotions'),
+      request<ProductOut[]>('/products', { query: { status: 'ACTIVE' } })
+    ])
+    if (iRes.status === 'fulfilled') items.value = iRes.value
+    else throw iRes.reason
+    if (pRes.status === 'fulfilled') products.value = pRes.value
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
   finally { loading.value = false }

@@ -110,6 +110,9 @@ export default defineNuxtConfig({
     telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
     telegramApiBase: process.env.TELEGRAM_API_BASE || 'https://api.telegram.org',
     seedSkuCount: process.env.SEED_SKU_COUNT || '100',
+    // Supabase Storage (upload gambar produk): service_role, server-only.
+    supabaseUrl: process.env.SUPABASE_URL || '',
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     public: {
       // Fullstack: API satu origin — tanpa backend Python :8000 lagi.
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api/v1',

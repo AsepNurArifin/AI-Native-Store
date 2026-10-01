@@ -32,13 +32,22 @@
           <thead><tr class="border-b text-left text-stone-500"><th class="py-1">Produk</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead>
           <tbody>
             <tr v-for="it in order.items" :key="it.id" class="border-b border-stone-100">
-              <td class="py-1 font-mono text-xs">{{ it.product_id.slice(0, 8) }}…</td>
+              <td class="py-1">
+                {{ productName(it.product_id) }}
+                <span class="block font-mono text-[10px] text-stone-400">{{ it.product_id.slice(0, 8) }}…</span>
+              </td>
               <td>{{ it.quantity }}</td><td>{{ formatIDR(it.price_at_order) }}</td><td>{{ formatIDR(it.line_total) }}</td>
             </tr>
           </tbody>
         </table>
-        <div v-if="order.promotion_snapshot" class="mt-3 text-xs text-stone-500">
-          Promo snapshot: <code>{{ JSON.stringify(order.promotion_snapshot) }}</code>
+        <div v-if="promoEntries.length" class="mt-3 rounded-lg border border-stone-200 p-3 text-xs text-stone-600">
+          <p class="mb-1 font-semibold text-stone-700">Promo yang dipakai:</p>
+          <ul class="space-y-0.5">
+            <li v-for="e in promoEntries" :key="e.productId">
+              {{ e.productName }} — diskon <span class="font-semibold text-emerald-700">{{ e.discount }}%</span>
+              <span v-if="e.promotionId" class="text-stone-400">(promo {{ e.promotionId.slice(0, 8) }}…)</span>
+            </li>
+          </ul>
         </div>
       </CardContent>
       <CardFooter>
@@ -54,16 +63,39 @@
 
 <script setup lang="ts">
 import { formatIDR, formatWIB, statusVariant } from '~/utils/format'
-import type { OrderOut } from '~/utils/api-types'
+import type { OrderOut, ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const route = useRoute()
 const { request } = useApi()
 const order = ref<OrderOut | null>(null)
 const error = ref('')
+const productNames = ref<Record<string, string>>({})
+
+function productName(id: string) {
+  return productNames.value[id] || 'Produk'
+}
+const promoEntries = computed(() => {
+  const snap = (order.value?.promotion_snapshot || null) as Record<string, { promotion_id?: string, discount_percentage?: number }> | null
+  if (!snap) return []
+  return Object.entries(snap).map(([pid, v]) => ({
+    productId: pid,
+    productName: productName(pid),
+    discount: Number(v?.discount_percentage ?? 0),
+    promotionId: String(v?.promotion_id ?? '')
+  }))
+})
 
 async function load() {
-  try { order.value = await request<OrderOut>(`/orders/${route.params.id}`) }
+  try {
+    // Order + daftar produk (untuk nama item) di-fetch paralel.
+    const [o, prods] = await Promise.all([
+      request<OrderOut>(`/orders/${route.params.id}`),
+      request<ProductOut[]>('/products').catch(() => [] as ProductOut[])
+    ])
+    order.value = o
+    productNames.value = Object.fromEntries(prods.map(p => [p.id, p.name]))
+  }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
 }
 onMounted(load)

@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { auditLogs } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded } from '../../../utils/business'
@@ -10,13 +10,17 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const page = Math.max(1, Number(q.page || 1))
   const pageSize = Math.min(100, Number(q.page_size || 50))
-  let all = await db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp))
-  if (q.ai_action_id) all = all.filter(a => a.aiActionId && String(a.aiActionId) === String(q.ai_action_id))
-  if (q.event) all = all.filter(a => a.event === String(q.event))
-  if (q.actor_type) all = all.filter(a => a.actorType === String(q.actor_type))
-  const total = all.length
-  const slice = all.slice((page - 1) * pageSize, page * pageSize)
-  return slice.map(a => ({
+  // Filter + paginasi di SQL (bukan full-table scan lalu filter di JS).
+  const conds = []
+  if (q.ai_action_id) conds.push(eq(auditLogs.aiActionId, String(q.ai_action_id) as never))
+  if (q.event) conds.push(eq(auditLogs.event, String(q.event)))
+  if (q.actor_type) conds.push(eq(auditLogs.actorType, String(q.actor_type)))
+  const rows = await db.select().from(auditLogs)
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(auditLogs.timestamp))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
+  return rows.map(a => ({
     id: String(a.id), ai_action_id: a.aiActionId ? String(a.aiActionId) : null,
     event: a.event, actor_type: a.actorType, actor_id: a.actorId ? String(a.actorId) : null,
     detail: a.detail || {}, timestamp: (a.timestamp as Date).toISOString()

@@ -19,12 +19,37 @@
               <option>ACTIVE</option><option>INACTIVE</option>
             </select>
           </div>
-          <div class="md:col-span-2"><label class="mb-1 block text-sm">Gambar (URL https atau path /images/…)</label><Input v-model="form.image_url" placeholder="https://… atau /images/products/hp-01.jpg" />
-            <img v-if="form.image_url" :src="form.image_url" alt="Pratinjau gambar produk" class="mt-2 h-20 w-20 rounded-xl border object-cover" />
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm">Gambar produk (JPG/PNG/WebP/GIF, maks 2 MB)</label>
+            <div class="flex flex-wrap items-start gap-3">
+              <img v-if="form.image_url" :src="form.image_url" alt="Pratinjau gambar produk" class="h-20 w-20 rounded-xl border object-cover" >
+              <div class="space-y-1">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  class="block w-full text-xs text-stone-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-stone-700 hover:file:bg-stone-200"
+                  @change="onFileChange"
+                >
+                <Button v-if="form.image_url" type="button" size="sm" variant="ghost" @click="form.image_url = ''">Hapus gambar</Button>
+                <p v-if="uploading" class="text-xs text-stone-500">Mengunggah…</p>
+                <p v-if="uploadError" class="text-xs text-red-600">{{ uploadError }}</p>
+              </div>
+            </div>
           </div>
-          <div class="md:col-span-2"><label for="product-specifications" class="mb-1 block text-sm">Spesifikasi (JSON)</label>
-            <textarea id="product-specifications" v-model="specText" rows="8" aria-describedby="spec-help" class="w-full rounded-md border border-stone-300 p-2 font-mono text-xs" placeholder='{"brand":"Lenovo","ram_gb":16,"storage_gb":512,"prosesor":"Intel Core i5"}' />
-            <p id="spec-help" class="mt-1 text-xs text-stone-500">Gunakan angka untuk ram_gb dan storage_gb (1 TB = 1000 GB). Jangan isi fitur yang belum diketahui; false berarti tidak didukung.</p>
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-sm">Spesifikasi</label>
+            <div class="space-y-2">
+              <div v-for="(row, i) in specRows" :key="i" class="flex flex-wrap items-center gap-2">
+                <Input v-model="row.key" list="spec-keys" placeholder="mis. ram_gb" class="w-44" />
+                <Input v-model="row.value" placeholder="mis. 16" class="min-w-44 flex-1" />
+                <Button type="button" size="sm" variant="ghostDanger" @click="specRows.splice(i, 1)">Hapus</Button>
+              </div>
+            </div>
+            <datalist id="spec-keys">
+              <option v-for="k in specSuggestions" :key="k" :value="k" />
+            </datalist>
+            <Button type="button" size="sm" variant="outline" class="mt-2" @click="specRows.push({ key: '', value: '' })">+ Baris spesifikasi</Button>
+            <p class="mt-1 text-xs text-stone-500">Isi angka untuk ram_gb dan storage_gb (1 TB = 1000 GB). Jangan isi fitur yang belum diketahui; false berarti tidak didukung.</p>
           </div>
           <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
           <div class="flex gap-2 md:col-span-2">
@@ -53,7 +78,7 @@
           <div class="space-y-3 sm:hidden">
             <div v-for="p in items" :key="p.id" class="rounded-xl border border-stone-200 bg-white p-3">
               <div class="flex items-start gap-2.5">
-                <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg border object-cover" />
+                <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg border object-cover" >
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-2">
                     <p class="min-w-0 flex-1 text-sm font-medium text-stone-900 [overflow-wrap:anywhere]">{{ p.name }}</p>
@@ -84,11 +109,16 @@
             <tbody>
               <tr v-for="p in items" :key="p.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">
-                  {{ p.name }}
-                  <details class="mt-2 max-w-sm font-normal">
-                    <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
-                    <ProductSpecifications class="mt-2" :specification="p.specification" />
-                  </details>
+                  <div class="flex items-start gap-2">
+                    <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg border object-cover" >
+                    <div class="min-w-0">
+                      {{ p.name }}
+                      <details class="mt-2 max-w-sm font-normal">
+                        <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
+                        <ProductSpecifications class="mt-2" :specification="p.specification" />
+                      </details>
+                    </div>
+                  </div>
                 </td>
                 <td class="pr-2">{{ p.category }}</td>
                 <td class="pr-2">{{ formatIDR(p.price) }}</td>
@@ -130,7 +160,32 @@ const saving = ref(false)
 const formError = ref('')
 const editing = ref<ProductOut | null>(null)
 const form = reactive({ name: '', category: '', price: 0, status: 'ACTIVE', image_url: '' as string })
-const specText = ref('{}')
+const uploading = ref(false)
+const uploadError = ref('')
+
+// Spesifikasi diedit sebagai baris key-value (bukan JSON mentah).
+const specRows = ref<Array<{ key: string, value: string }>>([])
+const specSuggestions = ['brand', 'prosesor', 'chipset', 'gpu', 'ram_gb', 'storage_gb', 'layar', 'kamera', 'baterai_mah', 'os', 'berat_kg', 'koneksi', 'fitur']
+
+function specFromRows(): Record<string, unknown> {
+  const spec: Record<string, unknown> = {}
+  for (const row of specRows.value) {
+    const key = row.key.trim()
+    const raw = row.value.trim()
+    if (!key || !raw) continue
+    const asNum = Number(raw)
+    spec[key] = Number.isFinite(asNum) && String(asNum) === raw ? asNum : raw
+  }
+  for (const key of ['ram_gb', 'storage_gb']) {
+    if (key in spec && (typeof spec[key] !== 'number' || !Number.isInteger(spec[key]) || Number(spec[key]) <= 0)) {
+      throw new Error(`${key} harus angka bulat positif dalam GB`)
+    }
+  }
+  return spec
+}
+function rowsFromSpec(spec: Record<string, unknown>) {
+  specRows.value = Object.entries(spec || {}).map(([key, value]) => ({ key, value: value == null ? '' : String(value) }))
+}
 
 async function load() {
   loading.value = true; error.value = ''
@@ -146,33 +201,34 @@ onMounted(load)
 
 function resetForm() {
   editing.value = null; showForm.value = false; formError.value = ''
-  form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'; form.image_url = ''; specText.value = '{}'
+  form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'; form.image_url = ''
+  specRows.value = []; uploadError.value = ''
 }
 function startEdit(p: ProductOut) {
   editing.value = p; showForm.value = true
   form.name = p.name; form.category = p.category; form.price = p.price; form.status = p.status
   form.image_url = p.image_url || ''
-  specText.value = JSON.stringify(p.specification || {}, null, 2)
+  rowsFromSpec(p.specification)
 }
-function parseSpec(): Record<string, unknown> {
-  let parsed: unknown
-  try { parsed = specText.value.trim() ? JSON.parse(specText.value) : {} }
-  catch { throw new Error('Spesifikasi harus JSON valid') }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Spesifikasi harus berupa objek JSON, bukan array atau teks')
+async function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  uploadError.value = ''; uploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await request<{ image_url: string }>('/uploads/images', { method: 'POST', body: fd })
+    form.image_url = res.image_url
   }
-  const spec = parsed as Record<string, unknown>
-  for (const key of ['ram_gb', 'storage_gb']) {
-    if (key in spec && (typeof spec[key] !== 'number' || !Number.isInteger(spec[key]) || Number(spec[key]) <= 0)) {
-      throw new Error(`${key} harus angka bulat positif dalam GB`)
-    }
-  }
-  return spec
+  catch (e: unknown) { uploadError.value = e instanceof Error ? e.message : 'Gagal mengunggah gambar' }
+  finally { uploading.value = false }
 }
 async function onSave() {
   saving.value = true; formError.value = ''
   try {
-    const spec = parseSpec()
+    const spec = specFromRows()
     const payload = { ...form, image_url: form.image_url.trim() || null, specification: spec }
     if (editing.value) {
       await request(`/products/${editing.value.id}`, { method: 'PATCH', body: payload })

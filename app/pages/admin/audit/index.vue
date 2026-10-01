@@ -35,7 +35,14 @@
                 <td class="pr-2"><Badge :variant="statusVariant(l.event)">{{ l.event }}</Badge></td>
                 <td class="pr-2 text-xs">{{ l.actor_type }}</td>
                 <td class="pr-2 font-mono text-xs">{{ (l.ai_action_id || '-').slice(0, 8) }}</td>
-                <td class="max-w-72 truncate text-xs text-stone-500" :title="JSON.stringify(l.detail)">{{ JSON.stringify(l.detail) }}</td>
+                <td class="max-w-72 text-xs text-stone-500">
+                  <template v-if="Object.keys(l.detail || {}).length">
+                    <div v-for="(v, k) in l.detail" :key="String(k)" class="[overflow-wrap:anywhere]">
+                      <span class="font-medium text-stone-600">{{ k }}:</span> {{ detailValue(v) }}
+                    </div>
+                  </template>
+                  <span v-else>-</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -57,6 +64,13 @@ const loading = ref(false)
 const fAction = ref('')
 const fEvent = ref('')
 const fActor = ref('')
+
+/** Nilai detail untuk ditampilkan manusia (fallback JSON hanya untuk nested). */
+function detailValue(v: unknown): string {
+  if (v === null || v === undefined) return '-'
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
 
 async function load() {
   error.value = ''

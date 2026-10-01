@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, desc, eq, ilike, lte, or, sql } from 'drizzle-orm'
 import { products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded, num, stocksFor } from '../../../utils/business'
@@ -14,18 +14,23 @@ export default defineEventHandler(async (event) => {
   const budgetMax = q.budget_max ? Number(q.budget_max) : null
   const limit = Math.min(Number(q.limit || 500), 500)
 
-  let rows = await db.select().from(products).limit(limit)
+  // Filter + limit di SQL (bukan full-table scan lalu filter di JS).
+  const conds = []
   if (search) {
-    const s = search.toLowerCase()
-    rows = rows.filter(r => r.name.toLowerCase().includes(s) || JSON.stringify(r.specification).toLowerCase().includes(s))
+    const s = `%${search.replace(/[%_\\]/g, '\\$&')}%`
+    conds.push(or(ilike(products.name, s), ilike(sql`${products.specification}::text`, s))!)
   }
-  if (category) rows = rows.filter(r => r.category === category)
-  if (status) rows = rows.filter(r => r.status === status)
-  if (budgetMax) rows = rows.filter(r => num(r.price) <= budgetMax)
+  if (category) conds.push(eq(products.category, category))
+  if (status) conds.push(eq(products.status, status))
+  if (budgetMax) conds.push(lte(products.price, String(budgetMax)))
+  const rows = await db.select().from(products)
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(products.createdAt))
+    .limit(limit)
+
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
-  const sliced = rows.slice(0, limit)
-  const stocks = await stocksFor(db, sliced.map(p => String(p.id)))
-  return sliced.map((p) => {
+  const stocks = await stocksFor(db, rows.map(p => String(p.id)))
+  return rows.map((p) => {
     const stock = stocks.get(String(p.id)) ?? 0
     const thr = (p.lowStockThreshold as number | null) ?? lowDefault
     return {
