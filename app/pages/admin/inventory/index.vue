@@ -60,7 +60,7 @@
           <select v-model="fType" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
           </select>
-          <Button size="sm" variant="secondary" @click="loadTx()">Muat</Button>
+          <Button size="sm" variant="secondary" @click="txPage = 1; loadTx()">Muat</Button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -79,6 +79,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="txPage" :count="tx.length" :page-size="txPageSize" :loading="adjLoading" @prev="txPage--; loadTx()" @next="txPage++; loadTx()" />
       </CardContent>
     </Card>
   </div>
@@ -94,6 +95,8 @@ const summary = ref<StockSummaryItem[]>([])
 const tx = ref<InventoryTx[]>([])
 const error = ref('')
 const fType = ref('')
+const txPage = ref(1)
+const txPageSize = 10
 const adj = reactive({ product_id: '', movement: 'IN', quantity: 1 })
 const adjLoading = ref(false)
 const adjMsg = ref('')
@@ -108,7 +111,7 @@ onMounted(() => Promise.all([loadSummary(), loadTx()]))
 async function loadTx() {
   try {
     tx.value = await request<InventoryTx[]>('/inventory/transactions', {
-      query: { type: fType.value || undefined, limit: 100 }
+      query: { type: fType.value || undefined, page: txPage.value, page_size: txPageSize }
     })
   }
   catch { /* abaikan, tabel boleh kosong */ }

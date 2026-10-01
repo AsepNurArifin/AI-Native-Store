@@ -91,7 +91,7 @@ async function load() {
     // Order + daftar produk (untuk nama item) di-fetch paralel.
     const [o, prods] = await Promise.all([
       request<OrderOut>(`/orders/${route.params.id}`),
-      request<ProductOut[]>('/products').catch(() => [] as ProductOut[])
+      request<ProductOut[]>('/products', { query: { page_size: 500 } }).catch(() => [] as ProductOut[])
     ])
     order.value = o
     productNames.value = Object.fromEntries(prods.map(p => [p.id, p.name]))

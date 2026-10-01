@@ -29,6 +29,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -42,11 +43,16 @@ const { request } = useApi()
 const items = ref<CustomerOut[]>([])
 const error = ref('')
 const loading = ref(false)
+const page = ref(1)
+const pageSize = 10
 
-onMounted(async () => {
+async function load() {
   loading.value = true
-  try { items.value = await request<CustomerOut[]>('/customers') }
+  try {
+    items.value = await request<CustomerOut[]>('/customers', { query: { page: page.value, page_size: pageSize } })
+  }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
   finally { loading.value = false }
-})
+}
+onMounted(load)
 </script>

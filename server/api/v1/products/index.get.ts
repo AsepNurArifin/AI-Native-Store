@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, lte, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, lte, or, sql } from 'drizzle-orm'
 import { products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded, num, stocksFor } from '../../../utils/business'
@@ -12,7 +12,9 @@ export default defineEventHandler(async (event) => {
   const category = String(q.category || '')
   const status = String(q.status || '')
   const budgetMax = q.budget_max ? Number(q.budget_max) : null
-  const limit = Math.min(Number(q.limit || 500), 500)
+  // Paginasi di SQL: page_size (legacy: limit) maks 500.
+  const page = Math.max(1, Number(q.page || 1))
+  const pageSize = Math.min(Number(q.page_size || q.limit || 500), 500)
 
   // Filter + limit di SQL (bukan full-table scan lalu filter di JS).
   const conds = []
@@ -25,8 +27,10 @@ export default defineEventHandler(async (event) => {
   if (budgetMax) conds.push(lte(products.price, String(budgetMax)))
   const rows = await db.select().from(products)
     .where(conds.length ? and(...conds) : undefined)
-    .orderBy(desc(products.createdAt))
-    .limit(limit)
+    // Urut per kategori lalu nama (bukan terbaru) agar katalog terbagi rapi per kategori.
+    .orderBy(asc(products.category), asc(products.name))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
 
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
   const stocks = await stocksFor(db, rows.map(p => String(p.id)))

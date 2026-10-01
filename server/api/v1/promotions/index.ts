@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { promotions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { checkOverlap, effectiveStatus, ensureSeeded, num, refreshPromotionExpiry } from '../../../utils/business'
@@ -19,8 +19,14 @@ export default defineEventHandler(async (event) => {
   if (event.method === 'GET') {
     await refreshPromotionExpiry(db)
     const q = getQuery(event)
-    let rows = await db.select().from(promotions)
-    if (q.product_id) rows = rows.filter(r => String(r.productId) === String(q.product_id))
+    const page = Math.max(1, Number(q.page || 1))
+    const pageSize = Math.min(100, Number(q.page_size || 50))
+    // Paginasi + filter di SQL.
+    const rows = await db.select().from(promotions)
+      .where(q.product_id ? eq(promotions.productId, String(q.product_id) as never) : undefined)
+      .orderBy(desc(promotions.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize)
     return rows.map(out)
   }
   // POST

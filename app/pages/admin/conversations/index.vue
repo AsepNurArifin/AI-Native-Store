@@ -7,7 +7,7 @@
           <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option><option>WHATSAPP</option>
           </select>
-          <Button size="sm" variant="secondary" @click="load()">Muat</Button>
+          <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
@@ -34,6 +34,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -49,13 +50,15 @@ const items = ref<ConversationOut[]>([])
 const error = ref('')
 const loading = ref(false)
 const fChannel = ref('')
+const page = ref(1)
+const pageSize = 10
 
 async function load() {
   error.value = ''
   loading.value = true
   try {
     items.value = await request<ConversationOut[]>('/conversations', {
-      query: { channel: fChannel.value || undefined, page: 1, page_size: 50 }
+      query: { channel: fChannel.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }

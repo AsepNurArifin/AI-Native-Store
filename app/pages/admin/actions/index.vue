@@ -10,7 +10,7 @@
             <option>DRAFT</option><option>APPROVED</option><option>REJECTED</option>
             <option>APPROVED_VALIDATION_FAILED</option><option>EXECUTED</option>
           </select>
-          <Button size="sm" variant="secondary" @click="load()">Muat</Button>
+          <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
 
@@ -46,6 +46,7 @@
           <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat antrean draft…</p>
           <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft. Tulis instruksi di kotak AI di atas, lalu tekan Buat Draft.</p>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -65,6 +66,8 @@ const creating = ref(false)
 const loading = ref(false)
 const draftError = ref('')
 const draftOk = ref(false)
+const page = ref(1)
+const pageSize = 10
 
 async function createDraft() {
   draftError.value = ''
@@ -86,7 +89,7 @@ async function load() {
   loading.value = true
   try {
     items.value = await request<AIActionOut[]>('/ai-actions', {
-      query: { status_: fStatus.value || undefined, page: 1, page_size: 50 }
+      query: { status_: fStatus.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }

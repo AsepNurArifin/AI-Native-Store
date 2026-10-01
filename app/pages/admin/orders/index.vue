@@ -11,7 +11,7 @@
           <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option>
           </select>
-          <Button size="sm" variant="secondary" @click="load()">Terapkan filter</Button>
+          <Button size="sm" variant="secondary" @click="page = 1; load()">Terapkan filter</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <!-- Mobile: kartu per pesanan (tabel tidak muat di <640px) -->
@@ -70,6 +70,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -86,13 +87,15 @@ const error = ref('')
 const loading = ref(false)
 const fStatus = ref('')
 const fChannel = ref('')
+const page = ref(1)
+const pageSize = 10
 
 async function load() {
   error.value = ''
   loading.value = true
   try {
     items.value = await request<OrderOut[]>('/orders', {
-      query: { status: fStatus.value || undefined, channel: fChannel.value || undefined, page: 1, page_size: 50 }
+      query: { status: fStatus.value || undefined, channel: fChannel.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }

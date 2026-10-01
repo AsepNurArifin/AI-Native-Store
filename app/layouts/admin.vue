@@ -2,8 +2,9 @@
   <div class="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-brand-500 selection:text-white">
     <div class="flex min-h-screen">
       <!-- Sidebar Desktop -->
-      <aside class="hidden w-64 shrink-0 flex-col border-r border-stone-200/80 bg-sidebar md:flex">
-        <div class="flex h-16 items-center gap-3 border-b border-stone-100/90 px-5">
+      <!-- Sidebar Desktop: sticky (statis) — tidak ikut ter-scroll saat body data di-scroll -->
+      <aside class="hidden w-64 shrink-0 flex-col border-r border-stone-200/80 bg-sidebar md:sticky md:top-0 md:h-screen md:self-start md:flex">
+        <div class="flex h-16 items-center gap-3 border-b border-white/10 px-5">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
@@ -11,8 +12,8 @@
             </svg>
           </div>
           <div>
-            <span class="font-display text-sm font-bold tracking-tight text-stone-900">PARAGON<span class="text-brand-700">KOM</span></span>
-            <p class="text-[11px] font-medium text-stone-500">Panel pemilik toko</p>
+            <span class="font-display text-sm font-bold tracking-tight text-white">PARAGON<span class="text-sidebar-primary">KOM</span></span>
+            <p class="text-[11px] font-medium text-white/60">Panel pemilik toko</p>
           </div>
         </div>
 
@@ -21,7 +22,7 @@
         </div>
 
         <!-- Profil pengguna -->
-        <div class="border-t border-stone-100/90 p-3.5">
+        <div class="border-t border-white/10 p-3.5">
           <div class="flex items-center justify-between rounded-2xl bg-stone-50/80 p-2.5">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white font-bold text-xs">
@@ -41,7 +42,7 @@
             </button>
           </div>
           <div class="mt-2 text-center">
-            <NuxtLink to="/" class="text-[11px] font-medium text-stone-500 hover:text-brand-700 transition-colors">
+            <NuxtLink to="/" class="text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors">
               ← Lihat Halaman Toko
             </NuxtLink>
           </div>
@@ -65,7 +66,7 @@
         tabindex="-1"
         class="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-stone-200 bg-sidebar outline-none md:hidden"
       >
-        <div class="flex h-16 shrink-0 items-center justify-between border-b border-stone-100 px-5">
+        <div class="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <div class="flex items-center gap-3">
             <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -74,8 +75,8 @@
               </svg>
             </div>
             <div>
-              <span class="font-display text-sm font-bold tracking-tight text-stone-900">PARAGON<span class="text-brand-700">KOM</span></span>
-              <p class="text-[11px] font-medium text-stone-500">Panel pemilik toko</p>
+              <span class="font-display text-sm font-bold tracking-tight text-white">PARAGON<span class="text-sidebar-primary">KOM</span></span>
+              <p class="text-[11px] font-medium text-white/60">Panel pemilik toko</p>
             </div>
           </div>
           <button
@@ -91,7 +92,7 @@
           <AdminNav />
         </div>
 
-        <div class="border-t border-stone-100 p-3.5">
+        <div class="border-t border-white/10 p-3.5">
           <div class="flex items-center justify-between rounded-2xl bg-stone-50/80 p-2.5">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white font-bold text-xs">
@@ -111,7 +112,7 @@
             </button>
           </div>
           <div class="mt-2 text-center">
-            <NuxtLink to="/" class="text-[11px] font-medium text-stone-500 hover:text-brand-700 transition-colors">
+            <NuxtLink to="/" class="text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors">
               ← Lihat Halaman Toko
             </NuxtLink>
           </div>

@@ -47,6 +47,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -66,6 +67,8 @@ const showForm = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const form = reactive({ product_id: '', discount_percentage: 10, status: 'DRAFT', start_date: '', end_date: '' })
+const page = ref(1)
+const pageSize = 10
 
 function productName(id: string) {
   return products.value.find(p => p.id === id)?.name || id.slice(0, 8) + '…'
@@ -76,8 +79,8 @@ async function load() {
   try {
     // Promosi + daftar produk di-fetch paralel (bukan berurutan).
     const [iRes, pRes] = await Promise.allSettled([
-      request<PromotionOut[]>('/promotions'),
-      request<ProductOut[]>('/products', { query: { status: 'ACTIVE' } })
+      request<PromotionOut[]>('/promotions', { query: { page: page.value, page_size: pageSize } }),
+      request<ProductOut[]>('/products', { query: { status: 'ACTIVE', page_size: 500 } })
     ])
     if (iRes.status === 'fulfilled') items.value = iRes.value
     else throw iRes.reason

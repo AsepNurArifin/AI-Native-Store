@@ -2,14 +2,14 @@
   <!-- Navigasi admin, dipakai sidebar desktop dan drawer mobile (satu sumber). -->
   <div class="space-y-6">
     <div>
-      <p class="px-3 mb-2 text-[11px] font-semibold text-stone-500">
+      <p class="px-3 mb-2 text-[11px] font-semibold text-white/60">
         Operasional toko
       </p>
       <nav class="space-y-1">
         <NuxtLink
           to="/admin"
-          exact-active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          exact-active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <LayoutDashboard class="h-4 w-4 shrink-0" />
           <span>Dashboard</span>
@@ -17,8 +17,8 @@
 
         <NuxtLink
           to="/admin/products"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <Package class="h-4 w-4 shrink-0" />
           <span>Katalog Produk</span>
@@ -26,8 +26,8 @@
 
         <NuxtLink
           to="/admin/inventory"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <ArrowLeftRight class="h-4 w-4 shrink-0" />
           <span>Inventori &amp; Stok</span>
@@ -35,8 +35,8 @@
 
         <NuxtLink
           to="/admin/orders"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <ShoppingCart class="h-4 w-4 shrink-0" />
           <span>Pesanan</span>
@@ -44,8 +44,8 @@
 
         <NuxtLink
           to="/admin/promotions"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <Ticket class="h-4 w-4 shrink-0" />
           <span>Promosi &amp; Kupon</span>
@@ -54,14 +54,14 @@
     </div>
 
     <div>
-      <p class="px-3 mb-2 text-[11px] font-semibold text-stone-500">
+      <p class="px-3 mb-2 text-[11px] font-semibold text-white/60">
         Pelanggan &amp; AI
       </p>
       <nav class="space-y-1">
         <NuxtLink
           to="/admin/conversations"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <MessagesSquare class="h-4 w-4 shrink-0" />
           <span>Percakapan Chat</span>
@@ -69,8 +69,8 @@
 
         <NuxtLink
           to="/admin/customers"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <Users class="h-4 w-4 shrink-0" />
           <span>Pelanggan</span>
@@ -78,8 +78,8 @@
 
         <NuxtLink
           to="/admin/analytics"
-          active-class="bg-brand-50/80 text-brand-700 font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+          active-class="bg-sidebar-accent text-white font-semibold"
+          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <ChartColumn class="h-4 w-4 shrink-0" />
           <span>Analitik &amp; Metrik</span>
@@ -88,20 +88,20 @@
         <template v-if="auth.isOwner">
           <NuxtLink
             to="/admin/actions"
-            active-class="bg-brand-50/80 text-brand-700 font-semibold"
-            class="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+            active-class="bg-sidebar-accent text-white font-semibold"
+            class="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
           >
             <span class="flex items-center gap-3">
               <ListChecks class="h-4 w-4 shrink-0" />
               <span>Aksi AI</span>
             </span>
-            <span class="rounded-full bg-brand-100 px-1.5 py-0.2 text-xs font-bold text-brand-700">HITL</span>
+            <span class="rounded-full bg-white/15 px-1.5 py-0.2 text-xs font-bold text-white">HITL</span>
           </NuxtLink>
 
           <NuxtLink
             to="/admin/audit"
-            active-class="bg-brand-50/80 text-brand-700 font-semibold"
-            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+            active-class="bg-sidebar-accent text-white font-semibold"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
           >
             <Shield class="h-4 w-4 shrink-0" />
             <span>Audit Trail</span>

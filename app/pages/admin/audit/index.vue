@@ -13,7 +13,7 @@
           <select v-model="fActor" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua actor</option><option>USER</option><option>AI_SYSTEM</option>
           </select>
-          <Button size="sm" variant="secondary" @click="load()">Muat</Button>
+          <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
@@ -47,6 +47,7 @@
             </tbody>
           </table>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -64,6 +65,8 @@ const loading = ref(false)
 const fAction = ref('')
 const fEvent = ref('')
 const fActor = ref('')
+const page = ref(1)
+const pageSize = 10
 
 /** Nilai detail untuk ditampilkan manusia (fallback JSON hanya untuk nested). */
 function detailValue(v: unknown): string {
@@ -81,7 +84,7 @@ async function load() {
         ai_action_id: fAction.value || undefined,
         event: fEvent.value || undefined,
         actor_type: fActor.value || undefined,
-        page: 1, page_size: 50
+        page: page.value, page_size: pageSize
       }
     })
   }

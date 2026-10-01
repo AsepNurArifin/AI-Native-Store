@@ -68,7 +68,7 @@
           <select v-model="status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
           </select>
-          <Button size="sm" variant="secondary" @click="load()">Cari</Button>
+          <Button size="sm" variant="secondary" @click="page = 1; load()">Cari</Button>
         </div>
         <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <p v-if="loading" class="text-sm text-stone-500">Memuat…</p>
@@ -76,7 +76,9 @@
           <!-- Mobile: kartu per produk -->
           <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500 sm:hidden">Belum ada produk.</p>
           <div class="space-y-3 sm:hidden">
-            <div v-for="p in items" :key="p.id" class="rounded-xl border border-stone-200 bg-white p-3">
+            <template v-for="(p, i) in items" :key="p.id">
+            <p v-if="isNewCategory(i)" class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-3">
               <div class="flex items-start gap-2.5">
                 <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg border object-cover" >
                 <div class="min-w-0 flex-1">
@@ -99,6 +101,7 @@
                 </div>
               </div>
             </div>
+            </template>
           </div>
           <div class="hidden overflow-x-auto sm:block">
           <table class="w-full text-sm">
@@ -107,7 +110,11 @@
               <th class="pr-2">Stok</th><th class="pr-2">Status</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in items" :key="p.id" class="border-b border-stone-100">
+              <template v-for="(p, i) in items" :key="p.id">
+              <tr v-if="isNewCategory(i)" class="border-b border-stone-200 bg-stone-50">
+                <td colspan="6" class="py-1.5 pr-2 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</td>
+              </tr>
+              <tr class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">
                   <div class="flex items-start gap-2">
                     <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg border object-cover" >
@@ -133,11 +140,13 @@
                   <Button size="sm" variant="ghostDanger" @click="remove(p)">Hapus</Button>
                 </td>
               </tr>
+              </template>
             </tbody>
           </table>
           <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada produk.</p>
           </div>
         </div>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -159,6 +168,13 @@ const showForm = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const editing = ref<ProductOut | null>(null)
+const page = ref(1)
+// Muat sedikit demi sedikit per halaman (bukan setengah katalog sekaligus).
+const pageSize = 10
+// Header kategori muncul saat kategori baris berubah (list sudah diurut per kategori di SQL).
+function isNewCategory(i: number) {
+  return i === 0 || items.value[i - 1]!.category !== items.value[i]!.category
+}
 const form = reactive({ name: '', category: '', price: 0, status: 'ACTIVE', image_url: '' as string })
 const uploading = ref(false)
 const uploadError = ref('')
@@ -191,7 +207,7 @@ async function load() {
   loading.value = true; error.value = ''
   try {
     items.value = await request<ProductOut[]>('/products', {
-      query: { q: q.value || undefined, category: category.value || undefined, status: status.value }
+      query: { q: q.value || undefined, category: category.value || undefined, status: status.value, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }

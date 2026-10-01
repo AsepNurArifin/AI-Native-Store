@@ -8,7 +8,9 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
   await ensureSeeded(db)
   const q = getQuery(event)
-  const limit = Math.min(Number(q.limit || 100), 500)
+  // Paginasi di SQL: page_size (legacy: limit) maks 500.
+  const page = Math.max(1, Number(q.page || 1))
+  const pageSize = Math.min(Number(q.page_size || q.limit || 100), 500)
   // Filter di SQL (bukan full-table scan lalu filter di JS).
   const conds = []
   if (q.product_id) conds.push(eq(inventoryTransactions.productId, String(q.product_id) as never))
@@ -17,7 +19,8 @@ export default defineEventHandler(async (event) => {
   const rows = await db.select().from(inventoryTransactions)
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(inventoryTransactions.timestamp))
-    .limit(limit)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
   return rows.map(r => ({
     id: String(r.id), product_id: String(r.productId), type: r.type, movement: r.movement,
     reference_type: r.referenceType, quantity: r.quantity,
