@@ -11,25 +11,27 @@ const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const category = computed(() => decodeURIComponent(String(route.params.category || '')))
 const categoryPath = computed(() => `/rak/${encodeURIComponent(category.value)}`)
 const q = ref('')
+const qDebounced = ref('')
 const sort = ref('')
 const promoOnly = ref(false)
 
-// Sengaja tanpa try/catch: error diteruskan ke `fetchError` supaya UI
-// menampilkan "gagal dimuat" (bukan "rak kosong" yang menyesatkan).
+const { getCachedData } = useCache()
+// Tanpa try/catch: error diteruskan ke `fetchError` (bukan "rak kosong" palsu).
+// Key reaktif per kategori+filter: ganti kategori/filter = key baru = refetch
+// otomatis; balik ke rak yang sama = tampil instan dari cache.
 const { data: products, pending, error: fetchError, refresh } = await useAsyncData(
-  'rak-products',
+  computed(() => `rak:${category.value}:${qDebounced.value}:${sort.value}:${promoOnly.value}`),
   () => $fetch<ProductOut[]>(`${base}/catalog/search`, {
-    query: { category: category.value, q: q.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: 60 }
+    query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: 60 }
   }),
-  { watch: false, default: () => [] as ProductOut[] }
+  { default: () => [] as ProductOut[], getCachedData }
 )
 
-watch([category, sort, promoOnly], () => { void refresh() })
-
+// Debounce ketikan -> key baru -> refetch otomatis.
 let debounce: ReturnType<typeof setTimeout> | null = null
 watch(q, () => {
   if (debounce) clearTimeout(debounce)
-  debounce = setTimeout(() => { void refresh() }, 350)
+  debounce = setTimeout(() => { qDebounced.value = q.value }, 350)
 })
 
 const pageTitle = computed(() => `${category.value}: Harga & Stok`)

@@ -19,7 +19,16 @@ export default defineNuxtConfig({
   routeRules: {
     '/admin': { robots: false },
     '/admin/**': { robots: false },
-    '/login': { robots: false }
+    '/login': { robots: false },
+
+    // SWR (cache edge 60 detik) — HANYA rute publik tanpa data user.
+    // Request pertama query DB, sisanya dilayani cache; setelah TTL, sajikan
+    // yang lama dulu sambil generate yang baru (tidak ada yang nunggu).
+    // JANGAN ditambah untuk /orders, /chat, /checkout, /admin, /auth — bisa oversell.
+    '/api/v1/catalog/**': { swr: 60 },
+    '/': { swr: 60 },
+    '/rak/**': { swr: 60 },
+    '/produk/**': { swr: 60 }
   },
 
   app: {

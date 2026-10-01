@@ -41,29 +41,34 @@ const popularBrands = ['Apple', 'Samsung', 'ASUS', 'Lenovo', 'MSI', 'Xiaomi', 'S
 const { data: layoutCategories } = useNuxtData<string[]>('layout-categories')
 const categories = computed(() => layoutCategories.value ?? [])
 
-// promos + catalog dijalankan PARALEL (dulu berantai, ~4 detik menumpuk).
-const [{ data: promos }, { data: catalog, pending: catalogPending, refresh: refreshCatalog }] = await Promise.all([
+const { getCachedData } = useCache()
+// promos + catalog PARALEL + cache lintas navigasi. Key reaktif per kombinasi
+// filter: ganti filter = key baru = refetch otomatis (tanpa watch manual),
+// balik ke filter yang sama = tampil instan dari cache.
+const [{ data: promos }, { data: catalog, pending: catalogPending }] = await Promise.all([
   useAsyncData('mkt-promos', async () => {
     try { return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }) }
     catch { return [] as ProductOut[] }
-  }, { default: () => [] as ProductOut[] }),
-  useAsyncData('mkt-catalog', async () => {
-    try {
-      const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
-      return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
-        query: {
-          q: combinedQ || undefined,
-          category: activeCategory.value || undefined,
-          sort: sort.value || undefined,
-          limit: 24
-        }
-      })
-    }
-    catch { return [] as ProductOut[] }
-  }, { default: () => [] as ProductOut[], watch: false })
+  }, { default: () => [] as ProductOut[], getCachedData }),
+  useAsyncData(
+    computed(() => `mkt-catalog:${searchQuery.value}:${activeCategory.value}:${selectedBrand.value}:${sort.value}`),
+    async () => {
+      try {
+        const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
+        return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+          query: {
+            q: combinedQ || undefined,
+            category: activeCategory.value || undefined,
+            sort: sort.value || undefined,
+            limit: 24
+          }
+        })
+      }
+      catch { return [] as ProductOut[] }
+    },
+    { default: () => [] as ProductOut[], getCachedData }
+  )
 ])
-
-watch([searchQuery, activeCategory, selectedBrand, sort], () => { void refreshCatalog() })
 
 const categoryIcons: Record<string, object> = {
   HP: Smartphone, Smartphone: Smartphone, Laptop: Laptop, Tablet: Tablet,
