@@ -1,10 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 import { products } from '../../../database/schema'
-import { catalogList, ensureSeeded } from '../../../utils/business'
+import { catalogList } from '../../../utils/business'
 
 export default defineEventHandler(async (event) => {
   const db = getDb()
-  await ensureSeeded(db)
   const q = getQuery(event)
   const category = String(q.category || '')
   if (!category) {

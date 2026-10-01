@@ -14,16 +14,13 @@ const q = ref('')
 const sort = ref('')
 const promoOnly = ref(false)
 
+// Sengaja tanpa try/catch: error diteruskan ke `fetchError` supaya UI
+// menampilkan "gagal dimuat" (bukan "rak kosong" yang menyesatkan).
 const { data: products, pending, error: fetchError, refresh } = await useAsyncData(
   'rak-products',
-  async () => {
-    try {
-      return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
-        query: { category: category.value, q: q.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: 60 }
-      })
-    }
-    catch { return [] as ProductOut[] }
-  },
+  () => $fetch<ProductOut[]>(`${base}/catalog/search`, {
+    query: { category: category.value, q: q.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: 60 }
+  }),
   { watch: false, default: () => [] as ProductOut[] }
 )
 

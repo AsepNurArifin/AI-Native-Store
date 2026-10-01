@@ -37,30 +37,31 @@ const sort = ref('')
 
 const popularBrands = ['Apple', 'Samsung', 'ASUS', 'Lenovo', 'MSI', 'Xiaomi', 'Sony', 'Logitech']
 
-const { data: categories } = await useAsyncData('mkt-categories', async () => {
-  try { return await $fetch<string[]>(`${base}/catalog/categories`) }
-  catch { return [] as string[] }
-}, { default: () => [] as string[] })
+// Kategori dipakai bareng layout (key 'layout-categories') — tanpa request kedua.
+const { data: layoutCategories } = useNuxtData<string[]>('layout-categories')
+const categories = computed(() => layoutCategories.value ?? [])
 
-const { data: promos } = await useAsyncData('mkt-promos', async () => {
-  try { return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }) }
-  catch { return [] as ProductOut[] }
-}, { default: () => [] as ProductOut[] })
-
-const { data: catalog, pending: catalogPending, refresh: refreshCatalog } = await useAsyncData('mkt-catalog', async () => {
-  try {
-    const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
-    return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
-      query: {
-        q: combinedQ || undefined,
-        category: activeCategory.value || undefined,
-        sort: sort.value || undefined,
-        limit: 24
-      }
-    })
-  }
-  catch { return [] as ProductOut[] }
-}, { default: () => [] as ProductOut[], watch: false })
+// promos + catalog dijalankan PARALEL (dulu berantai, ~4 detik menumpuk).
+const [{ data: promos }, { data: catalog, pending: catalogPending, refresh: refreshCatalog }] = await Promise.all([
+  useAsyncData('mkt-promos', async () => {
+    try { return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }) }
+    catch { return [] as ProductOut[] }
+  }, { default: () => [] as ProductOut[] }),
+  useAsyncData('mkt-catalog', async () => {
+    try {
+      const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
+      return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+        query: {
+          q: combinedQ || undefined,
+          category: activeCategory.value || undefined,
+          sort: sort.value || undefined,
+          limit: 24
+        }
+      })
+    }
+    catch { return [] as ProductOut[] }
+  }, { default: () => [] as ProductOut[], watch: false })
+])
 
 watch([searchQuery, activeCategory, selectedBrand, sort], () => { void refreshCatalog() })
 

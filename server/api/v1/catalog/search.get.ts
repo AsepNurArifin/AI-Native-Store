@@ -1,14 +1,14 @@
-import { eq } from 'drizzle-orm'
-import { products } from '../../../database/schema'
-import { catalogList, ensureSeeded } from '../../../utils/business'
+import { and, asc, desc, eq, exists, ilike, or, sql } from 'drizzle-orm'
+import { inventoryTransactions, products, promotions } from '../../../database/schema'
+import { catalogList } from '../../../utils/business'
 
 /**
  * Pencarian katalog publik (marketplace): q opsional, category opsional,
  * sort: termurah | termahal | terbaru. Tanpa JWT.
+ * Filter + sort + limit dikerjakan di SQL (hemat transfer & komputasi).
  */
 export default defineEventHandler(async (event) => {
   const db = getDb()
-  await ensureSeeded(db)
   const q = getQuery(event)
   const keyword = String(q.q || '').toLowerCase().trim()
   const category = String(q.category || '').trim()
@@ -17,25 +17,36 @@ export default defineEventHandler(async (event) => {
   const stockOnly = String(q.stock_only || '') === 'true'
   const limit = Math.min(Math.max(Number(q.limit || 24), 1), 100)
 
-  let rows = await db.select().from(products).where(eq(products.status, 'ACTIVE')).limit(500)
-  if (category) rows = rows.filter(r => r.category.toLowerCase() === category.toLowerCase())
+  const conds = [eq(products.status, 'ACTIVE')]
+  if (category) conds.push(sql`lower(${products.category}) = ${category.toLowerCase()}`)
   if (keyword) {
-    rows = rows.filter(r =>
-      r.name.toLowerCase().includes(keyword)
-      || r.category.toLowerCase().includes(keyword)
-      || JSON.stringify(r.specification || {}).toLowerCase().includes(keyword)
-    )
+    // Escape wildcard LIKE supaya sama persis dengan substring match lama
+    const like = `%${keyword.replace(/[\\%_]/g, '\\$&')}%`
+    const kw = or(ilike(products.name, like), ilike(products.category, like), sql`${products.specification}::text ilike ${like}`)
+    if (kw) conds.push(kw)
+  }
+  if (promoOnly) {
+    conds.push(exists(
+      db.select({ x: sql`1` }).from(promotions).where(and(
+        eq(promotions.productId, products.id),
+        eq(promotions.status, 'ACTIVE'),
+        sql`${promotions.startDate} <= now()`,
+        sql`${promotions.endDate} > now()`
+      ))
+    ))
+  }
+  if (stockOnly) {
+    conds.push(sql`(select coalesce(sum(case when ${inventoryTransactions.movement} = 'IN' then ${inventoryTransactions.quantity} else -${inventoryTransactions.quantity} end), 0)
+      from ${inventoryTransactions} where ${inventoryTransactions.productId} = ${products.id}) > 0`)
   }
 
+  let query = db.select().from(products).where(and(...conds))
+  const orderBy = sort === 'termurah' ? [asc(products.price)]
+    : sort === 'termahal' ? [desc(products.price)]
+    : sort === 'terbaru' ? [desc(products.createdAt)]
+    : []
+
+  const rows = await query.orderBy(...orderBy).limit(limit)
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
-
-  if (sort === 'termurah') rows.sort((a, b) => Number(a.price) - Number(b.price))
-  else if (sort === 'termahal') rows.sort((a, b) => Number(b.price) - Number(a.price))
-  else if (sort === 'terbaru') rows.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-
-  let out = await catalogList(db, rows, lowDefault)
-  if (promoOnly) out = out.filter(p => (p.discount_percentage as number) > 0)
-  if (stockOnly) out = out.filter(p => (p.current_stock as number) > 0)
-
-  return out.slice(0, limit)
+  return await catalogList(db, rows, lowDefault)
 })

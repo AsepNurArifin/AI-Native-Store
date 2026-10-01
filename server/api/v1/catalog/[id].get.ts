@@ -1,12 +1,11 @@
 import { eq } from 'drizzle-orm'
 import { products } from '../../../database/schema'
-import { activePromosFor, catalogOut, ensureSeeded, stocksFor } from '../../../utils/business'
+import { activePromosFor, catalogOut, stocksFor } from '../../../utils/business'
 import { isUuid } from '../../../utils/errors'
 
 /** Detail produk publik untuk halaman /produk/[id] — tanpa JWT, hanya ACTIVE. */
 export default defineEventHandler(async (event) => {
   const db = getDb()
-  await ensureSeeded(db)
   const id = String(getRouterParam(event, 'id') || '')
   if (!isUuid(id)) throw createError({ statusCode: 404, message: 'Produk tidak ditemukan', data: { detail: 'Produk tidak ditemukan' } })
   const rows = await db.select().from(products).where(eq(products.id, id as never)).limit(1)
