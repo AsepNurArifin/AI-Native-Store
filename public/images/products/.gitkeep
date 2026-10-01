@@ -1,0 +1,3 @@
+# Folder gambar produk statis (opsional).
+# Isi via admin produk dengan path seperti /images/products/hp-01.jpg,
+# atau pakai URL https penuh. Bila kosong, UI memakai fallback ikon kategori.

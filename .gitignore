@@ -1,3 +1,37 @@
-# Jaring pengaman: env per-service tidak boleh ke-commit.
-# (backend/.env dan frontend/.env juga diabaikan di .gitignore masing-masing.)
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
 .env
+.env.*
+!.env.example
+
+# AI/agent tooling artifacts
+.hallmark/
+.playwright-mcp/
+anti-slop/
+pi-session-*.html
+_convo.txt
+_outline.txt
+_session.json
+
+# Python legacy (arsip di git history)
+.venv
+__pycache__/

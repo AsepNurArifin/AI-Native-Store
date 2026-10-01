@@ -21,8 +21,9 @@ toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
                     └─────────────────────────┘  │
                                                  ▼
                                      ┌─────────────────────────┐
-   Owner (Admin UI) ────────────────▶│  FastAPI Backend        │
-                                     │  /api/v1                │
+   Owner (Admin UI) ────────────────▶│  Nuxt Fullstack (satu    │
+                                     │  origin :3000)          │
+                                     │  /api/v1 (Nitro server) │
                                      │  ┌───────────────────┐  │
                                      │  │ channel adapters  │  │
                                      │  │ AI agents + tools │  │
@@ -45,31 +46,26 @@ toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
 - **Mutasi data hanya lewat jalur manusia/konfirmasi** — LLM tidak boleh membuat order atau
   mengaktifkan promosi; approval wajib Owner.
 
-**Tech stack:** Nuxt 4 (frontend) · Python 3.12 + FastAPI (backend) · Supabase PostgreSQL ·
-Telegram Bot API · Groq/Qwen LLM.
+**Tech stack:** Nuxt 4 fullstack (Vue + Nitro server) · Drizzle ORM + Supabase PostgreSQL ·
+Telegram Bot API · Groq/Qwen LLM. Backend Python lama sudah dihapus.
 
 ---
 
 ## 2. Struktur Repository
 
 ```
-capstone/
-├── backend/                 # FastAPI + SQLAlchemy async + AI agents
-│   ├── app/
-│   │   ├── api/routes/       # endpoint REST (auth, products, orders, chat, ai_actions, webhooks…)
-│   │   ├── ai/               # sales_agent, analyst_agent, action_agent, tools, llm
-│   │   ├── channels/         # telegram adapter + provider (mock | bot)
-│   │   ├── core/             # config, security (JWT), validasi runtime
-│   │   ├── db/               # session, init_db, migrate (runner SQL)
-│   │   ├── models/           # ORM (sumber kebenaran skema)
-│   │   ├── services/         # business rule (authority)
-│   │   └── seed/             # synthetic seed (deterministik)
-│   ├── migrations/           # SQL migration berurutan (produksi/Supabase)
-│   ├── tests/                # pytest (unit + e2e via entry point publik)
-│   ├── docker-compose.yaml   # compose BACKEND saja
-│   └── docker-compose.local.yaml  # override: + Postgres lokal
-├── frontend/                # Nuxt 4 admin dashboard + chat widget
-└── docs/                    # desain teknis + log amendment
+capstone/                     # Nuxt 4 FULLSTACK (satu-satunya aplikasi)
+├── app/                       # Vue: pages admin + chat widget + stores
+├── server/                    # Nitro API /api/v1
+│   ├── api/v1/                 # endpoint REST (auth, products, orders, chat, ai-actions, webhooks…)
+│   ├── utils/                  # auth (jose/bcryptjs), business, agents, llm, telegram, summary
+│   └── database/               # schema Drizzle + migrations SQL
+├── public/
+├── drizzle.config.ts
+├── nuxt.config.ts
+├── package.json
+├── .env.example               # satu-satunya env (FE + API)
+└── docs/                      # desain teknis + log amendment
 ```
 
 ---
@@ -78,75 +74,53 @@ capstone/
 
 | Tool | Versi | Untuk |
 |---|---|---|
-| Python | 3.12+ | Backend |
-| [`uv`](https://docs.astral.sh/uv/) | terbaru | Package manager backend (direkomendasikan) |
-| Node.js | 20/22/24 | Frontend |
-| npm | 10+ | Frontend |
-| Docker + Compose | terbaru | Menjalankan backend (opsional untuk dev) |
-| PostgreSQL | 16 (docker) atau Supabase | DB |
+| Node.js | 20/22/24 | Aplikasi (FE + API satu origin) |
+| npm | 10+ | Package manager |
+| PostgreSQL | Supabase (session pooler :5432) | DB |
 
 ---
 
 ## 4. Setup Environment
 
-### 4.1 Backend
+Satu `.env` untuk FE + API (tanpa Python):
 
 ```bash
-cd backend
 cp .env.example .env         # lalu isi nilai asli (JANGAN commit .env)
-uv sync                      # buat .venv + install dependency
+npm install
 ```
 
-Isi minimal di `backend/.env`:
+Isi minimal di `.env` (lihat `.env.example` untuk daftar lengkap):
 
 | Variabel | Wajib | Catatan |
 |---|---|---|
-| `DATABASE_URL` | ya | Supabase **session pooler** port **5432** (`postgresql+asyncpg://…`) |
-| `DATABASE_URL_TEST` | untuk test | Postgres test terpisah, bukan DB dev/prod |
+| `DATABASE_URL` | ya | Supabase **session pooler** port **5432** (`postgresql://…`, tanpa `+asyncpg`) |
 | `JWT_SECRET_KEY` | ya (produksi) | min 32 char acak |
-| `LLM_PROVIDER` | ya | `mock` untuk dev, `groq`/`openai`/`google` untuk nyata |
+| `LLM_PROVIDER` | ya | `mock` untuk dev, `groq`/`openrouter`/`openai` untuk nyata |
 | `GROQ_API_KEY` | bila `groq` | dari console.groq.com |
+| `OPENROUTER_API_KEY` | bila `openrouter` | dari openrouter.ai/settings/keys |
 | `TELEGRAM_PROVIDER` | ya | `mock` (dev) atau `bot` (Bot API asli) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_WEBHOOK_SECRET` | bila `bot` | dari @BotFather / string acak |
 
-> **Penting:** dev/test boleh `LLM_PROVIDER=mock` dan `TELEGRAM_PROVIDER=mock`.
-> Untuk `APP_ENV=production`, config divalidasi saat startup — nilai tidak aman
-> (JWT default, `DEBUG=true`, `SEED_ON_STARTUP=true`, `LLM_PROVIDER=mock`, CORS `*`)
-> akan **menggagalkan startup** dengan pesan jelas.
-
-### 4.2 Frontend
-
-```bash
-cd frontend
-cp .env.example .env
-npm ci                        # atau npm install
-```
-
-`NUXT_PUBLIC_API_BASE` (default `http://localhost:8000/api/v1`) adalah satu-satunya
-variabel frontend — **jangan** menaruh secret di sini (masuk ke bundle browser).
+> **Penting:** dev boleh `LLM_PROVIDER=mock` dan `TELEGRAM_PROVIDER=mock`.
+> `NUXT_PUBLIC_API_BASE` default `/api/v1` (satu origin) — **jangan** menaruh
+> secret di variabel `NUXT_PUBLIC_*` (masuk ke bundle browser).
 
 ---
 
 ## 5. Database
 
-### 5.1 Dev lokal cepat (opsional, tanpa Supabase)
+Skema sumber kebenaran: `server/database/schema.ts` (Drizzle).
+Untuk Supabase yang sudah berisi tabel, tidak perlu migrasi — server memakai
+UUID/timestamp client-side yang kompatibel.
+Untuk database kosong baru:
 
 ```bash
-cd backend
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d db
-# DB lokal: localhost:5433 (store/store), backend otomatis pakai host `db`
+# Opsi A — via drizzle-kit
+npx drizzle-kit push
+
+# Opsi B — SQL langsung (termasuk view stok + trigger audit append-only)
+psql "$DATABASE_URL" -f server/database/migrations/0001_init.sql
 ```
-
-### 5.2 Migration (produksi / Supabase)
-
-```bash
-cd backend
-uv run python -m app.db.migrate            # apply semua migration pending
-uv run python -m app.db.migrate --status   # lihat applied/pending
-```
-
-Migration = file SQL berurutan di [`backend/migrations/`](backend/migrations/README.md),
-tercatat di tabel `schema_migrations` (idempotent). Saat dev/test, tabel juga dibuat
-otomatis via `Base.metadata.create_all` (`app/db/init_db.py`).
 
 ### 5.3 Seed
 
@@ -161,10 +135,7 @@ Lihat [kualitas data katalog](docs/CATALOG_DATA_QUALITY.md) untuk batas audit sp
 
 **Kredensial demo (development):** lihat `SEED_OWNER_EMAIL` / `SEED_DEFAULT_PASSWORD`
 di `.env` (default `owner@store.demo` / `ChangeMe123!`). **Backup dan pastikan
-DB target benar sebelum reset:** `backend/scripts/reset_demo.sql` menghapus
-seluruh data toko. Gunakan hanya pada DB demo atas persetujuan pemilik, lalu
-re-seed (restart backend atau `uv run python -m app.seed.generate`).
-Seed tidak mengganti data toko yang sudah terisi.
+DB target benar sebelum reset.** Seed tidak mengganti data toko yang sudah terisi.
 
 Menuju final: [checklist](docs/FINALIZATION_CHECKLIST.md) ·
 [runbook demo lokal](docs/DEMO_RUNBOOK.md).
@@ -173,75 +144,40 @@ Menuju final: [checklist](docs/FINALIZATION_CHECKLIST.md) ·
 
 ## 6. Menjalankan Aplikasi
 
-### 6.1 Backend
+Satu perintah — FE + API satu origin (tanpa backend Python):
 
 ```bash
-cd backend
-uv run uvicorn app.main:app --reload --port 8000
-# Swagger: http://localhost:8000/docs
-# Health : http://localhost:8000/health
+npm run dev                   # http://localhost:3000 (API: /api/v1, health: /health)
+npm run build                 # produksi (node-server; dipakai Vercel via preset vercel)
 ```
 
-Via Docker (backend saja):
+### Deployment
 
-```bash
-cd backend
-docker compose up -d --build
-curl http://localhost:8000/health
-```
-
-### 6.2 Frontend
-
-```bash
-cd frontend
-npm run dev                   # http://localhost:3000
-npm run build                 # produksi (dipakai Vercel)
-```
-
-### 6.3 Deployment
-
-- **Backend** → Docker (`backend/docker-compose.yaml`) + Supabase managed.
-- **Frontend** → **Vercel** (tanpa container). Set `NUXT_PUBLIC_API_BASE` di
-  Environment Variables Vercel ke URL backend produksi.
-- Pastikan `CORS_ORIGINS` backend memuat domain Vercel (mis. `https://app.vercel.app`).
+- **Satu deploy** → aplikasi Nuxt (FE + `/api/v1` + `/health`) + Supabase managed.
+- **Vercel**: deploy repo root; set env server (`DATABASE_URL`, `JWT_SECRET_KEY`,
+  `LLM_PROVIDER=groq` + `GROQ_API_KEY`, `TELEGRAM_PROVIDER=bot` + token/secret)
+  di Environment Variables Vercel. `NUXT_PUBLIC_API_BASE=/api/v1` (default).
+- Webhook Telegram → `https://<domain>/api/v1/webhooks/telegram` dengan header
+  `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`.
 
 ---
 
 ## 7. Testing
 
-### 7.1 Backend
-
-Postgres test terpisah:
+Verifikasi produksi + smoke E2E (tanpa Python):
 
 ```bash
-docker run -d --name ai-store-test-pg \
-  -e POSTGRES_USER=store -e POSTGRES_PASSWORD=store -e POSTGRES_DB=store_test \
-  -p 5433:5432 postgres:16-alpine
-# DATABASE_URL_TEST=postgresql+asyncpg://store:store@localhost:5433/store_test
+npm run build                 # verifikasi build produksi (client + Nitro server)
+node .output/server/index.mjs # jalankan build, lalu:
+curl http://localhost:3000/health
+curl http://localhost:3000/api/v1/health
 ```
 
-Jalankan:
-
-```bash
-cd backend
-uv run pytest -q                                   # seluruh suite
-uv run pytest tests/test_flow_e2e.py -q            # alur end-to-end
-uv run pytest tests/test_concurrency.py -q         # proteksi oversell
-uv run pytest tests/test_webhook_security.py -q    # signature webhook Meta
-```
-
-`conftest.py` mengharuskan `DATABASE_URL_TEST` PostgreSQL lokal terpisah dengan
-nama DB mengandung `test`, lalu drop/create tabel per test. URL kosong/nonlokal
-atau identik dengan DB toko ditolak. Test menggunakan mock/scripted LLM, bukan
-provider nyata. Suite finalisasi juga mencakup `test_seed.py`,
-`test_product_search.py`, dan `test_electronics_e2e.py`.
-
-### 7.2 Frontend
-
-```bash
-cd frontend
-npm run build                 # verifikasi build produksi
-```
+Alur yang sudah diverifikasi melawan Supabase + Groq nyata: login Owner,
+katalog publik, Web Chat start → message (LLM) → order summary → confirm →
+idempotency replay → cancel/restock, inventory/products/orders/promotions/
+customers/conversations/audit/analytics, analyst ask, AI Action draft →
+approve (EXECUTED) / reject.
 
 ---
 
@@ -261,7 +197,7 @@ npm run build                 # verifikasi build produksi
 | Webhook Telegram | `POST /webhooks/telegram` | secret token |
 | Dev | `POST /dev/mock-tg` | hanya saat `DEBUG=true` |
 
-Detail: [`docs/API_DESIGN.md`](docs/API_DESIGN.md) · Swagger `/docs`.
+Detail: [`docs/API_DESIGN.md`](docs/API_DESIGN.md).
 
 **Konfirmasi order kanonik:** tombol/payload = `CONFIRM:<summary_ref>` (Web & Telegram).
 Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
@@ -272,20 +208,16 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 
 | Gejala | Penyebab umum | Solusi |
 |---|---|---|
-| `ModuleNotFoundError: asyncpg` | dependency belum terinstall | `cd backend && uv sync` |
-| `Expected a Python module at src/backend/__init__.py` | package marker hilang | pastikan `backend/src/backend/__init__.py` ada, lalu `uv sync` |
-| `ModuleNotFoundError: app` saat pytest | `pythonpath` belum diset | jalankan pytest dari `backend/` (ada `pytest.ini`) |
-| Test gagal di `_prepare_db` | Postgres test belum jalan | jalankan container `ai-store-test-pg` + buat `store_test` |
-| `DB tetap tidak terjangkau` saat startup | `DATABASE_URL` salah / transaction pooler | pakai Supabase **session pooler** port **5432**, bukan 6543 |
+| `DATABASE_URL belum diset` | `.env` belum ada / rebuild belum dilakukan | `cp .env.example .env`, isi, lalu `npm run build` ulang (env dibaca saat build) |
+| `DB tetap tidak terjangkau` saat request | `DATABASE_URL` salah / transaction pooler | pakai Supabase **session pooler** port **5432**, bukan 6543 |
 | Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat `docs/TELEGRAM_SETUP.md`) |
-| Startup produksi gagal + pesan CONFIG | guard keamanan | perbaiki nilai sesuai pesan (lihat §4.1) |
 
 ---
 
 ## 10. Keamanan
 
 - **Jangan pernah commit `.env`** — hanya `.env.example` (sudah di `.gitignore`).
-- `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET_KEY`
   adalah secret backend — jangan kirim ke frontend.
 - Webhook Telegram memverifikasi header `X-Telegram-Bot-Api-Secret-Token` (fail-closed
   tanpa secret terkonfigurasi) sebelum diproses.
@@ -304,4 +236,4 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 | [`docs/API_DESIGN.md`](docs/API_DESIGN.md) | Kontrak REST |
 | [`docs/SRS_AMENDMENTS.md`](docs/SRS_AMENDMENTS.md) | Log deviasi + status ratifikasi |
 | [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) | Daftar env variable |
-| [`backend/migrations/README.md`](backend/migrations/README.md) | Panduan migration |
+| [`server/database/migrations/0001_init.sql`](server/database/migrations/0001_init.sql) | Skema + view stok + trigger audit |
