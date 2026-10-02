@@ -2,7 +2,7 @@
 import { MessageCircle, ShieldCheck, ShoppingCart, Truck } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
-import { effectivePrice, hasPromo } from '~/utils/product'
+import { effectivePrice, hasPromo, keySpecs } from '~/utils/product'
 
 definePageMeta({ layout: 'default' })
 
@@ -29,6 +29,7 @@ const promo = computed(() => product.value ? hasPromo(product.value) : false)
 const finalPrice = computed(() => product.value ? effectivePrice(product.value) : 0)
 const soldOut = computed(() => (product.value?.current_stock ?? 0) <= 0)
 const chatLink = computed(() => `/chat?tanya=${encodeURIComponent(product.value ? `Apakah ${product.value.name} masih ada stok?` : '')}`)
+const topSpecs = computed(() => product.value ? keySpecs(product.value.specification) : [])
 
 const pageTitle = computed(() => product.value ? `${product.value.name}: Harga & Spesifikasi` : 'Produk: PARAGONKOM')
 const canonicalUrl = computed(() => `${siteUrl}/produk/${id.value}`)
@@ -138,6 +139,14 @@ useHead(() => ({
           </p>
         </div>
 
+        <!-- Spek unggulan ala marketplace (otomatis dari key prioritas, maks. 4) -->
+        <div v-if="topSpecs.length" class="flex flex-wrap gap-2">
+          <div v-for="spec in topSpecs" :key="spec.key" class="rounded-md border border-brand-100 bg-brand-50 px-2.5 py-1.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-brand-600">{{ spec.label }}</p>
+            <p class="text-xs font-bold text-brand-900">{{ spec.value }}</p>
+          </div>
+        </div>
+
         <div class="flex flex-col gap-2 sm:flex-row">
           <Button v-if="!soldOut" :to="`/checkout?item=${product.id}`" variant="ai" size="lg" class="flex-1 justify-center">
             <ShoppingCart class="h-4 w-4" />
@@ -155,7 +164,7 @@ useHead(() => ({
         </ul>
 
         <div class="rounded-xl border border-stone-200 bg-white p-4">
-          <h2 class="font-display text-sm font-bold text-stone-900">Spesifikasi</h2>
+          <h2 class="font-display text-sm font-bold text-stone-900">Spesifikasi Produk</h2>
           <ProductSpecifications class="mt-3" :specification="product.specification" />
         </div>
       </div>

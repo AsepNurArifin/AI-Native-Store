@@ -57,6 +57,55 @@ export function extractSpecs(p: { name: string; description?: string | null }): 
   return [...new Set(specs)].slice(0, 3)
 }
 
+/* ---- Spesifikasi produk: label, satuan, format nilai (dipakai tabel & chip spek) ---- */
+
+export const specLabels: Record<string, string> = {
+  brand: 'Merek', chipset: 'Chipset', prosesor: 'Prosesor', ram_gb: 'RAM',
+  storage_gb: 'Penyimpanan', storage: 'Media penyimpanan', gpu: 'GPU',
+  layar: 'Layar', kamera: 'Kamera', baterai_mah: 'Kapasitas baterai',
+  baterai: 'Baterai', os: 'Sistem operasi', berat_kg: 'Berat', ecg: 'ECG',
+  koneksi: 'Koneksi', fitur: 'Fitur', tipe: 'Tipe', kompatibel: 'Kompatibilitas',
+  form_factor: 'Bentuk', interface: 'Antarmuka', model: 'Model',
+}
+
+const specUnits: Record<string, string> = { ram_gb: 'GB', storage_gb: 'GB', baterai_mah: 'mAh', berat_kg: 'kg' }
+
+export function specValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'Belum tersedia'
+  if (typeof value === 'boolean') return value ? 'Ya' : 'Tidak'
+  if (Array.isArray(value)) return value.map(v => specValue('', v)).join(', ')
+  if (typeof value === 'object') return Object.entries(value).map(([k, v]) => `${k}: ${specValue('', v)}`).join('; ')
+  return `${value}${typeof value === 'number' && specUnits[key] ? ` ${specUnits[key]}` : ''}`
+}
+
+export interface SpecEntry { key: string, label: string, value: string }
+
+export function specEntries(spec: Record<string, unknown> | null | undefined): SpecEntry[] {
+  return Object.entries(spec || {}).map(([key, value]) => ({
+    key, label: specLabels[key] || key.replaceAll('_', ' '), value: specValue(key, value),
+  }))
+}
+
+/** Grup kandidat spek unggulan (chip): kunci pertama yang ada di data menang per grup. */
+const keySpecGroups = [
+  ['ram_gb'], ['storage_gb', 'storage'], ['chipset', 'prosesor'], ['gpu'],
+  ['layar'], ['kamera'], ['baterai_mah', 'baterai'], ['os'],
+]
+
+/** Spek unggulan untuk chip ala marketplace: urutan prioritas, maksimal `limit`. */
+export function keySpecs(spec: Record<string, unknown> | null | undefined, limit = 4): SpecEntry[] {
+  const data = spec || {}
+  const out: SpecEntry[] = []
+  for (const group of keySpecGroups) {
+    if (out.length >= limit) break
+    const key = group.find(k => k in data && data[k] !== null && data[k] !== undefined && data[k] !== '')
+    if (!key) continue
+    const entry = { key, label: specLabels[key] || key.replaceAll('_', ' '), value: specValue(key, data[key]) }
+    if (entry.value !== 'Belum tersedia') out.push(entry)
+  }
+  return out
+}
+
 /** Rating terhitung stabil berdasarkan hash ID produk (4.7 - 5.0) ala Marketplace */
 export function productRating(id: string): { score: string; count: number } {
   let hash = 0
