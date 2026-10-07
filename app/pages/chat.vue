@@ -35,8 +35,9 @@
           <p class="text-sm leading-relaxed text-stone-600">
             <span class="font-semibold text-stone-800">Cara belinya:</span>
             tekan tombol <i>Pesan</i> di kartu produk (atau <i>Beli sekarang</i>
-            di halaman produk), isi data pemesan, lalu bayar via QRIS. Stok
-            terkunci atomik saat pesanan tercatat.
+            di halaman produk), isi data pemesan, lalu bayar via QRIS
+            (dikonfirmasi kasir). Stok
+            terkunci saat pesanan tercatat.
           </p>
         </div>
       </div>

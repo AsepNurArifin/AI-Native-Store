@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { MessageCircle, ShoppingCart, Star, CheckCircle2, Zap } from '@lucide/vue'
+import { MessageCircle, ShoppingCart, CheckCircle2, Zap } from '@lucide/vue'
 import { formatIDR } from '~/utils/format'
-import { effectivePrice, hasPromo, extractSpecs, productRating } from '~/utils/product'
+import { effectivePrice, hasPromo, extractSpecs } from '~/utils/product'
 import type { ProductOut } from '~/utils/api-types'
 
 const props = defineProps<{ product: ProductOut }>()
@@ -12,7 +12,6 @@ const soldOut = computed(() => props.product.current_stock <= 0)
 const lowStock = computed(() => !soldOut.value && props.product.is_low_stock)
 
 const specs = computed(() => extractSpecs(props.product))
-const rating = computed(() => productRating(props.product.id))
 </script>
 
 <template>
@@ -41,16 +40,10 @@ const rating = computed(() => productRating(props.product.id))
     </NuxtLink>
 
     <div class="flex flex-1 flex-col p-3.5 sm:p-4">
-      <!-- Rating Bintang Best Buy Style -->
+      <!-- Kategori + badge promo (tanpa rating palsu) -->
       <div class="flex items-center justify-between gap-1 text-[11px]">
         <span class="font-extrabold uppercase tracking-wider text-brand-700">{{ product.category }}</span>
-        <div class="flex items-center gap-1 text-amber-500">
-          <div class="flex items-center">
-            <Star v-for="i in 5" :key="i" class="h-3 w-3 fill-amber-400 text-amber-400" />
-          </div>
-          <span class="font-extrabold text-stone-900 ml-0.5">{{ rating.score }}</span>
-          <span class="text-stone-500">({{ rating.count }})</span>
-        </div>
+        <span v-if="promo" class="font-extrabold text-promo-600">-{{ Math.round(product.discount_percentage || 0) }}%</span>
       </div>
 
       <!-- Judul Produk (Best Buy Format: 2 line clamp) -->

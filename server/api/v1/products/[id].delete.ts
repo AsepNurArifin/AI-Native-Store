@@ -1,11 +1,11 @@
 import { eq, sql } from 'drizzle-orm'
 import { products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { ensureSeeded } from '../../../utils/business'
+import { ensureSeeded, logAudit } from '../../../utils/business'
 import { isUuid } from '../../../utils/errors'
 
 export default defineEventHandler(async (event) => {
-  await requireOwner(event)
+  const owner = await requireOwner(event)
   const db = getDb()
   await ensureSeeded(db)
   const id = String(getRouterParam(event, 'id') || '')
@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
   await db.execute(sql`DELETE FROM inventory_transactions WHERE product_id = ${id}::uuid`)
   await db.execute(sql`DELETE FROM promotions WHERE product_id = ${id}::uuid`)
   await db.delete(products).where(eq(products.id, id as never))
+  await logAudit(db, 'PRODUCT_DELETED', 'USER', { actorId: owner.id, detail: { product_id: id } })
   setResponseStatus(event, 204)
   return null
 })

@@ -13,13 +13,6 @@ export default defineEventHandler(async (event) => {
   if (!p || p.status !== 'ACTIVE') throw createError({ statusCode: 404, message: 'Produk tidak ditemukan', data: { detail: 'Produk tidak ditemukan' } })
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
   const [stocks, promos] = await Promise.all([stocksFor(db, [id]), activePromosFor(db, [id])])
-  const promo = promos.get(id) ?? null
-  const item = catalogOut(p, stocks.get(id) ?? 0, lowDefault, promo)
-  return {
-    ...item,
-    promotion: promo ? {
-      id: String(promo.id), discount_percentage: Number(promo.discountPercentage),
-      start_date: (promo.startDate as Date).toISOString(), end_date: (promo.endDate as Date).toISOString()
-    } : null
-  }
+  // catalogOut sudah memuat promotion + harga efektif kanonik.
+  return catalogOut(p, stocks.get(id) ?? 0, lowDefault, promos.get(id) ?? null)
 })

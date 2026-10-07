@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Gamepad2, Headphones, Laptop, MessageCircle, Smartphone, Tablet, Watch, Package,
-  Truck, ShieldCheck, Store, Flame, Clock, Zap, Star, CheckCircle2, QrCode, ArrowRight
+  Truck, ShieldCheck, Flame, Clock, Zap, CheckCircle2, QrCode, ArrowRight
 } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
@@ -82,23 +82,27 @@ function catIcon(name: string) {
 const heroPromo = computed(() => promos.value?.[0] ?? null)
 const heroPrice = computed(() => heroPromo.value ? effectivePrice(heroPromo.value) : 0)
 
-// Countdown Timer Flash Sale (Deal of the Day style)
-const timer = ref({ hours: '04', minutes: '28', seconds: '45' })
-let timerInterval: any = null
+// Countdown ke akhir promo hero (promotion.end_date) — menghitung turun asli,
+// bukan timer hiasan. Habis masa promo = tampil 00:00:00.
+const timer = ref({ hours: '00', minutes: '00', seconds: '00' })
+let timerInterval: ReturnType<typeof setInterval> | null = null
+
+function tickTimer() {
+  const end = heroPromo.value?.promotion?.end_date ? +new Date(heroPromo.value.promotion.end_date).getTime() : 0
+  const diff = Math.max(0, end - Date.now())
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  const s = Math.floor((diff % 60000) / 1000)
+  timer.value = {
+    hours: String(h).padStart(2, '0'),
+    minutes: String(m).padStart(2, '0'),
+    seconds: String(s).padStart(2, '0')
+  }
+}
 
 onMounted(() => {
-  let target = Date.now() + 4 * 3600 * 1000 + 28 * 60 * 1000
-  timerInterval = setInterval(() => {
-    const diff = Math.max(0, target - Date.now())
-    const h = Math.floor(diff / 3600000)
-    const m = Math.floor((diff % 3600000) / 60000)
-    const s = Math.floor((diff % 60000) / 1000)
-    timer.value = {
-      hours: String(h).padStart(2, '0'),
-      minutes: String(m).padStart(2, '0'),
-      seconds: String(s).padStart(2, '0')
-    }
-  }, 1000)
+  tickTimer()
+  timerInterval = setInterval(tickTimer, 1000)
 })
 
 onUnmounted(() => {
@@ -111,7 +115,7 @@ useHead({
     innerHTML: JSON.stringify({
       '@context': 'https://schema.org', '@type': 'Store', name: 'PARAGONKOM',
       description: 'Toko elektronik HP, laptop, tablet & aksesoris.',
-      url: siteUrl, image: ogImage, priceRange: 'Rp89.000 - Rp26.999.000', inLanguage: 'id',
+      url: siteUrl, image: ogImage, inLanguage: 'id',
       potentialAction: {
         '@type': 'SearchAction',
         target: { '@type': 'EntryPoint', urlTemplate: `${siteUrl}/?q={search_term_string}` },
@@ -187,14 +191,11 @@ useHead({
             </div>
           </NuxtLink>
 
-          <!-- Stock progress bar -->
+          <!-- Stok promo (data asli) -->
           <div class="mt-4 pt-3 border-t border-brand-600">
-            <div class="flex items-center justify-between text-[11px] font-bold text-brand-100 mb-1">
+            <div class="flex items-center justify-between text-[11px] font-bold text-brand-100">
               <span>Stok Promo Terbatas</span>
-              <span class="text-promo-400 font-extrabold">Terjual 84%</span>
-            </div>
-            <div class="h-2 w-full rounded-full bg-brand-900 overflow-hidden">
-              <div class="h-full rounded-full bg-promo-400" style="width: 84%"></div>
+              <span class="text-promo-400 font-extrabold">Sisa {{ heroPromo.current_stock }} unit</span>
             </div>
           </div>
         </div>

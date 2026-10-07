@@ -76,8 +76,9 @@
                 </span>
               </div>
               <h5 class="mt-2 font-medium text-stone-900 text-sm [overflow-wrap:anywhere]">{{ p.name }}</h5>
+              <p v-if="hasPromo(p)" class="text-[11px] text-stone-400 line-through">{{ formatIDR(p.price) }}</p>
               <p class="mt-1 font-display font-bold text-brand-700 text-base">
-                {{ formatIDR(p.price) }}
+                {{ formatIDR(effectivePrice(p)) }}
               </p>
               <NuxtLink :to="`/produk/${p.id}`" class="mt-1.5 inline-block text-xs font-semibold text-brand-700 hover:underline">Lihat detail</NuxtLink>
               <details class="mt-2 min-w-0">
@@ -119,6 +120,7 @@
 <script setup lang="ts">
 import { Bot, MessageSquare, RefreshCw, Send } from '@lucide/vue'
 import { formatIDR } from '~/utils/format'
+import { effectivePrice, hasPromo } from '~/utils/product'
 import type { ChatReply, ProductOut } from '~/utils/api-types'
 
 /**

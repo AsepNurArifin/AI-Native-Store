@@ -3,7 +3,7 @@ export function apiError(statusCode: number, code: string, message: string, extr
 }
 
 export function toOrderHttpCode(code: string): number {
-  if (code === 'INSUFFICIENT_STOCK' || code === 'PRODUCT_INACTIVE' || code === 'EMPTY_ORDER' || code === 'INVALID_STATE') return 409
+  if (code === 'INSUFFICIENT_STOCK' || code === 'PRODUCT_INACTIVE' || code === 'EMPTY_ORDER' || code === 'INVALID_STATE' || code === 'PRICE_CHANGED' || code === 'IN_PROGRESS') return 409
   return 422
 }
 

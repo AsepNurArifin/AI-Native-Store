@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { conversations, customers } from '../../../../database/schema'
 import { createOrderFromSummary, ensureSeeded } from '../../../../utils/business'
@@ -22,11 +21,18 @@ export default defineEventHandler(async (event) => {
   if (!body?.order_summary_ref) {
     throw createError({ statusCode: 422, message: 'order_summary_ref wajib', data: { detail: { code: 'VALIDATION', message: 'order_summary_ref wajib' } } })
   }
-  const summary = getSummary(body.order_summary_ref)
+  const summary = await getSummary(db, body.order_summary_ref)
   if (!summary) {
     throw createError({
       statusCode: 410, message: 'Ringkasan pesanan sudah kedaluwarsa. Ulangi pencarian produk.',
       data: { detail: { code: 'SUMMARY_EXPIRED', message: 'Ringkasan pesanan sudah kedaluwarsa. Ulangi pencarian produk.' } }
+    })
+  }
+  // Scoping: summary hanya bisa dikonfirmasi dari percakapan pemiliknya.
+  if (summary.conversation_id && summary.conversation_id !== id) {
+    throw createError({
+      statusCode: 409, message: 'Ringkasan pesanan ini bukan milik percakapan ini.',
+      data: { detail: { code: 'SUMMARY_MISMATCH', message: 'Ringkasan pesanan ini bukan milik percakapan ini.' } }
     })
   }
   const identity = conv.channel === 'TELEGRAM'
@@ -41,8 +47,10 @@ export default defineEventHandler(async (event) => {
     const { order, replayed } = await createOrderFromSummary(db, {
       conversationId: id, channel: conv.channel, customerIdentity: identity,
       items: summary.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-      idempotencyKey: body.idempotency_key || randomUUID(),
-      fulfillment: body.fulfillment || null
+      // Key deterministik dari summary_ref -> retry tidak pernah dobel-order.
+      idempotencyKey: body.idempotency_key?.trim() || `chat:${body.order_summary_ref}`,
+      fulfillment: body.fulfillment || null,
+      expected: summary
     })
     await db.update(conversations).set({ outcome: 'ORDERED' }).where(eq(conversations.id, id as never))
     return {

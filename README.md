@@ -4,10 +4,6 @@ Capstone project — sistem manajemen toko **AI-native** dengan *conversational 
 pelanggan memesan lewat **Web Chat Widget** dan **Bot Telegram**, sementara Owner mengelola
 toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
 
-> **Baseline requirement (normatif):** [`SRS_v3.3_AI_Native_Store_Management_System.md`](SRS_v3.3_AI_Native_Store_Management_System.md)
-> dan [`Product Requirements Document — AI-Native Store Management System.md`](Product%20Requirements%20Document%20—%20AI-Native%20Store%20Management%20System.md).
-> Master plan eksekusi: [`plan.md`](plan.md). Indeks dokumen: [`docs/README.md`](docs/README.md).
-
 ---
 
 ## 1. Ringkasan Arsitektur
@@ -41,7 +37,20 @@ toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
 **Prinsip keras:**
 
 - **Tanpa Cart/CartItem** — order dibuat langsung dari Order Summary saat konfirmasi eksplisit.
-- **Stok tidak pernah kolom mutable** — selalu `SUM(inventory_transactions)` (view `v_product_stock`).
+- **Dua jalur order resmi** — (a) web: checkout langsung `/checkout` → `POST /orders`;
+  (b) conversational Telegram: Order Summary → `CONFIRM:<summary_ref>`.
+  Chat web widget = tanya-jawab (QA), pembelian tetap lewat checkout.
+- **Stok tidak pernah kolom mutable** — selalu `SUM(inventory_transactions)` (view `v_product_stock`),
+  pengecekan & pengurangan atomik dengan lock baris (`FOR UPDATE`) anti-oversell.
+- **Satu rumus harga** — semua perhitungan harga/diskon (katalog, chat, checkout, admin) melewati
+  `shared/utils/pricing.ts`: `discount_per_unit = round2(price × pct / 100)`,
+  `unit_effective = max(round2(price − discount_per_unit), 0)`, `line_total = round2(unit_effective × qty)`.
+  `price_at_order` = harga efektif per unit (net).
+- **Price lock** — order yang dikonfirmasi ditagih persis seperti total pada `OrderSummary` yang
+  ditampilkan; bila harga/promo berubah di antaranya, order ditolak `409 PRICE_CHANGED`.
+- **Idempotency key wajib** — `POST /orders` wajib menerima `idempotency_key` dari client (tanpa
+  fallback random); retry dengan key sama = replay order lama, tidak dobel. Pada jalur konfirmasi
+  chat/Telegram key diturunkan server dari `summary_ref` (`chat:<ref>` / `tg:<ref>`).
 - **AI tidak pernah mengakses DB langsung** — hanya lewat tool → service layer.
 - **Mutasi data hanya lewat jalur manusia/konfirmasi** — LLM tidak boleh membuat order atau
   mengaktifkan promosi; approval wajib Owner.
@@ -55,17 +64,19 @@ Telegram Bot API · Groq/Qwen LLM. Backend Python lama sudah dihapus.
 
 ```
 capstone/                     # Nuxt 4 FULLSTACK (satu-satunya aplikasi)
-├── app/                       # Vue: pages admin + chat widget + stores
+├── app/                       # Vue: pages admin + chat widget + storefront
+├── shared/
+│   └── utils/pricing.ts        # modul harga kanonik (dipakai FE + server)
 ├── server/                    # Nitro API /api/v1
-│   ├── api/v1/                 # endpoint REST (auth, products, orders, chat, ai-actions, webhooks…)
-│   ├── utils/                  # auth (jose/bcryptjs), business, agents, llm, telegram, summary
-│   └── database/               # schema Drizzle + migrations SQL
+│   ├── api/v1/                 # endpoint REST (auth, catalog, products, orders, chat, ai-actions, webhooks…)
+│   ├── routes/                 # /health, /robots.txt, /sitemap.xml
+│   ├── utils/                  # auth (jose/bcryptjs), business, agents, llm, telegram, summary, config
+│   └── database/               # schema Drizzle + migrations SQL (DDL sumber kebenaran)
 ├── public/
 ├── drizzle.config.ts
 ├── nuxt.config.ts
 ├── package.json
-├── .env.example               # satu-satunya env (FE + API)
-└── docs/                      # desain teknis + log amendment
+└── .env.example               # satu-satunya env (FE + API)
 ```
 
 ---
@@ -95,6 +106,7 @@ Isi minimal di `.env` (lihat `.env.example` untuk daftar lengkap):
 |---|---|---|
 | `DATABASE_URL` | ya | Supabase **session pooler** port **5432** (`postgresql://…`, tanpa `+asyncpg`) |
 | `JWT_SECRET_KEY` | ya (produksi) | min 32 char acak |
+| `IDEMPOTENCY_TTL_MINUTES` | tidak | masa berlaku idempotency key (default 30 menit) |
 | `LLM_PROVIDER` | ya | `mock` untuk dev, `groq`/`openrouter`/`openai` untuk nyata |
 | `GROQ_API_KEY` | bila `groq` | dari console.groq.com |
 | `OPENROUTER_API_KEY` | bila `openrouter` | dari openrouter.ai/settings/keys |
@@ -109,36 +121,30 @@ Isi minimal di `.env` (lihat `.env.example` untuk daftar lengkap):
 
 ## 5. Database
 
-Skema sumber kebenaran: `server/database/schema.ts` (Drizzle).
-Untuk Supabase yang sudah berisi tabel, tidak perlu migrasi — server memakai
-UUID/timestamp client-side yang kompatibel.
-Untuk database kosong baru:
+DDL sumber kebenaran = **migrations SQL** (`server/database/migrations/`, dijalankan
+berurutan); `server/database/schema.ts` hanya mirror Drizzle-nya.
 
 ```bash
-# Opsi A — via drizzle-kit
-npx drizzle-kit push
-
-# Opsi B — SQL langsung (termasuk view stok + trigger audit append-only)
-psql "$DATABASE_URL" -f server/database/migrations/0001_init.sql
+psql "$DATABASE_URL" -f server/database/migrations/0001_init.sql            # tabel + view stok + trigger audit
+psql "$DATABASE_URL" -f server/database/migrations/0002_product_image_url.sql
+psql "$DATABASE_URL" -f server/database/migrations/0003_order_summaries.sql  # order_summaries (store ringkasan, TTL)
 ```
+
+Untuk Supabase yang sudah berisi tabel dari versi sebelumnya, jalankan hanya file
+migrasi yang belum diterapkan. Jangan `drizzle-kit push` (bisa mengubah DDBB di
+luar migrations).
 
 ### 5.3 Seed
 
 Seed otomatis berjalan saat startup **jika tabel `users` kosong** dan
-`SEED_ON_STARTUP=true` → data demo **"Toko Bu Ratna"**: Owner "Ratna Wulandari",
-98 SKU elektronik dalam 7 kategori (Smartphone, Laptop, Tablet, Audio, Wearable,
-Aksesori, Komputer & Gaming), spesifikasi dan **harga simulasi**, riwayat stok
-30 hari, pelanggan contoh (WA/Telegram/WEB), 2 order, 1 promo aktif.
-Random seed tetap (`42`); waktu historis relatif terhadap waktu seeding.
-Saldo historis non-negatif dan transaksi ORDER memiliki rujukan pesanan.
-Lihat [kualitas data katalog](docs/CATALOG_DATA_QUALITY.md) untuk batas audit spesifikasi.
+`SEED_ON_STARTUP=true` → 1 akun Owner demo + katalog demo **12 SKU** elektronik
+(HP, Laptop, Tablet, Aksesoris) beserta stok awal. Tidak ada data historis,
+order, pelanggan, atau promo buatan seed — semuanya terbentuk dari pemakaian nyata.
+Seed tidak mengganti data toko yang sudah terisi.
 
 **Kredensial demo (development):** lihat `SEED_OWNER_EMAIL` / `SEED_DEFAULT_PASSWORD`
-di `.env` (default `owner@store.demo` / `ChangeMe123!`). **Backup dan pastikan
-DB target benar sebelum reset.** Seed tidak mengganti data toko yang sudah terisi.
-
-Menuju final: [checklist](docs/FINALIZATION_CHECKLIST.md) ·
-[runbook demo lokal](docs/DEMO_RUNBOOK.md).
+di `.env` (default `owner@store.demo` / `ChangeMe123!`).
+`SEED_ON_STARTUP` **wajib `false` di produksi** (dicek `assertProductionSafe`).
 
 ---
 
@@ -158,26 +164,30 @@ npm run build                 # produksi (node-server; dipakai Vercel via preset
   `LLM_PROVIDER=groq` + `GROQ_API_KEY`, `TELEGRAM_PROVIDER=bot` + token/secret)
   di Environment Variables Vercel. `NUXT_PUBLIC_API_BASE=/api/v1` (default).
 - Webhook Telegram → `https://<domain>/api/v1/webhooks/telegram` dengan header
-  `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`.
+  `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`
+  (via `https://api.telegram.org/bot<token>/setWebhook`).
+- Semua state penting (ringkasan order, dedup update Telegram, idempotency) ada
+  di database — aman untuk lingkungan serverless tanpa state in-memory.
 
 ---
 
-## 7. Testing
+## 7. Verifikasi
 
-Verifikasi produksi + smoke E2E (tanpa Python):
+Belum ada test runner; verifikasi = build produksi + smoke endpoint:
 
 ```bash
 npm run build                 # verifikasi build produksi (client + Nitro server)
 node .output/server/index.mjs # jalankan build, lalu:
 curl http://localhost:3000/health
 curl http://localhost:3000/api/v1/health
+curl http://localhost:3000/api/v1/catalog/search?sort=termurah
 ```
 
-Alur yang sudah diverifikasi melawan Supabase + Groq nyata: login Owner,
-katalog publik, Web Chat start → message (LLM) → order summary → confirm →
-idempotency replay → cancel/restock, inventory/products/orders/promotions/
-customers/conversations/audit/analytics, analyst ask, AI Action draft →
-approve (EXECUTED) / reject.
+Checklist smoke alur kritis: login Owner → katalog publik → chat start → message
+(LLM) → order summary → confirm (price lock, idempotent replay saat retry) →
+cancel/restock → complete; products/orders/promotions/inventory/customers/
+conversations/audit/analytics; analyst ask; AI Action draft → approve (EXECUTED)
+/ reject.
 
 ---
 
@@ -186,21 +196,51 @@ approve (EXECUTED) / reject.
 | Area | Endpoint (prefix `/api/v1`) | Auth |
 |---|---|---|
 | Auth | `POST /auth/login`, `GET /auth/me` | publik / JWT |
-| Produk | `/products/*` | Owner (JWT) |
-| Inventory | `/inventory/*` | Owner (JWT) |
-| Order | `/orders/*` | Owner (JWT) |
-| Promosi | `/promotions/*` | Owner (JWT) |
-| Chat / Sales | `POST /chat/sessions`, `…/messages`, `…/confirm` | publik (customer) |
+| Katalog | `GET /catalog/search`, `/catalog/products`, `/catalog/categories`, `/catalog/:id` | publik |
+| Checkout web | `POST /orders` (`items`, `customer`, `idempotency_key` **wajib**) | publik |
+| Order (manage) | `GET /orders`, `GET /orders/:id`, `POST /orders/:id/cancel`, `POST /orders/:id/complete` | Owner (JWT) |
+| Chat / Sales | `POST /chat/start`, `POST /chat/:id/messages` (web QA), `POST /chat/:id/confirm` (konfirmasi ringkasan percakapan) | publik (customer) |
 | Analyst | `POST /chat/analyst/ask` | Owner (JWT) |
-| AI Action | `POST /ai-actions/draft`, `…/approve`, `…/reject` | Owner (JWT) |
-| Audit | `/audit-logs` | Owner (JWT) |
+| AI Action | `GET /ai-actions`, `GET /ai-actions/:id`, `POST /ai-actions/draft`, `…/approve`, `…/reject` | Owner (JWT) |
+| Produk | `GET/POST /products`, `GET/PATCH/DELETE /products/:id` | Owner (JWT) |
+| Inventory | `GET /inventory/summary`, `GET /inventory/transactions`, `POST /inventory/adjustments` | Owner (JWT) |
+| Promosi | `GET/POST /promotions`, `PATCH /promotions/:id` | Owner (JWT) |
+| Pelanggan | `GET /customers`, `GET /customers/:id` | Owner (JWT) |
+| Percakapan | `GET /conversations`, `GET /conversations/:id` | Owner (JWT) |
+| Audit | `GET /audit/logs` | Owner (JWT) |
+| Upload gambar | `POST /uploads/images` | Owner (JWT) |
 | Webhook Telegram | `POST /webhooks/telegram` | secret token |
-| Dev | `POST /dev/mock-tg` | hanya saat `DEBUG=true` |
+| Dev | `POST /dev/mock-tg`, `POST /dev/seed` | hanya saat `DEBUG=true` |
 
-Detail: [`docs/API_DESIGN.md`](docs/API_DESIGN.md).
+**Konfirmasi order** — dua jalur resmi:
 
-**Konfirmasi order kanonik:** tombol/payload = `CONFIRM:<summary_ref>` (Web & Telegram).
-Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
+- **Web:** checkout langsung di `/checkout` → `POST /orders` (`idempotency_key` wajib).
+  Chat web widget hanya tanya-jawab (QA) — pembelian tetap lewat checkout.
+- **Telegram (conversational):** bot menampilkan isi + total Order Summary sebelum
+  order dibuat → konfirmasi lewat tombol / teks `CONFIRM:<summary_ref>` (jalur Telegram).
+  `POST /chat/:id/confirm` = padanan REST jalur conversational ini.
+
+Order hanya tercipta dari konfirmasi eksplisit + idempotency key. Saat konfirmasi,
+isi & total `OrderSummary` dikunci: perubahan harga/promo menghasilkan `409 PRICE_CHANGED`.
+
+**Kode error order** (`data.detail.code`):
+
+| Code | HTTP | Arti |
+|---|---|---|
+| `VALIDATION` | 422 | Input tidak valid (field wajib, format, range) |
+| `IDEMPOTENCY_KEY_REQUIRED` | 422 | `idempotency_key` kosong di `POST /orders` |
+| `INVALID_QTY` | 422 | Quantity bukan bilangan bulat positif |
+| `PRODUCT_NOT_FOUND` | 422 | `product_id` tidak ada di katalog |
+| `EMPTY_ORDER` | 409 | Tidak ada item untuk dipesan |
+| `PRODUCT_INACTIVE` | 409 | Produk sudah nonaktif |
+| `INSUFFICIENT_STOCK` | 409 | Stok kurang (`detail.available` = sisa stok) |
+| `PRICE_CHANGED` | 409 | Harga/promo berubah sejak ringkasan dibuat (price lock) |
+| `IN_PROGRESS` | 409 | Permintaan idempoten sama sedang diproses — retry nanti |
+| `SUMMARY_EXPIRED` | 410 | `order_summary_ref` kedaluwarsa/tidak ada |
+| `SUMMARY_MISMATCH` | 409 | Ringkasan bukan milik percakapan tersebut |
+| `INVALID_STATE` | 409 | Transisi status order tidak sah (mis. cancel order COMPLETED) |
+| `PROMO_OVERLAP` | 409 | Promo aktif overlap untuk produk yang sama |
+| `PRODUCT_IN_USE` | 409 | Produk dipakai order — nonaktifkan, jangan hapus |
 
 ---
 
@@ -210,7 +250,10 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
 |---|---|---|
 | `DATABASE_URL belum diset` | `.env` belum ada / rebuild belum dilakukan | `cp .env.example .env`, isi, lalu `npm run build` ulang (env dibaca saat build) |
 | `DB tetap tidak terjangkau` saat request | `DATABASE_URL` salah / transaction pooler | pakai Supabase **session pooler** port **5432**, bukan 6543 |
-| Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat `docs/TELEGRAM_SETUP.md`) |
+| Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat §6 Deployment) |
+| Konfirmasi chat ditolak `PRICE_CHANGED` | harga/promo berubah sejak ringkasan dibuat | desain begitu: ulangi pesanan untuk harga baru — 0 order tercipta, stok utuh |
+| `SUMMARY_EXPIRED` saat konfirmasi | ringkasan > 30 menit (TTL `order_summaries`) | buat ringkasan baru lewat chat |
+| Retry checkout membuat error | `idempotency_key` wajib | kirim ulang dengan **key yang sama** untuk replay, key baru untuk order baru |
 
 ---
 
@@ -221,19 +264,8 @@ Order hanya tercipta dari event konfirmasi eksplisit + idempotency key.
   adalah secret backend — jangan kirim ke frontend.
 - Webhook Telegram memverifikasi header `X-Telegram-Bot-Api-Secret-Token` (fail-closed
   tanpa secret terkonfigurasi) sebelum diproses.
-- `audit_logs` bersifat **append-only** (ditegakkan trigger DB + service).
+- `audit_logs` bersifat **append-only** (ditegakkan trigger DB + service); aksi Owner
+  atas produk/promo/stok/order ikut dicatat.
 - Endpoint `/api/v1/dev/*` hanya aktif saat `DEBUG=true` — wajib `false` di produksi.
-
----
-
-## 11. Status & Dokumen Terkait
-
-| Dokumen | Isi |
-|---|---|
-| [`plan.md`](plan.md) | Master plan: fase P0–P7, blocker, acceptance criteria |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Desain arsitektur & alur data |
-| [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) | Skema DB + keputusan |
-| [`docs/API_DESIGN.md`](docs/API_DESIGN.md) | Kontrak REST |
-| [`docs/SRS_AMENDMENTS.md`](docs/SRS_AMENDMENTS.md) | Log deviasi + status ratifikasi |
-| [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) | Daftar env variable |
-| [`server/database/migrations/0001_init.sql`](server/database/migrations/0001_init.sql) | Skema + view stok + trigger audit |
+- QRIS yang tampil di checkout adalah **simulasi** (payload EMV contoh) — pembayaran
+  dikonfirmasi manual oleh kasir, bukan webhook payment gateway.

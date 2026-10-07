@@ -1,13 +1,11 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
-import { conversationMessages, conversations } from '../database/schema'
+import { eq, sql } from 'drizzle-orm'
+import { conversationMessages, conversations, idempotencyKeys } from '../database/schema'
 import { ensureCustomer, ensureSeeded } from './business'
-import { getSummary, popForConversation } from './summary'
+import { getSummary, popForConversation, type OrderSummary } from './summary'
 import { createOrderFromSummary } from './business'
 import { salesHandleMessage } from './agents'
 import { OrderError } from './errors'
-
-const seen = new Set<string>()
 
 export function verifyTelegramSecret(header: string | undefined): boolean {
   const provider = String(useRuntimeConfig().telegramProvider || process.env.TELEGRAM_PROVIDER || 'mock')
@@ -73,9 +71,11 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
   await ensureSeeded(db)
   const parsed = parseTelegramUpdate(payload)
   if (!parsed || parsed.kind === 'ignore') return { status: 'ignored' }
-  const key = `tg:${parsed.messageId || `${parsed.chatId}:${parsed.text}`}`
-  if (seen.has(key)) return { status: 'duplicate' }
-  seen.add(key)
+  // Dedup update di DB (tahan restart & multi-instance) + bersihkan key lama.
+  const dedupKey = `tg:upd:${String(parsed.messageId ?? '').slice(0, 20) || `${parsed.chatId}:${String(parsed.text ?? '').slice(0, 30)}`.slice(0, 50)}`
+  const fresh = await db.insert(idempotencyKeys).values({ key: dedupKey, orderId: null as never }).onConflictDoNothing().returning()
+  if (!fresh.length) return { status: 'duplicate' }
+  await db.execute(sql`DELETE FROM idempotency_keys WHERE created_at < now() - interval '24 hours'`)
 
   const customer = await ensureCustomer(db, 'TELEGRAM', parsed.chatId!, parsed.name || 'Telegram User', null)
   const open = await db.select().from(conversations).where(eq(conversations.customerId, customer.id as never))
@@ -89,25 +89,31 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
   if (parsed.kind === 'cancel') {
     await db.insert(conversationMessages).values({ conversationId: convId as never, sender: 'CUSTOMER', content: 'CANCEL', messageType: 'BUTTON_REPLY' })
     await db.update(conversations).set({ outcome: 'ABANDONED', lastActivityAt: new Date() as never }).where(eq(conversations.id, convId as never))
-    popForConversation(convId)
+    await popForConversation(db, convId)
     await sendTelegramMessage(parsed.chatId!, 'Pesanan dibatalkan. Tidak ada order yang dibuat.')
     return { status: 'ok', reply: 'cancelled' }
   }
   if (parsed.kind === 'confirm') {
-    const summary = getSummary(parsed.ref!)
+    const summary = await getSummary(db, parsed.ref!)
     if (!summary) {
       await sendTelegramMessage(parsed.chatId!, 'Ringkasan pesanan sudah kedaluwarsa. Silakan ulangi pencarian produk.')
       return { status: 'ok', reply: 'expired' }
+    }
+    // Scoping: summary hanya bisa dikonfirmasi dari percakapan pemiliknya.
+    if (summary.conversation_id && summary.conversation_id !== convId) {
+      await sendTelegramMessage(parsed.chatId!, 'Ringkasan pesanan ini bukan milik percakapan ini. Ulangi pencarian produk.')
+      return { status: 'ok', reply: 'mismatch' }
     }
     try {
       const { order, replayed } = await createOrderFromSummary(db, {
         conversationId: convId, channel: 'TELEGRAM',
         customerIdentity: { channel: 'TELEGRAM', identifier: parsed.chatId!, name: customer.name, contact: customer.contact },
         items: summary.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-        idempotencyKey: `tg:${parsed.ref}`
+        idempotencyKey: `tg:${parsed.ref}`,
+        expected: summary
       })
       await db.update(conversations).set({ outcome: 'ORDERED', lastActivityAt: new Date() as never }).where(eq(conversations.id, convId as never))
-      popForConversation(convId)
+      await popForConversation(db, convId)
       const total = Number(order.totalAmount)
       await sendTelegramMessage(parsed.chatId!, `Pesanan #${String(order.id).slice(0, 8)} ${replayed ? 'sudah diproses' : 'berhasil'}. Total Rp${total.toLocaleString('id-ID')}`)
       return { status: 'ok', reply: 'ordered', order_id: String(order.id) }
@@ -121,14 +127,25 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
   // Pesan biasa -> sales agent
   try {
     const r = await salesHandleMessage(db, convId, parsed.text!)
+    let text = r.reply
     const buttons = r.order_summary
       ? [{ text: 'Konfirmasi', callback: `CONFIRM:${r.order_summary.summary_ref}` }, { text: 'Batalkan', callback: 'CANCEL' }]
       : undefined
-    await sendTelegramMessage(parsed.chatId!, r.reply, buttons)
+    if (r.order_summary) text += `\n\n${formatSummaryText(r.order_summary)}`
+    await sendTelegramMessage(parsed.chatId!, text, buttons)
     return { status: 'ok', reply: r.reply }
   }
   catch (e) {
     await db.update(conversations).set({ outcome: 'ERROR' }).where(eq(conversations.id, convId as never))
     throw e
   }
+}
+
+/** Ringkasan tekstual quote — user melihat persis isi & total sebelum menekan Konfirmasi. */
+function formatSummaryText(s: OrderSummary): string {
+  const lines = s.items.map((i) => {
+    const disc = i.discount_per_unit > 0 ? ` (hemat Rp${i.discount_per_unit.toLocaleString('id-ID')}/unit)` : ''
+    return `${i.quantity}x ${i.name} @ Rp${i.unit_effective.toLocaleString('id-ID')}${disc} = Rp${i.line_total.toLocaleString('id-ID')}`
+  })
+  return `Ringkasan pesanan:\n${lines.join('\n')}\nTotal: Rp${s.total.toLocaleString('id-ID')}\n\nTekan "Konfirmasi" untuk membuat pesanan ini, atau "Batalkan".`
 }

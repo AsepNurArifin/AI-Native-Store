@@ -41,8 +41,17 @@ export default defineEventHandler(async (event) => {
   }
 
   let query = db.select().from(products).where(and(...conds))
-  const orderBy = sort === 'termurah' ? [asc(products.price)]
-    : sort === 'termahal' ? [desc(products.price)]
+  // Sort harga = harga EFEKTIF (setelah diskon), rumus kanonik shared/utils/pricing:
+  // discount_per_unit = round(price*pct/100, 2); unit_effective = max(round(price - disc, 2), 0).
+  // Tanpa ini "termurah" mengurutkan harga sebelum diskon -> menyesatkan saat promo.
+  const promoPct = sql`(select pr.discount_percentage from ${promotions} pr
+    where pr.product_id = ${products.id} and pr.status = 'ACTIVE'
+      and pr.start_date <= now() and pr.end_date > now()
+    limit 1)`
+  const effectivePrice = sql`greatest(round(${products.price}::numeric
+    - round(${products.price}::numeric * coalesce(${promoPct}, 0)::numeric / 100, 2), 2), 0)`
+  const orderBy = sort === 'termurah' ? [asc(effectivePrice)]
+    : sort === 'termahal' ? [desc(effectivePrice)]
     : sort === 'terbaru' ? [desc(products.createdAt)]
     : []
 

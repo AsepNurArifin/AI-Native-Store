@@ -45,6 +45,7 @@
           <ul class="space-y-0.5">
             <li v-for="e in promoEntries" :key="e.productId">
               {{ e.productName }} — diskon <span class="font-semibold text-emerald-700">{{ e.discount }}%</span>
+              <span v-if="e.priceBefore !== null" class="text-stone-400 line-through">{{ formatIDR(e.priceBefore) }}</span>
               <span v-if="e.promotionId" class="text-stone-400">(promo {{ e.promotionId.slice(0, 8) }}…)</span>
             </li>
           </ul>
@@ -76,13 +77,14 @@ function productName(id: string) {
   return productNames.value[id] || 'Produk'
 }
 const promoEntries = computed(() => {
-  const snap = (order.value?.promotion_snapshot || null) as Record<string, { promotion_id?: string, discount_percentage?: number }> | null
+  const snap = (order.value?.promotion_snapshot || null) as Record<string, { promotion_id?: string, discount_percentage?: number, price_before?: number, discount_per_unit?: number }> | null
   if (!snap) return []
   return Object.entries(snap).map(([pid, v]) => ({
     productId: pid,
     productName: productName(pid),
     discount: Number(v?.discount_percentage ?? 0),
-    promotionId: String(v?.promotion_id ?? '')
+    promotionId: String(v?.promotion_id ?? ''),
+    priceBefore: typeof v?.price_before === 'number' ? v.price_before : null
   }))
 })
 

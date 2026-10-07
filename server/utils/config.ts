@@ -32,7 +32,7 @@ export function serverConfig() {
     telegramBotToken: (c.telegramBotToken as string) || process.env.TELEGRAM_BOT_TOKEN || '',
     telegramWebhookSecret: (c.telegramWebhookSecret as string) || process.env.TELEGRAM_WEBHOOK_SECRET || '',
     telegramApiBase: (c.telegramApiBase as string) || process.env.TELEGRAM_API_BASE || 'https://api.telegram.org',
-    seedSkuCount: Number(c.seedSkuCount ?? process.env.SEED_SKU_COUNT ?? 100)
+
   }
 }
 

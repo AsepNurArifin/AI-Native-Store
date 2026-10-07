@@ -22,7 +22,7 @@
             <p class="text-xs font-semibold text-stone-500">Diskon</p>
             <p class="mt-1 text-2xl font-bold text-emerald-600">{{ promoPayload.discount_percentage }}%</p>
             <p v-if="productPrice" class="mt-0.5 text-sm text-stone-500">
-              {{ formatIDR(productPrice) }} → <span class="font-medium text-emerald-600">{{ formatIDR(productPrice * (1 - Number(promoPayload.discount_percentage || 0) / 100)) }}</span>
+              {{ formatIDR(productPrice) }} → <span class="font-medium text-emerald-600">{{ formatIDR(promoPreviewPrice ?? 0) }}</span>
             </p>
           </div>
           <div class="rounded-lg border border-stone-200 p-3 sm:col-span-2">
@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import { statusVariant, formatIDR, formatWIB } from '~/utils/format'
+import { discountedPrice } from '#shared/utils/pricing'
 import type { AIActionOut, ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
@@ -117,6 +118,11 @@ const stockPayload = computed(() => (action.value?.payload ?? {}) as {
 const productName = computed(() => product.value?.name || null)
 const productPrice = computed(() => (typeof product.value?.price === 'number' ? product.value.price : null))
 const productStock = computed(() => (typeof product.value?.current_stock === 'number' ? product.value.current_stock : null))
+// Preview harga promo = rumus kanonik shared/utils/pricing (sama dengan yang ditagih).
+const promoPreviewPrice = computed(() => {
+  if (productPrice.value === null) return null
+  return discountedPrice(productPrice.value, Number(promoPayload.value.discount_percentage || 0))
+})
 
 async function load() {
   try {

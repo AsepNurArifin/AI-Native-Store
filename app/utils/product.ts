@@ -1,10 +1,12 @@
 import type { ProductOut } from './api-types'
+import { discountedPrice } from '#shared/utils/pricing'
 
 /** Harga efektif: promo dulu, harga normal bila tidak ada diskon. */
 export function effectivePrice(p: Pick<ProductOut, 'price' | 'discounted_price' | 'discount_percentage'>): number {
   if (typeof p.discounted_price === 'number' && p.discounted_price !== null) return p.discounted_price
   if (p.discount_percentage && p.discount_percentage > 0) {
-    return Math.max(Math.round(p.price * (1 - p.discount_percentage / 100)), 0)
+    // Rumus kanonik shared/utils/pricing (sama dengan yang ditagih server).
+    return discountedPrice(p.price, p.discount_percentage)
   }
   return p.price
 }
@@ -104,14 +106,4 @@ export function keySpecs(spec: Record<string, unknown> | null | undefined, limit
     if (entry.value !== 'Belum tersedia') out.push(entry)
   }
   return out
-}
-
-/** Rating terhitung stabil berdasarkan hash ID produk (4.7 - 5.0) ala Marketplace */
-export function productRating(id: string): { score: string; count: number } {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash << 5) - hash + id.charCodeAt(i)
-  const abs = Math.abs(hash)
-  const score = (4.7 + (abs % 4) * 0.1).toFixed(1)
-  const count = 18 + (abs % 85)
-  return { score, count }
 }

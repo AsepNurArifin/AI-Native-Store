@@ -1,4 +1,4 @@
-/** Tipe TS mirror dari backend Pydantic schemas (sumber: backend/app/schemas/*.py). */
+/** Tipe TS mirror dari response API server/api/v1 (Nitro + drizzle). */
 
 export interface UserOut {
   id: string
@@ -134,7 +134,8 @@ export interface OrderSummaryItem {
   name: string
   quantity: number
   unit_price: number
-  discount: number
+  discount_per_unit: number
+  unit_effective: number
   line_total: number
 }
 
@@ -142,6 +143,9 @@ export interface OrderSummary {
   summary_ref: string
   items: OrderSummaryItem[]
   total: number
+  quoted_at?: string
+  conversation_id?: string | null
+  channel?: string | null
 }
 
 export interface ChatReply {

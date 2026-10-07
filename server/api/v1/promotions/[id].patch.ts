@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm'
 import { promotions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { checkOverlap, effectiveStatus, ensureSeeded, num } from '../../../utils/business'
+import { checkOverlap, effectiveStatus, ensureSeeded, logAudit, num } from '../../../utils/business'
 import { isUuid } from '../../../utils/errors'
+import { PROMO_STATUSES } from './index'
 
 export default defineEventHandler(async (event) => {
-  await requireOwner(event)
+  const owner = await requireOwner(event)
   const db = getDb()
   await ensureSeeded(db)
   const id = String(getRouterParam(event, 'id') || '')
@@ -21,9 +22,20 @@ export default defineEventHandler(async (event) => {
     if (!(d > 0 && d <= maxD)) throw createError({ statusCode: 422, message: `Diskon 0-${maxD}%`, data: { detail: { code: 'VALIDATION', message: `Diskon 0-${maxD}%` } } })
     patch.discountPercentage = String(d)
   }
-  if (body.start_date !== undefined) patch.startDate = new Date(String(body.start_date))
-  if (body.end_date !== undefined) patch.endDate = new Date(String(body.end_date))
+  if (body.start_date !== undefined) {
+    const d = new Date(String(body.start_date))
+    if (isNaN(+d)) throw createError({ statusCode: 422, message: 'Tanggal tidak valid', data: { detail: { code: 'VALIDATION', message: 'Tanggal tidak valid' } } })
+    patch.startDate = d
+  }
+  if (body.end_date !== undefined) {
+    const d = new Date(String(body.end_date))
+    if (isNaN(+d)) throw createError({ statusCode: 422, message: 'Tanggal tidak valid', data: { detail: { code: 'VALIDATION', message: 'Tanggal tidak valid' } } })
+    patch.endDate = d
+  }
   const nextStatus = body.status !== undefined ? String(body.status) : p.status
+  if (body.status !== undefined && !PROMO_STATUSES.includes(nextStatus)) {
+    throw createError({ statusCode: 422, message: `Status harus ${PROMO_STATUSES.join('/')}`, data: { detail: { code: 'VALIDATION', message: `Status harus ${PROMO_STATUSES.join('/')}` } } })
+  }
   const start = (patch.startDate as Date) || new Date(p.startDate as unknown as string)
   const end = (patch.endDate as Date) || new Date(p.endDate as unknown as string)
   if (!(end > start)) throw createError({ statusCode: 422, message: 'end_date harus setelah start_date', data: { detail: { code: 'VALIDATION', message: 'end_date harus setelah start_date' } } })
@@ -38,6 +50,9 @@ export default defineEventHandler(async (event) => {
   }
   if (body.status !== undefined) patch.status = nextStatus
   await db.update(promotions).set(patch as never).where(eq(promotions.id, id as never))
+  await logAudit(db, 'PROMO_UPDATED', 'USER', {
+    actorId: owner.id, detail: { promotion_id: id, changed: Object.keys(patch), status: nextStatus }
+  })
   const fresh = (await db.select().from(promotions).where(eq(promotions.id, id as never)).limit(1))[0]
   return {
     id: String(fresh.id), product_id: String(fresh.productId), discount_percentage: num(fresh.discountPercentage),

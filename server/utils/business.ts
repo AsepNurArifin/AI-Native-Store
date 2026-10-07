@@ -4,15 +4,26 @@ import {
   idempotencyKeys, inventoryTransactions, orderItems, orders, products, promotions,
   recommendations, users
 } from '../database/schema'
-import { OrderError } from './errors'
+import { discountedPrice, quoteLine, round2 } from '../../shared/utils/pricing'
+import { OrderError, isUuid } from './errors'
+import type { OrderSummary } from './summary'
 
 export const num = (v: unknown): number => Number((v as string | number) ?? 0)
 
 // ---------- Inventory ----------
+/** Stok = agregasi transaksi lewat view `v_product_stock` (sumber kebenaran tunggal). */
+export async function stocksFor(db: ReturnType<typeof getDb>, ids: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  if (!ids.length) return map
+  const rows = await db.execute(sql`SELECT product_id, current_stock FROM v_product_stock WHERE product_id IN (${sql.join(ids.map(id => sql`${id}::uuid`), sql`, `)})`)
+  const list = (rows as unknown as Array<{ product_id: string, current_stock: string | number }>) ?? (rows as unknown as { rows?: Array<{ product_id: string, current_stock: string | number }> })?.rows ?? []
+  for (const r of list) map.set(String(r.product_id), Number(r.current_stock ?? 0))
+  for (const id of ids) if (!map.has(id)) map.set(id, 0)
+  return map
+}
+
 export async function currentStock(db: ReturnType<typeof getDb>, productId: string): Promise<number> {
-  const rows = await db.execute(sql`SELECT COALESCE(SUM(CASE WHEN movement = 'IN' THEN quantity ELSE -quantity END), 0) AS s FROM inventory_transactions WHERE product_id = ${productId}::uuid`)
-  const r = (rows as unknown as Array<{ s: string | number }>)?.[0] ?? (rows as unknown as { rows?: Array<{ s: string | number }> })?.rows?.[0]
-  return Number(r?.s ?? 0)
+  return (await stocksFor(db, [productId])).get(productId) ?? 0
 }
 
 export async function recordTx(db: ReturnType<typeof getDb>, input: {
@@ -42,28 +53,9 @@ export async function stockSummary(db: ReturnType<typeof getDb>, lowDefault: num
 
 export async function withStock(db: ReturnType<typeof getDb>, p: typeof products.$inferSelect, lowDefault: number) {
   const stock = await currentStock(db, String(p.id))
-  const thr = (p.lowStockThreshold as number | null) ?? lowDefault
-  return {
-    id: String(p.id), name: p.name, category: p.category, specification: (p.specification as Record<string, unknown>) || {},
-    price: num(p.price), status: p.status, low_stock_threshold: p.lowStockThreshold ?? null,
-    current_stock: stock, is_low_stock: stock <= thr,
-    image_url: (p.imageUrl as string | null) ?? null
-  }
-}
-
-/** Batch: stok banyak produk dalam 1 query (hindari N+1 per-baris). */
-export async function stocksFor(db: ReturnType<typeof getDb>, ids: string[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>()
-  if (!ids.length) return map
-  const rows = await db.select({
-    productId: inventoryTransactions.productId,
-    s: sql<string>`COALESCE(SUM(CASE WHEN ${inventoryTransactions.movement} = 'IN' THEN ${inventoryTransactions.quantity} ELSE -${inventoryTransactions.quantity} END), 0)`
-  }).from(inventoryTransactions)
-    .where(inArray(inventoryTransactions.productId, ids as never))
-    .groupBy(inventoryTransactions.productId)
-  for (const r of rows) map.set(String(r.productId), Number(r.s ?? 0))
-  for (const id of ids) if (!map.has(id)) map.set(id, 0)
-  return map
+  // Termasuk field promo supaya AI/chat mengutip harga yang sama dengan katalog.
+  const promo = await activePromotionFor(db, String(p.id))
+  return catalogOut(p, stock, lowDefault, promo)
 }
 
 /** Batch: promo ACTIVE (belum kedaluwarsa) banyak produk dalam 1 query. */
@@ -82,7 +74,7 @@ export async function activePromosFor(db: ReturnType<typeof getDb>, ids: string[
   return map
 }
 
-/** Bentuk payload katalog publik: gambar + promo + harga efektif. */
+/** Bentuk payload katalog publik: gambar + promo + harga efektif (via shared/utils/pricing). */
 export function catalogOut(
   p: typeof products.$inferSelect, stock: number, lowDefault: number,
   promo: typeof promotions.$inferSelect | null
@@ -95,7 +87,12 @@ export function catalogOut(
     current_stock: stock, is_low_stock: stock <= thr,
     image_url: (p.imageUrl as string | null) ?? null,
     discount_percentage: discount,
-    discounted_price: discount > 0 ? Math.max(Math.round((num(p.price) * (1 - discount / 100)) * 100) / 100, 0) : null
+    discounted_price: discount > 0 ? discountedPrice(num(p.price), discount) : null,
+    promotion: promo ? {
+      id: String(promo.id), discount_percentage: discount,
+      start_date: new Date(promo.startDate as unknown as string).toISOString(),
+      end_date: new Date(promo.endDate as unknown as string).toISOString()
+    } : null
   }
 }
 
@@ -155,28 +152,49 @@ export interface CreateOrderInput {
   items: Array<{ product_id: string, quantity: number }>
   idempotencyKey?: string | null
   fulfillment?: Record<string, unknown> | null
+  /** Ringkasan yang dilihat & dikonfirmasi customer (price lock). */
+  expected?: OrderSummary | null
 }
 
 export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input: CreateOrderInput) {
-  // Idempotency dulu (UC-02 E5)
-  if (input.idempotencyKey) {
-    const existing = await db.select().from(idempotencyKeys).where(eq(idempotencyKeys.key, input.idempotencyKey)).limit(1)
-    if (existing[0]?.orderId) {
-      const o = await db.select().from(orders).where(eq(orders.id, existing[0].orderId as never)).limit(1)
-      if (o[0]) return { order: o[0], replayed: true }
-    }
-  }
   if (!input.items?.length) throw new OrderError('EMPTY_ORDER', 'Tidak ada item untuk dipesan.')
   for (const it of input.items) {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(it.product_id)) {
+    if (!isUuid(it.product_id)) {
       throw new OrderError('PRODUCT_NOT_FOUND', `Produk ${it.product_id} tidak ditemukan.`)
     }
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) {
       throw new OrderError('INVALID_QTY', 'Quantity harus bilangan bulat positif.')
     }
   }
+  // Urut per product_id -> kunci FOR UPDATE tidak pernah deadlock antar order.
+  const items = [...input.items].sort((a, b) => a.product_id.localeCompare(b.product_id))
 
   return await db.transaction(async (tx) => {
+    // Idempotency atomik (UC-02 E5): key diklaim di AWAL transaksi dengan
+    // ON CONFLICT -> tidak ada window dobel-order saat request paralel.
+    if (input.idempotencyKey) {
+      const ttlMs = Number(useRuntimeConfig().idempotencyTtlMinutes ?? 30) * 60_000
+      const claimed = await tx.insert(idempotencyKeys)
+        .values({ key: input.idempotencyKey, orderId: null as never })
+        .onConflictDoNothing().returning()
+      if (!claimed.length) {
+        const row = (await tx.select().from(idempotencyKeys).where(eq(idempotencyKeys.key, input.idempotencyKey)).limit(1))[0]
+        if (row?.orderId) {
+          const age = Date.now() - new Date(row.createdAt as unknown as string).getTime()
+          if (age <= ttlMs) {
+            const o = await tx.select().from(orders).where(eq(orders.id, row.orderId as never)).limit(1)
+            if (o[0]) return { order: o[0], replayed: true }
+          }
+          // Key kedaluwarsa -> diperlakukan sebagai key baru.
+          await tx.delete(idempotencyKeys).where(eq(idempotencyKeys.key, input.idempotencyKey))
+          await tx.insert(idempotencyKeys).values({ key: input.idempotencyKey, orderId: null as never })
+        }
+        else {
+          throw new OrderError('IN_PROGRESS', 'Permintaan serupa sedang diproses. Coba lagi sebentar.')
+        }
+      }
+    }
+
     // Customer channel-specific
     const found = await tx.select().from(customers).where(
       and(eq(customers.channel, input.customerIdentity.channel), eq(customers.identifier, input.customerIdentity.identifier))
@@ -193,6 +211,9 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
       customerId = String(ins[0].id)
     }
 
+    // Kunci baris produk sebelum cek stok (anti oversell saat paralel).
+    await tx.execute(sql`SELECT id FROM products WHERE id IN (${sql.join(items.map(i => sql`${i.product_id}::uuid`), sql`, `)}) ORDER BY id FOR UPDATE`)
+
     const created = await tx.insert(orders).values({
       customerId: customerId as never,
       status: 'CONFIRMED',
@@ -203,41 +224,64 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
     }).returning()
     const order = created[0]
 
+    // Price lock: bandingkan quote baru vs ringkasan yang dikonfirmasi customer.
+    const expectedByProduct = new Map<string, NonNullable<OrderSummary['items']>>()
+    for (const it of input.expected?.items ?? []) {
+      const arr = expectedByProduct.get(it.product_id) ?? []
+      arr.push(it)
+      expectedByProduct.set(it.product_id, arr)
+    }
+
     let total = 0
-    const snapshot: Record<string, { promotion_id: string, discount_percentage: number }> = {}
-    for (const item of input.items) {
+    const snapshot: Record<string, { promotion_id: string, discount_percentage: number, price_before: number, discount_per_unit: number }> = {}
+    for (const item of items) {
       const prow = await tx.select().from(products).where(eq(products.id, item.product_id as never)).limit(1)
       const p = prow[0]
       if (!p) throw new OrderError('PRODUCT_NOT_FOUND', `Produk ${item.product_id} tidak ditemukan.`)
       if (p.status !== 'ACTIVE') throw new OrderError('PRODUCT_INACTIVE', `${p.name} tidak aktif.`)
-      const stockRows = await tx.execute(sql`SELECT COALESCE(SUM(CASE WHEN movement = 'IN' THEN quantity ELSE -quantity END), 0) AS s FROM inventory_transactions WHERE product_id = ${item.product_id}::uuid`)
-      const srow = (stockRows as unknown as Array<{ s: string | number }>)?.[0] ?? (stockRows as unknown as { rows?: Array<{ s: string | number }> })?.rows?.[0]
-      const stock = Number(srow?.s ?? 0)
+      const stock = (await stocksFor(tx as never, [String(p.id)])).get(String(p.id)) ?? 0
       if (stock < item.quantity) throw new OrderError('INSUFFICIENT_STOCK', `Stok ${p.name} hanya tersisa ${stock}.`, { product_id: String(p.id), available: stock })
 
       const promo = await activePromotionFor(tx as never, String(p.id))
-      let discount = 0
+      const discountPct = promo ? num(promo.discountPercentage) : 0
+      const q = quoteLine(num(p.price), discountPct, item.quantity)
       if (promo) {
-        discount = Math.round((num(p.price) * num(promo.discountPercentage) / 100) * 100) / 100
-        snapshot[String(p.id)] = { promotion_id: String(promo.id), discount_percentage: num(promo.discountPercentage) }
+        snapshot[String(p.id)] = {
+          promotion_id: String(promo.id), discount_percentage: discountPct,
+          price_before: q.unit_price, discount_per_unit: q.discount_per_unit
+        }
       }
-      const unitEff = Math.max(num(p.price) - discount, 0)
-      const lineTotal = Math.round(unitEff * item.quantity * 100) / 100
-      total += lineTotal
+      const exp = expectedByProduct.get(item.product_id)?.shift()
+      const unchanged = exp && exp.quantity === item.quantity && Math.abs(exp.line_total - q.line_total) <= 0.001
+      if (input.expected && !unchanged) {
+        throw new OrderError(
+          'PRICE_CHANGED',
+          `Harga/promo ${p.name} berubah sejak ringkasan dibuat (Rp${exp?.line_total ?? '-'} -> Rp${q.line_total}). Ulangi pesanan untuk harga terbaru.`,
+          { product_id: String(p.id), expected_line_total: exp?.line_total ?? null, current_line_total: q.line_total }
+        )
+      }
+      total += q.line_total
+      // price_at_order = harga efektif per unit (net) -> qty x price_at_order == line_total.
       await tx.insert(orderItems).values({
         orderId: order.id, productId: p.id, quantity: item.quantity,
-        priceAtOrder: String(p.price) as never, lineTotal: String(lineTotal) as never
+        priceAtOrder: String(q.unit_effective) as never, lineTotal: String(q.line_total) as never
       })
       await tx.insert(inventoryTransactions).values({
         productId: p.id, type: 'OUT', movement: 'OUT', referenceType: 'ORDER',
         quantity: item.quantity, referenceId: order.id
       })
     }
-    const rounded = Math.round(total * 100) / 100
+    if (input.expected && [...expectedByProduct.values()].some(arr => arr.length)) {
+      throw new OrderError('PRICE_CHANGED', 'Isi ringkasan pesanan berubah. Ulangi pesanan untuk harga terbaru.')
+    }
+    const rounded = round2(total)
     await tx.update(orders).set({ totalAmount: String(rounded) as never, promotionSnapshot: (Object.keys(snapshot).length ? snapshot : null) as never }).where(eq(orders.id, order.id))
     if (input.idempotencyKey) {
-      await tx.insert(idempotencyKeys).values({ key: input.idempotencyKey, orderId: order.id }).onConflictDoNothing()
+      await tx.update(idempotencyKeys).set({ orderId: order.id }).where(eq(idempotencyKeys.key, input.idempotencyKey))
     }
+    await logAudit(tx, 'ORDER_CREATED', 'CUSTOMER', {
+      detail: { order_id: String(order.id), customer_id: customerId, channel: input.channel, total: rounded }
+    })
     const final = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1)
     return { order: { ...final[0], totalAmount: String(rounded) }, replayed: false }
   })

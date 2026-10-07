@@ -21,7 +21,10 @@ const payload = computed(() => buildQrisPayload({
 <template>
   <div class="mx-auto max-w-[240px] space-y-3 rounded-2xl border-2 border-dashed border-stone-300 bg-white p-4 text-center">
     <div class="space-y-0.5">
-      <p class="text-xs font-semibold text-stone-700">Pembayaran QRIS</p>
+      <p class="text-xs font-semibold text-stone-700">
+        Pembayaran QRIS
+        <span class="ml-1 inline-block rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black uppercase text-amber-800">Simulasi</span>
+      </p>
       <p class="font-display text-base font-bold text-stone-900">{{ formatIDR(amount) }}</p>
     </div>
 
@@ -32,6 +35,7 @@ const payload = computed(() => buildQrisPayload({
     <div class="space-y-0.5">
       <p class="font-display text-xs font-bold tracking-normal text-stone-800">PARAGONKOM</p>
       <p class="font-mono text-[10px] text-stone-500">Ref: {{ reference.slice(0, 8) }}</p>
+      <p class="text-[9px] font-semibold text-amber-700">Simulasi — QR tidak dapat dibayar</p>
     </div>
   </div>
 </template>

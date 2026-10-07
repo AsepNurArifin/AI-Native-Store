@@ -1,54 +1,71 @@
-// In-memory Order Summary store TTL 30 menit — port backend/app/services/summary_store.py
+// Order Summary store berbasis DB, TTL 30 menit (price lock).
+// Sebelumnya in-memory Map — hilang antar-instance/restart (berbahaya di Vercel).
+import { and, desc, eq, gt, lt } from 'drizzle-orm'
+import { orderSummaries } from '../database/schema'
+
 export interface SummaryItem {
   product_id: string
   quantity: number
 }
 
+export interface OrderSummaryLine {
+  product_id: string
+  name: string
+  quantity: number
+  unit_price: number
+  discount_per_unit: number
+  unit_effective: number
+  line_total: number
+}
+
 export interface OrderSummary {
   summary_ref: string
-  items: Array<{ product_id: string, name: string, quantity: number, unit_price: number, discount: number, line_total: number }>
+  items: OrderSummaryLine[]
   total: number
+  quoted_at?: string
+  conversation_id?: string | null
+  channel?: string | null
 }
 
-const byRef = new Map<string, { summary: OrderSummary, expiresAt: number }>()
-const byConv = new Map<string, { ref: string, expiresAt: number }>()
 const TTL_MS = 30 * 60 * 1000
 
-export function putSummary(summary: OrderSummary) {
-  byRef.set(summary.summary_ref, { summary, expiresAt: Date.now() + TTL_MS })
+async function purgeStale(db: ReturnType<typeof getDb>) {
+  await db.delete(orderSummaries).where(lt(orderSummaries.expiresAt, new Date()))
 }
 
-export function getSummary(ref: string): OrderSummary | null {
-  const e = byRef.get(ref)
-  if (!e) return null
-  if (Date.now() > e.expiresAt) {
-    byRef.delete(ref)
-    return null
+export async function putSummary(
+  db: ReturnType<typeof getDb>, summary: OrderSummary,
+  opts: { conversationId?: string | null, channel?: string | null } = {}
+) {
+  await purgeStale(db)
+  const values = {
+    conversationId: (opts.conversationId ?? summary.conversation_id ?? null) as never,
+    channel: (opts.channel ?? summary.channel ?? 'WEB'),
+    payload: summary as never,
+    expiresAt: new Date(Date.now() + TTL_MS)
   }
-  return e.summary
+  await db.insert(orderSummaries).values({ summaryRef: summary.summary_ref, ...values })
+    .onConflictDoUpdate({ target: orderSummaries.summaryRef, set: values })
 }
 
-export function putForConversation(convId: string, summary: OrderSummary) {
-  putSummary(summary)
-  byConv.set(convId, { ref: summary.summary_ref, expiresAt: Date.now() + TTL_MS })
+export async function getSummary(db: ReturnType<typeof getDb>, ref: string): Promise<OrderSummary | null> {
+  const row = (await db.select().from(orderSummaries)
+    .where(and(eq(orderSummaries.summaryRef, ref), gt(orderSummaries.expiresAt, new Date())))
+    .limit(1))[0]
+  return row ? { ...(row.payload as unknown as OrderSummary), conversation_id: row.conversationId ? String(row.conversationId) : null, channel: row.channel } : null
 }
 
-export function getForConversation(convId: string): OrderSummary | null {
-  const e = byConv.get(convId)
-  if (!e) return null
-  if (Date.now() > e.expiresAt) {
-    byConv.delete(convId)
-    return null
-  }
-  return getSummary(e.ref)
+export async function putForConversation(db: ReturnType<typeof getDb>, convId: string, summary: OrderSummary) {
+  await putSummary(db, summary, { conversationId: convId })
 }
 
-export function popForConversation(convId: string) {
-  byConv.delete(convId)
+export async function getForConversation(db: ReturnType<typeof getDb>, convId: string): Promise<OrderSummary | null> {
+  const row = (await db.select().from(orderSummaries)
+    .where(and(eq(orderSummaries.conversationId, convId as never), gt(orderSummaries.expiresAt, new Date())))
+    .orderBy(desc(orderSummaries.createdAt)).limit(1))[0]
+  return row ? { ...(row.payload as unknown as OrderSummary), conversation_id: String(row.conversationId), channel: row.channel } : null
 }
 
-export function purgeExpiredSummaries() {
-  const now = Date.now()
-  for (const [k, v] of byRef) if (now > v.expiresAt) byRef.delete(k)
-  for (const [k, v] of byConv) if (now > v.expiresAt) byConv.delete(k)
+export async function popForConversation(db: ReturnType<typeof getDb>, convId: string) {
+  await db.delete(orderSummaries).where(eq(orderSummaries.conversationId, convId as never))
 }

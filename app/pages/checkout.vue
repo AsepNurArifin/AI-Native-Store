@@ -3,6 +3,7 @@ import { CheckCircle2, MessageCircle, Minus, Plus, ShoppingCart, Truck } from '@
 import type { ConfirmOrderResponse, FulfillmentInfo, ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
 import { effectivePrice, hasPromo } from '~/utils/product'
+import { quoteLine } from '#shared/utils/pricing'
 import { NormalizedApiError } from '~/composables/useApi'
 
 /**
@@ -41,7 +42,8 @@ const finalPrice = computed(() => (product.value ? effectivePrice(product.value)
 const promo = computed(() => (product.value ? hasPromo(product.value) : false))
 const soldOut = computed(() => (product.value?.current_stock ?? 0) <= 0)
 const maxQty = computed(() => Math.max(1, Math.min(product.value?.current_stock ?? 1, 10)))
-const lineTotal = computed(() => finalPrice.value * qty.value)
+// Rumus kanonik shared/utils/pricing — persis sama dengan hitungan server.
+const lineTotal = computed(() => (product.value ? quoteLine(product.value.price, product.value.discount_percentage || 0, qty.value).line_total : 0))
 const discountTotal = computed(() => (promo.value ? (product.value!.price - finalPrice.value) * qty.value : 0))
 
 const custName = ref('')
@@ -109,7 +111,7 @@ async function submit() {
         {{ placed ? 'Pesanan tercatat' : 'Selesaikan pesanan' }}
       </h1>
       <p class="mt-1 text-sm text-stone-600">
-        {{ placed ? 'Simpan ID pesanan dan selesaikan pembayaran via QRIS.' : 'Tanpa daftar akun, tanpa lewat chat. Isi data, konfirmasi, bayar via QRIS.' }}
+        {{ placed ? 'Simpan ID pesanan; pembayaran dikonfirmasi kasir setelah transfer/scan QRIS.' : 'Tanpa daftar akun, tanpa lewat chat. Isi data, konfirmasi, bayar via QRIS.' }}
       </p>
     </div>
 
@@ -144,6 +146,10 @@ async function submit() {
           <p class="border-t border-dashed border-stone-200 pt-2 font-display text-lg font-bold text-stone-900">
             Total tagihan: {{ formatIDR(placed.total) }}
           </p>
+          <p v-if="placed.total !== lineTotal" class="text-[11px] font-medium text-amber-700">
+            Total berubah dari {{ formatIDR(lineTotal) }} karena harga diperbarui saat pesanan dibuat.
+          </p>
+          <p class="text-[11px] text-stone-500">QRIS di samping simulasi — pembayaran dikonfirmasi kasir.</p>
         </div>
       </div>
 
@@ -263,7 +269,7 @@ async function submit() {
 
       <p class="flex items-center justify-center gap-1.5 text-center text-[11px] text-stone-500">
         <CheckCircle2 class="h-3.5 w-3.5 text-emerald-600" />
-        Stok terkunci atomik saat pesanan tercatat · bayar via QRIS
+        Stok terkunci saat pesanan tercatat · QRIS simulasi, pembayaran dikonfirmasi kasir
       </p>
     </template>
   </div>

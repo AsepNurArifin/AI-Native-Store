@@ -6,7 +6,18 @@ import {
 } from '../database/schema'
 import { ACTION_TOOLS, ANALYST_TOOLS, ANALYST_SYSTEM, PRODUCT_TOOLS, SALES_SYSTEM, actionSystem, llmComplete } from './llm'
 import { activePromotionFor, currentStock, ensureSeeded, num, stockSummary, withStock } from './business'
-import { getSummary, putForConversation, getForConversation, popForConversation, type OrderSummary } from './summary'
+import { putSummary, putForConversation, getForConversation, type OrderSummary } from './summary'
+import { quoteLine, quoteTotal } from '../../shared/utils/pricing'
+
+/** Order yang dihitung analitik (bukan CANCELLED) — definisi dipakai semua tool. */
+const isCountableOrder = (o: { status: string }) => o.status === 'CONFIRMED' || o.status === 'COMPLETED'
+
+/** Key minggu ISO = tanggal Senin minggu tersebut (YYYY-MM-DD). */
+function weekKey(d: Date): string {
+  const mon = new Date(d)
+  mon.setUTCDate(mon.getUTCDate() - ((mon.getUTCDay() + 6) % 7))
+  return mon.toISOString().slice(0, 10)
+}
 
 // ---------- Tool executor (10 tools, tanpa mutasi berat) ----------
 export async function toolCall(db: ReturnType<typeof getDb>, name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -63,7 +74,6 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     if (!items.length || items.length > 50) return { error: 'INVALID_ITEMS', message: 'Items 1-50' }
     const lines: OrderSummary['items'] = []
     const errs: string[] = []
-    let total = 0
     for (const it of items.slice(0, 50)) {
       if (!isUuid(it.product_id)) {
         errs.push(`Produk ${it.product_id} tidak ditemukan`)
@@ -85,17 +95,20 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
         continue
       }
       const promo = await activePromotionFor(db, String(p.id))
-      let discount = 0
-      if (promo) discount = Math.round((num(p.price) * num(promo.discountPercentage) / 100) * 100) / 100
-      const unitEff = Math.max(num(p.price) - discount, 0)
-      const lineTotal = Math.round(unitEff * it.quantity * 100) / 100
-      total += lineTotal
-      lines.push({ product_id: String(p.id), name: p.name, quantity: it.quantity, unit_price: num(p.price), discount, line_total: lineTotal })
+      // Quote kanonik shared/utils/pricing — sama persis dengan hitungan order.
+      const q = quoteLine(num(p.price), promo ? num(promo.discountPercentage) : 0, it.quantity)
+      lines.push({
+        product_id: String(p.id), name: p.name, quantity: it.quantity,
+        unit_price: q.unit_price, discount_per_unit: q.discount_per_unit,
+        unit_effective: q.unit_effective, line_total: q.line_total
+      })
     }
     if (!lines.length) return { error: 'NO_VALID_ITEMS', message: errs.slice(0, 5).join('; ') }
-    const summary: OrderSummary = { summary_ref: randomUUID().replace(/-/g, ''), items: lines, total: Math.round(total * 100) / 100 }
-    const { putSummary } = await import('./summary')
-    putSummary(summary)
+    const summary: OrderSummary = {
+      summary_ref: randomUUID().replace(/-/g, ''), items: lines,
+      total: quoteTotal(lines), quoted_at: new Date().toISOString()
+    }
+    await putSummary(db, summary)
     return { summary, warnings: errs.slice(0, 5) }
   }
   if (name === 'analyze_sales') {
@@ -106,7 +119,7 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     const allOrders = await db.select().from(orders)
     const inRange = allOrders.filter(o => {
       const c = new Date(o.createdAt as unknown as string)
-      return c >= from && c < to && (o.status === 'CONFIRMED' || o.status === 'COMPLETED')
+      return c >= from && c < to && isCountableOrder(o)
     })
     const agg = new Map<string, { units: number, revenue: number }>()
     const names: Record<string, string> = {}
@@ -116,7 +129,7 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
         let key = String(it.productId)
         if (groupBy === 'day' || groupBy === 'week' || groupBy === 'month') {
           const d = new Date(o.createdAt as unknown as string)
-          key = groupBy === 'day' ? d.toISOString().slice(0, 10) : groupBy === 'month' ? d.toISOString().slice(0, 7) : d.toISOString().slice(0, 10)
+          key = groupBy === 'day' ? d.toISOString().slice(0, 10) : groupBy === 'month' ? d.toISOString().slice(0, 7) : weekKey(d)
         }
         else if (groupBy === 'channel') key = o.channelOrigin
         const cur = agg.get(key) || { units: 0, revenue: 0 }
@@ -167,7 +180,7 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     const allOrders = await db.select().from(orders)
     const inRange = allOrders.filter(o => {
       const c = new Date(o.createdAt as unknown as string)
-      return c >= from && c < to
+      return c >= from && c < to && isCountableOrder(o)
     })
     const by = new Map<string, number>()
     for (const o of inRange) by.set(o.channelOrigin, (by.get(o.channelOrigin) || 0) + 1)
@@ -285,8 +298,8 @@ export async function salesHandleMessage(db: ReturnType<typeof getDb>, conversat
       if (budget && num(p.price) <= budget) score += 3
       return { p, score }
     }).sort((a, b) => b.score - a.score)
-    let picked = scored.filter(s => s.score > 0).slice(0, 3).map(s => s.p)
-    if (!picked.length) picked = cands.slice(0, 3)
+    const matched = scored.filter(s => s.score > 0).slice(0, 3).map(s => s.p)
+    let picked = matched.length ? matched : cands.slice(0, 3)
     // filter budget keras bila disebut
     if (budget) {
       const within = picked.filter(p => num(p.price) <= budget)
@@ -294,11 +307,14 @@ export async function salesHandleMessage(db: ReturnType<typeof getDb>, conversat
     }
     for (const p of picked) productsOut.push(await withStock(db, p, lowDefault))
 
-    // Ringkasan pesanan otomatis hanya untuk channel yang mengizinkan order (Telegram).
+    // Ringkasan pesanan otomatis hanya untuk channel yang mengizinkan order
+    // (Telegram) dan HANYA berisi produk yang benar-benar disebut user (matched)
+    // — bukan tebakan katalog.
     const buyIntent = BUY_INTENT.test(content)
-    if (allowOrder && buyIntent && picked.length) {
+    const explicit = budget ? matched.filter(p => num(p.price) <= budget) : matched
+    if (allowOrder && buyIntent && explicit.length) {
       const qty = qtyMatch ? Math.max(1, Math.min(10, Number(qtyMatch[1]))) : 1
-      const res = await toolCall(db, 'build_order_summary', { items: picked.slice(0, 3).map(p => ({ product_id: String(p.id), quantity: qty })) }) as { summary?: OrderSummary }
+      const res = await toolCall(db, 'build_order_summary', { items: explicit.slice(0, 3).map(p => ({ product_id: String(p.id), quantity: qty })) }) as { summary?: OrderSummary }
       if (res.summary) summary = res.summary
     }
     if (productsOut.length === 0) {
@@ -314,13 +330,14 @@ export async function salesHandleMessage(db: ReturnType<typeof getDb>, conversat
 
   // Anti-halusinasi: klaim ringkasan tanpa summary -> koreksi
   if (allowOrder && /ringkasan pesanan|total.*pesanan|tagihan/i.test(replyText) && !summary) {
-    const reused = getForConversation(conversationId)
+    const reused = await getForConversation(db, conversationId)
     if (reused) summary = reused
   }
   // Koreksi LLM pasif: intent beli jelas + produk ditemukan tapi model tidak
-  // memanggil build_order_summary -> bangun otomatis (bukan dari teks bebas).
+  // memanggil build_order_summary -> bangun otomatis 1 produk hasil pencarian
+  // (bukan tebakan; multi-item hanya lewat tool call eksplisit).
   if (allowOrder && !summary && productsOut.length > 0 && BUY_INTENT.test(content)) {
-    const res = await toolCall(db, 'build_order_summary', { items: productsOut.slice(0, 3).map(p => ({ product_id: String(p.id), quantity: 1 })) }) as { summary?: OrderSummary }
+    const res = await toolCall(db, 'build_order_summary', { items: productsOut.slice(0, 1).map(p => ({ product_id: String(p.id), quantity: 1 })) }) as { summary?: OrderSummary }
     if (res.summary) {
       summary = res.summary
       replyText += `\n\nSaya sudah buatkan **ringkasan pesanan** di bawah. Cek lalu tekan **Konfirmasi pesanan** bila sudah sesuai.`
@@ -330,7 +347,7 @@ export async function salesHandleMessage(db: ReturnType<typeof getDb>, conversat
   if (!allowOrder && BUY_INTENT.test(content) && !/tombol \*\*Pesan\*\*|Beli sekarang/.test(replyText)) {
     replyText += `\n\nUntuk **pesan langsung**, tekan tombol **Pesan** di kartu produk atau **Beli sekarang** di halaman produk — checkout tanpa lewat chat. Chat ini untuk tanya stok, spesifikasi, dan rekomendasi.`
   }
-  if (summary) putForConversation(conversationId, summary)
+  if (summary) await putForConversation(db, conversationId, summary)
 
   await db.insert(conversationMessages).values({ conversationId: conversationId as never, sender: 'AI', content: replyText, messageType: 'TEXT' })
   // Simpan rekomendasi (maks 3)

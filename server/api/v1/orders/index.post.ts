@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { createOrderFromSummary, ensureSeeded } from '../../../utils/business'
 import { OrderError, toOrderHttpCode, isUuid } from '../../../utils/errors'
 
@@ -22,6 +21,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 422, message: msg, data: { detail: { code: 'VALIDATION', message: msg } } })
   }
   if (!items.length || items.length > 50) invalid('items wajib 1-50')
+  // Idempotency key wajib dari client (UC-02 E5): retry dengan key yang sama
+  // tidak boleh membuat order ganda. Fallback random sengaja DIHAPUS.
+  if (!body?.idempotency_key?.trim()) {
+    const msg = 'idempotency_key wajib — kirim ulang key yang sama bila retry.'
+    throw createError({ statusCode: 422, message: msg, data: { detail: { code: 'IDEMPOTENCY_KEY_REQUIRED', message: msg } } })
+  }
   for (const it of items) {
     if (!isUuid(it.product_id)) invalid(`Produk ${it.product_id} tidak ditemukan.`)
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) invalid('Quantity harus bilangan bulat positif.')
@@ -35,7 +40,7 @@ export default defineEventHandler(async (event) => {
       channel: 'WEB',
       customerIdentity: { channel: 'WEB', identifier: `${name}|${contact}`, name, contact },
       items,
-      idempotencyKey: body?.idempotency_key || randomUUID(),
+      idempotencyKey: body!.idempotency_key!.trim(),
       fulfillment: body?.fulfillment || null
     })
     return {

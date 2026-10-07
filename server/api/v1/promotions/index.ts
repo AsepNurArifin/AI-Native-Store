@@ -1,7 +1,11 @@
 import { desc, eq } from 'drizzle-orm'
 import { promotions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { checkOverlap, effectiveStatus, ensureSeeded, num, refreshPromotionExpiry } from '../../../utils/business'
+import { checkOverlap, effectiveStatus, ensureSeeded, logAudit, num, refreshPromotionExpiry } from '../../../utils/business'
+
+/** Status yang boleh di-set manual user. EXPIRED/SCHEDULED diturunkan effectiveStatus;
+ *  REJECTED hanya via reject AI-action; sisanya via refreshPromotionExpiry. */
+export const PROMO_STATUSES = ['DRAFT', 'ACTIVE']
 
 function out(p: typeof promotions.$inferSelect) {
   return {
@@ -13,7 +17,7 @@ function out(p: typeof promotions.$inferSelect) {
 }
 
 export default defineEventHandler(async (event) => {
-  await requireOwner(event)
+  const owner = await requireOwner(event)
   const db = getDb()
   await ensureSeeded(db)
   if (event.method === 'GET') {
@@ -36,12 +40,16 @@ export default defineEventHandler(async (event) => {
   }
   const start = new Date(body.start_date)
   const end = new Date(body.end_date)
+  if (isNaN(+start) || isNaN(+end)) throw createError({ statusCode: 422, message: 'Tanggal tidak valid', data: { detail: { code: 'VALIDATION', message: 'Tanggal tidak valid' } } })
   if (!(end > start)) throw createError({ statusCode: 422, message: 'end_date harus setelah start_date', data: { detail: { code: 'VALIDATION', message: 'end_date harus setelah start_date' } } })
   const maxD = Number(useRuntimeConfig().maxDiscountPercent ?? 50)
   if (!(body.discount_percentage > 0 && body.discount_percentage <= maxD)) {
     throw createError({ statusCode: 422, message: `Diskon 0-${maxD}%`, data: { detail: { code: 'VALIDATION', message: `Diskon 0-${maxD}%` } } })
   }
-  const status = body.status || 'DRAFT'
+  const status = body.status ? String(body.status) : 'DRAFT'
+  if (!PROMO_STATUSES.includes(status)) {
+    throw createError({ statusCode: 422, message: `Status harus ${PROMO_STATUSES.join('/')}`, data: { detail: { code: 'VALIDATION', message: `Status harus ${PROMO_STATUSES.join('/')}` } } })
+  }
   if (status === 'ACTIVE' && await checkOverlap(db, body.product_id, start, end)) {
     throw createError({ statusCode: 409, message: 'Promo aktif overlap untuk produk ini', data: { detail: { code: 'PROMO_OVERLAP', message: 'Promo aktif overlap untuk produk ini' } } })
   }
@@ -49,6 +57,10 @@ export default defineEventHandler(async (event) => {
     productId: body.product_id as never, discountPercentage: String(body.discount_percentage) as never,
     startDate: start as never, endDate: end as never, status
   }).returning()
+  await logAudit(db, 'PROMO_CREATED', 'USER', {
+    actorId: owner.id,
+    detail: { promotion_id: String(ins[0].id), product_id: body.product_id, discount_percentage: body.discount_percentage, status }
+  })
   setResponseStatus(event, 201)
   return out(ins[0])
 })
