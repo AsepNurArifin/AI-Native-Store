@@ -33,7 +33,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'id' },
-      title: 'PARAGONKOM: Toko Elektronik HP, Laptop & Aksesoris',
+      title: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -42,19 +42,19 @@ export default defineNuxtConfig({
           content:
             'Toko elektronik yang buka lewat chat: sebut gadget dan budgetnya, kami cek stok, spesifikasi, dan harga dari katalog. Tanpa daftar akun.'
         },
-        { property: 'og:site_name', content: 'PARAGONKOM' },
+        { property: 'og:site_name', content: 'SHAF STORE' },
         { property: 'og:locale', content: 'id_ID' },
         { property: 'og:type', content: 'website' },
         { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'Papan nama PARAGONKOM: toko elektronik yang buka lewat chat' },
+        { property: 'og:image:alt', content: 'Papan nama SHAF STORE: toko elektronik yang buka lewat chat' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'robots', content: 'index, follow, max-image-preview:large' },
         { name: 'theme-color', content: '#177b2c' }
       ],
       link: [
-        { rel: 'icon', href: '/favicon.ico' }
+        { rel: 'icon', type: 'image/jpeg', href: '/logo.jpeg' }
       ],
     }
   },

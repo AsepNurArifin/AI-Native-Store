@@ -33,7 +33,10 @@ const payload = computed(() => buildQrisPayload({
     </div>
 
     <div class="space-y-0.5">
-      <p class="font-display text-xs font-bold tracking-normal text-stone-800">PARAGONKOM</p>
+      <div class="flex items-center justify-center gap-1.5">
+        <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-4 w-4 rounded object-contain" />
+        <p class="font-display text-xs font-bold tracking-normal text-stone-800">SHAF STORE</p>
+      </div>
       <p class="font-mono text-[10px] text-stone-500">Ref: {{ reference.slice(0, 8) }}</p>
       <p class="text-[9px] font-semibold text-amber-700">Simulasi — QR tidak dapat dibayar</p>
     </div>

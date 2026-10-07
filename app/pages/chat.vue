@@ -57,10 +57,10 @@ const config = useRuntimeConfig()
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 
 useSeoMeta({
-  title: 'Chat PARAGONKOM: Tanya Stok, Spesifikasi & Rekomendasi',
+  title: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
   description:
     'Tanya stok, spesifikasi, dan harga gadget lewat chat. Asisten mencocokkan pertanyaanmu dengan katalog toko; beli langsung lewat checkout tanpa chat.',
-  ogTitle: 'Chat PARAGONKOM: Tanya Stok, Spesifikasi & Rekomendasi',
+  ogTitle: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
   ogDescription:
     'Tanya stok, spesifikasi, dan harga gadget lewat chat; beli langsung lewat checkout.',
   ogType: 'website',
@@ -68,9 +68,9 @@ useSeoMeta({
   ogImage: `${siteUrl}/og-image.png`,
   ogImageWidth: 1200,
   ogImageHeight: 630,
-  ogImageAlt: 'Papan nama PARAGONKOM: toko elektronik yang buka lewat chat',
+  ogImageAlt: 'Papan nama SHAF STORE: toko elektronik yang buka lewat chat',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Chat PARAGONKOM: Tanya Stok, Spesifikasi & Rekomendasi',
+  twitterTitle: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
   twitterDescription: 'Tanya stok, spesifikasi, dan harga gadget lewat chat.',
   twitterImage: `${siteUrl}/og-image.png`
 })

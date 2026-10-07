@@ -55,14 +55,14 @@ function goSearch(q: string) {
       <!-- Tier 2: Royal Blue Masthead (#0046BE) -->
       <div class="bg-brand-700 text-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-6 sm:px-6">
-          <!-- Logo PARAGONKOM Best Buy Styled -->
-          <NuxtLink to="/" class="group flex shrink-0 items-center gap-2">
-            <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-promo-400 text-stone-950 font-black shadow-md transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11">
-              <Store class="h-5 w-5 sm:h-6 sm:w-6" />
+          <!-- Logo SHAF STORE Best Buy Styled -->
+          <NuxtLink to="/" class="group flex shrink-0 items-center gap-2.5">
+            <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-md transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11">
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
             </div>
             <div class="min-w-0">
               <div class="whitespace-nowrap font-display text-lg font-black tracking-tight text-white sm:text-2xl">
-                PARAGON<span class="text-promo-400">KOM</span>
+                SHAF <span class="text-promo-400">STORE</span>
               </div>
               <div class="hidden text-[10px] font-extrabold uppercase tracking-widest text-brand-200 sm:block">
                 Electronics Marketplace
@@ -146,11 +146,11 @@ function goSearch(q: string) {
     <footer class="border-t border-stone-200 bg-stone-900 text-xs text-stone-300 pt-12 pb-8">
       <div class="mx-auto grid max-w-7xl gap-8 px-4 sm:grid-cols-4 sm:px-6">
         <div class="space-y-3">
-          <div class="flex items-center gap-2 font-display text-lg font-black text-white">
-            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-promo-400 text-stone-950">
-              <Store class="h-4 w-4" />
+          <div class="flex items-center gap-2.5 font-display text-lg font-black text-white">
+            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-white p-0.5">
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" />
             </div>
-            PARAGONKOM
+            SHAF STORE
           </div>
           <p class="leading-relaxed text-stone-400">
             Tech &amp; Electronics Marketplace terpercaya. Cek harga realtime, garansi resmi, &amp; konsultasi spesifikasi langsung via Chat.
@@ -192,7 +192,7 @@ function goSearch(q: string) {
       </div>
 
       <div class="mx-auto mt-10 max-w-7xl border-t border-stone-800 pt-6 px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-500">
-        <p>© 2026 PARAGONKOM Electronics. Inspired by Best Buy Storefront Standards.</p>
+        <p>© 2026 SHAF STORE Electronics. Inspired by Best Buy Storefront Standards.</p>
         <p class="text-[11px] text-stone-400">Official Best Buy Design System Integration</p>
       </div>
     </footer>

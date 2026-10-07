@@ -31,7 +31,7 @@ export interface QrisOptions {
 
 /** Bangun string QRIS dinamis (dengan nominal) untuk satu pesanan. */
 export function buildQrisPayload(opts: QrisOptions): string {
-  const name = (opts.merchantName ?? 'PARAGONKOM').slice(0, 25)
+  const name = (opts.merchantName ?? 'SHAF STORE').slice(0, 25)
   const city = (opts.merchantCity ?? 'JAKARTA').slice(0, 15)
   const amount = opts.amount.toFixed(2)
 

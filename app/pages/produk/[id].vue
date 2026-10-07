@@ -31,7 +31,7 @@ const soldOut = computed(() => (product.value?.current_stock ?? 0) <= 0)
 const chatLink = computed(() => `/chat?tanya=${encodeURIComponent(product.value ? `Apakah ${product.value.name} masih ada stok?` : '')}`)
 const topSpecs = computed(() => product.value ? keySpecs(product.value.specification) : [])
 
-const pageTitle = computed(() => product.value ? `${product.value.name}: Harga & Spesifikasi` : 'Produk: PARAGONKOM')
+const pageTitle = computed(() => product.value ? `${product.value.name}: Harga & Spesifikasi` : 'Produk: SHAF STORE')
 const canonicalUrl = computed(() => `${siteUrl}/produk/${id.value}`)
 /** OG absolut: URL eksternal dibiarkan apa adanya, path lokal diprefiks siteUrl. */
 const ogProductImage = computed(() => {
@@ -45,8 +45,8 @@ useSeoMeta({
   title: pageTitle,
   description: () => product.value
     ? `${product.value.name} (${product.value.category}) — ${formatIDR(finalPrice.value)}. Stok ${product.value.current_stock}; checkout langsung tanpa daftar akun.`
-    : 'Produk di katalog PARAGONKOM.',
-  ogTitle: () => product.value ? `${product.value.name} — ${formatIDR(finalPrice.value)}` : 'PARAGONKOM',
+    : 'Produk di katalog SHAF STORE.',
+  ogTitle: () => product.value ? `${product.value.name} — ${formatIDR(finalPrice.value)}` : 'SHAF STORE',
   ogDescription: () => product.value ? `${product.value.name} (${product.value.category}). Stok ${product.value.current_stock}, checkout langsung.` : '',
   ogType: 'website',
   ogUrl: canonicalUrl,

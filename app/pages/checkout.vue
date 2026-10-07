@@ -27,9 +27,9 @@ const { data: product } = await useAsyncData(`checkout-${id.value}`, async () =>
 }, { default: () => null as ProductOut | null })
 
 useSeoMeta({
-  title: 'Checkout PARAGONKOM: Pesan Langsung & Bayar QRIS',
+  title: 'Checkout SHAF STORE: Pesan Langsung & Bayar QRIS',
   description: 'Checkout langsung tanpa daftar akun: pilih produk, tentukan ambil di toko atau diantar, bayar via QRIS.',
-  ogTitle: 'Checkout PARAGONKOM: Pesan Langsung & Bayar QRIS',
+  ogTitle: 'Checkout SHAF STORE: Pesan Langsung & Bayar QRIS',
   ogDescription: 'Checkout langsung tanpa daftar akun, bayar via QRIS.',
   ogType: 'website',
   ogUrl: `${siteUrl}/checkout`,

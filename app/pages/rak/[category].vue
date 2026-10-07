@@ -37,9 +37,9 @@ watch(q, () => {
 const pageTitle = computed(() => `${category.value}: Harga & Stok`)
 useSeoMeta({
   title: pageTitle,
-  description: () => `Daftar ${category.value} di PARAGONKOM: harga, promo, dan stok terbaru. Pesan lewat chat tanpa daftar akun.`,
+  description: () => `Daftar ${category.value} di SHAF STORE: harga, promo, dan stok terbaru. Pesan lewat chat tanpa daftar akun.`,
   ogTitle: pageTitle,
-  ogDescription: () => `${category.value} di PARAGONKOM — harga jelas, pesan lewat chat.`,
+  ogDescription: () => `${category.value} di SHAF STORE — harga jelas, pesan lewat chat.`,
   ogType: 'website',
   ogUrl: () => `${siteUrl}${categoryPath.value}`,
   ogLocale: 'id_ID',

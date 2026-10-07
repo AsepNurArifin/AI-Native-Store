@@ -7,7 +7,7 @@ const is404 = computed(() => props.error.statusCode === 404)
 /** Detail teknis ditampilkan apa adanya; pesan utama tetap berbahasa manusia. */
 const detail = computed(() => props.error.message || 'Tidak ada detail tambahan.')
 
-useHead({ title: computed(() => `Kesalahan ${props.error.statusCode} · PARAGONKOM`) })
+useHead({ title: computed(() => `Kesalahan ${props.error.statusCode} · SHAF STORE`) })
 
 function goHome() {
   clearError({ redirect: '/' })

@@ -1,0 +1,245 @@
+Total messages: 66 (Errors: 42, Warnings: 20)
+Returning 42 messages for level "error"
+
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/184ae178-649d-416d-a6ff-a4063d3f2d96/_payload.json?_b=1791372584281:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/6078ad17-7168-4403-928d-0665f971b8a4/_payload.json?_b=1791372584281:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/1afc84a9-38ef-4816-ab30-ead257c7079b/_payload.json?_b=1791372584780:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/2e27b3b2-37b9-4a88-8501-cb6b8f023429/_payload.json?_b=1791372584780:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/184ae178-649d-416d-a6ff-a4063d3f2d96/_payload.json?_b=1791372584781:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/6078ad17-7168-4403-928d-0665f971b8a4/_payload.json?_b=1791372584781:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/1afc84a9-38ef-4816-ab30-ead257c7079b/_payload.json?_b=1791372584865:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/2e27b3b2-37b9-4a88-8501-cb6b8f023429/_payload.json?_b=1791372584865:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/184ae178-649d-416d-a6ff-a4063d3f2d96/_payload.json?_b=1791372584865:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/6078ad17-7168-4403-928d-0665f971b8a4/_payload.json?_b=1791372584865:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/a115615f-af17-41fb-bdce-d08f4586c779/_payload.json?_b=1791372584928:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/253e7c16-ad15-4ae0-95c7-357ff077c237/_payload.json?_b=1791372584928:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/132ad7dc-df9e-4c95-9b05-303e59d06a64/_payload.json?_b=1791372584928:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/d9e39ee7-6143-49ae-9934-ae45782a3352/_payload.json?_b=1791372584928:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/error-stack-parser-es/dist/lite.mjs?v=d9e8b2f6:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/rak/Smartphone/_payload.json?_b=1791372583666:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/2e27b3b2-37b9-4a88-8501-cb6b8f023429/_payload.json?_b=1791372584281:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/rak/Tablet/_payload.json?_b=1791372583666:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/produk/1afc84a9-38ef-4816-ab30-ead257c7079b/_payload.json?_b=1791372584281:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/rak/Wearable/_payload.json?_b=1791372583666:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/rak/Laptop/_payload.json?_b=1791372583666:0
+[ERROR] [vite] SendBeforeConnectError: send was called before connect
+    at Object.send (http://localhost:3000/_nuxt/@vite/client:389:16)
+    at HMRClient.send (http://localhost:3000/_nuxt/@vite/client:152:18)
+    at HMRContext.send (http://localhost:3000/_nuxt/@vite/client:114:18)
+    at http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics_reporters_dev.js?v=d9e8b2f6:11:86
+    at Object.handle [as NUXT_E7002] (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/.cache/vite/client/deps/nostics.js?v=d9e8b2f6:134:38)
+    at _importPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:103:20)
+    at async loadPayload (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/composables/payload.js?v=d9e8b2f6:16:43)
+    at async Array.<anonymous> (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/plugins/payload.client.js?v=d9e8b2f6:41:21)
+    at async Promise.all (index 0)
+    at async prefetch (http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/nuxt/dist/app/components/nuxt-link.js?v=d9e8b2f6:223:5) @ http://localhost:3000/_nuxt/@vite/client:935
+Failed to fetch dynamically imported module: http://localhost:3000/_nuxt/@fs/C:/Users/Arifi/Desktop/capstone/node_modules/@nuxt/devtools/dist/runtime/plugins/view/client.js?v=d9e8b2f6

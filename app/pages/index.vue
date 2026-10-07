@@ -16,16 +16,16 @@ const ogImage = `${siteUrl}/og-image.png`
 const route = useRoute()
 
 useSeoMeta({
-  title: 'PARAGONKOM: Toko Elektronik HP, Laptop & Aksesoris',
+  title: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
   description: 'Katalog HP, laptop, tablet & aksesoris dengan harga jelas. Chat untuk cek stok; checkout langsung tanpa daftar akun.',
-  ogTitle: 'PARAGONKOM: Toko Elektronik HP, Laptop & Aksesoris',
+  ogTitle: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
   ogDescription: 'Katalog gadget dengan harga jelas; checkout langsung tanpa daftar akun.',
   ogType: 'website',
   ogUrl: siteUrl,
   ogImage,
   ogLocale: 'id_ID',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'PARAGONKOM: Toko Elektronik HP, Laptop & Aksesoris',
+  twitterTitle: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
   twitterImage: ogImage
 })
 useHead({ link: [{ rel: 'canonical', href: siteUrl }] })
@@ -113,7 +113,7 @@ useHead({
   script: [{
     type: 'application/ld+json',
     innerHTML: JSON.stringify({
-      '@context': 'https://schema.org', '@type': 'Store', name: 'PARAGONKOM',
+      '@context': 'https://schema.org', '@type': 'Store', name: 'SHAF STORE',
       description: 'Toko elektronik HP, laptop, tablet & aksesoris.',
       url: siteUrl, image: ogImage, inLanguage: 'id',
       potentialAction: {
@@ -393,7 +393,7 @@ useHead({
       <div class="mx-auto max-w-2xl rounded-3xl border-2 border-dashed border-stone-300 bg-white p-6 sm:p-8 shadow-2xs">
         <div class="flex items-baseline justify-between border-b border-stone-200 pb-3">
           <h2 class="font-display text-lg font-black tracking-tight text-stone-900">PANDUAN LENGKAP BELANJA</h2>
-          <span class="text-xs font-mono font-bold text-brand-700">PARAGONKOM NOTA</span>
+          <span class="text-xs font-mono font-bold text-brand-700">SHAF STORE NOTA</span>
         </div>
         <ol class="mt-5 space-y-4 text-sm leading-relaxed">
           <li class="flex gap-4">

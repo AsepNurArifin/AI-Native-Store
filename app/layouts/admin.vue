@@ -5,14 +5,11 @@
       <!-- Sidebar Desktop: sticky (statis) — tidak ikut ter-scroll saat body data di-scroll -->
       <aside class="hidden w-64 shrink-0 flex-col border-r border-stone-200/80 bg-sidebar md:sticky md:top-0 md:h-screen md:self-start md:flex">
         <div class="flex h-16 items-center gap-3 border-b border-white/10 px-5">
-          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
-              <path d="M8.5 8.5v.01" /><path d="M11.5 11.5v.01" /><path d="M15.5 8.5v.01" />
-            </svg>
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
+            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
           </div>
           <div>
-            <span class="font-display text-sm font-bold tracking-tight text-white">PARAGON<span class="text-sidebar-primary">KOM</span></span>
+            <span class="font-display text-sm font-bold tracking-tight text-white">SHAF <span class="text-sidebar-primary">STORE</span></span>
             <p class="text-[11px] font-medium text-white/60">Panel pemilik toko</p>
           </div>
         </div>
@@ -68,14 +65,11 @@
       >
         <div class="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
-                <path d="M8.5 8.5v.01" /><path d="M11.5 11.5v.01" /><path d="M15.5 8.5v.01" />
-              </svg>
+            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
             </div>
             <div>
-              <span class="font-display text-sm font-bold tracking-tight text-white">PARAGON<span class="text-sidebar-primary">KOM</span></span>
+              <span class="font-display text-sm font-bold tracking-tight text-white">SHAF <span class="text-sidebar-primary">STORE</span></span>
               <p class="text-[11px] font-medium text-white/60">Panel pemilik toko</p>
             </div>
           </div>
@@ -125,8 +119,10 @@
         <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-stone-200/80 bg-white/80 px-4 sm:px-6 backdrop-blur-md">
           <div class="flex items-center gap-3">
             <NuxtLink to="/" class="md:hidden flex items-center gap-2 font-display font-bold text-sm">
-              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-700 text-white text-xs">PK</div>
-              <span>PARAGONKOM</span>
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-white p-0.5">
+                <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" />
+              </div>
+              <span>SHAF STORE</span>
             </NuxtLink>
             <div class="hidden md:flex items-center gap-2 text-xs text-stone-500">
               <span>Admin Portal</span>
