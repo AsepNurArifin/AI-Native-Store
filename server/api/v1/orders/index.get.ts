@@ -1,12 +1,15 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { orderItems, orders } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { ensureSeeded, num } from '../../../utils/business'
+import { ensureSeeded, expireStaleOrders, num } from '../../../utils/business'
 
 export default defineEventHandler(async (event) => {
   await requireOwner(event)
   const db = getDb()
   await ensureSeeded(db)
+  // Lazy expiry: order UNPAID yang lewat TTL dibatalkan + stok dikembalikan
+  // sebelum halaman ini dilayani (butuh cron di serverless).
+  await expireStaleOrders(db)
   const q = getQuery(event)
   const page = Math.max(1, Number(q.page || 1))
   const pageSize = Math.min(100, Number(q.page_size || 20))
@@ -15,6 +18,7 @@ export default defineEventHandler(async (event) => {
   const conds = []
   if (q.status) conds.push(eq(orders.status, String(q.status)))
   if (q.channel) conds.push(eq(orders.channelOrigin, String(q.channel)))
+  if (q.payment_status) conds.push(eq(orders.paymentStatus, String(q.payment_status)))
   const slice = await db.select().from(orders)
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(orders.createdAt))
@@ -36,6 +40,9 @@ export default defineEventHandler(async (event) => {
 
   return slice.map(o => ({
     id: String(o.id), customer_id: String(o.customerId), status: o.status,
+    payment_status: o.paymentStatus,
+    paid_at: o.paidAt ? (o.paidAt as Date).toISOString() : null,
+    expires_at: o.expiresAt ? (o.expiresAt as Date).toISOString() : null,
     conversation_id: o.conversationId ? String(o.conversationId) : null,
     channel_origin: o.channelOrigin, total_amount: num(o.totalAmount),
     promotion_snapshot: o.promotionSnapshot || null, fulfillment: o.fulfillment || null,

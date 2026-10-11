@@ -15,6 +15,8 @@ export function serverConfig() {
     stockoutRiskDays: Number(c.stockoutRiskDays ?? process.env.STOCKOUT_RISK_DAYS ?? 7),
     maxDiscountPercent: Number(c.maxDiscountPercent ?? process.env.MAX_DISCOUNT_PERCENT ?? 50),
     idempotencyTtlMinutes: Number(c.idempotencyTtlMinutes ?? process.env.IDEMPOTENCY_TTL_MINUTES ?? 30),
+    /** TTL order UNPAID sebelum auto-expire (menahan stok). Default 120 menit. */
+    orderTtlMinutes: Number(c.orderTtlMinutes ?? process.env.ORDER_TTL_MINUTES ?? 120),
     llmProvider: (c.llmProvider as string) || process.env.LLM_PROVIDER || 'mock',
     llmApiKey: (c.llmApiKey as string) || process.env.LLM_API_KEY || '',
     groqApiKey: (c.groqApiKey as string) || process.env.GROQ_API_KEY || '',
@@ -36,12 +38,25 @@ export function serverConfig() {
   }
 }
 
+/** True kalau aplikasi dianggap produksi (fail-closed: NODE_ENV ikut dicek). */
+export function isProduction(cfg: ReturnType<typeof serverConfig>): boolean {
+  return cfg.appEnv === 'production' || process.env.NODE_ENV === 'production'
+}
+
+/**
+ * Guard wajibnya environment produksi. Dijalankan dari server/plugins/00-assert-production.ts.
+ * PERBAIKAN: semula `TELEGRAM_PROVIDER=mock` hanya ditolak kalau token ikut
+ * ter-set, sehingga mock tanpa token lolos dan webhook terbuka tanpa secret.
+ */
 export function assertProductionSafe(cfg: ReturnType<typeof serverConfig>) {
-  if (cfg.appEnv !== 'production') return
+  if (!isProduction(cfg)) return
   if (!cfg.jwtSecret || cfg.jwtSecret.includes('change-me') || cfg.jwtSecret.length < 32)
     throw new Error('JWT_SECRET_KEY wajib non-default (>=32 char) di production')
   if (cfg.debug) throw new Error('DEBUG wajib false di production')
   if (cfg.seedOnStartup) throw new Error('SEED_ON_STARTUP wajib false di production')
   if (cfg.llmProvider === 'mock') throw new Error('LLM_PROVIDER=mock tidak boleh di production')
-  if (cfg.telegramProvider === 'mock' && cfg.telegramBotToken) throw new Error('TELEGRAM_PROVIDER tidak konsisten di production')
+  // Mock apa pun = jebakan: verifyTelegramSecret() fail-closed saat mock sehingga
+  // webhook 401 total. Tolak di boot lebih baik daripada diam-diam lumpuh.
+  if (cfg.telegramProvider === 'mock')
+    throw new Error('TELEGRAM_PROVIDER=mock tidak boleh di production (webhook jadi 401 total)')
 }

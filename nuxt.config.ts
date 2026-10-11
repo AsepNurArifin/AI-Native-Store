@@ -14,12 +14,14 @@ export default defineNuxtConfig({
   },
 
   // Halaman internal tidak perlu diindeks mesin pencari
-  // (X-Robots-Tag: noindex; /admin juga dicakup karena ** di Nitro tidak
-  // memMatch path persisnya).
+  // (X-Robots-Tag: noindex via headers; /admin juga tercakup karena ** di Nitro
+  // tidak memMatch path persisnya).
   routeRules: {
-    '/admin': { robots: false },
-    '/admin/**': { robots: false },
-    '/login': { robots: false },
+    // `robots: false` bukan properti yang sah di routeRules Nitro (TS2353).
+    // Set header X-Robots-Tag eksplisit — inilah yang dibaca mesin pencari.
+    '/admin': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/admin/**': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/login': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
 
     // SWR cache edge 60 detik — HANYA rute yang outputnya murni dari path.
     // PENTING: cache key di Vercel mengabaikan query string. JANGAN pasang di
@@ -80,7 +82,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     // Private (server-only, tidak ikut ke bundle browser):
-    appEnv: process.env.APP_ENV || 'development',
+    appEnv: process.env.APP_ENV || process.env.NODE_ENV || 'development',
     debug: process.env.DEBUG || 'true',
     databaseUrl: process.env.DATABASE_URL || '',
     jwtSecret: process.env.JWT_SECRET_KEY || 'change-me-64-char-random-secret',
@@ -92,6 +94,7 @@ export default defineNuxtConfig({
     stockoutRiskDays: process.env.STOCKOUT_RISK_DAYS || '7',
     maxDiscountPercent: process.env.MAX_DISCOUNT_PERCENT || '50',
     idempotencyTtlMinutes: process.env.IDEMPOTENCY_TTL_MINUTES || '30',
+    orderTtlMinutes: process.env.ORDER_TTL_MINUTES || '120',
     llmProvider: process.env.LLM_PROVIDER || 'mock',
     llmApiKey: process.env.LLM_API_KEY || '',
     groqApiKey: process.env.GROQ_API_KEY || '',

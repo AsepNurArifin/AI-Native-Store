@@ -2,9 +2,10 @@ import { eq } from 'drizzle-orm'
 import { aiActions, approvals, products, promotions } from '../../../../database/schema'
 import { requireOwner } from '../../../../utils/auth'
 import { checkOverlap, currentStock, ensureSeeded, logAudit, recordTx } from '../../../../utils/business'
-import { isUuid } from '../../../../utils/errors'
+import { firstRow, isUuid } from '../../../../utils/errors'
+import type { DbLike } from '../../../../utils/db'
 
-async function validateCreatePromotion(db: ReturnType<typeof getDb>, payload: Record<string, unknown>): Promise<string[]> {
+async function validateCreatePromotion(db: DbLike, payload: Record<string, unknown>): Promise<string[]> {
   const fails: string[] = []
   const pid = String(payload.product_id || '')
   if (!isUuid(pid)) return ['PRODUCT_NOT_FOUND']
@@ -29,7 +30,8 @@ export default defineEventHandler(async (event) => {
   if (!isUuid(id)) throw createError({ statusCode: 404, message: 'AI Action tidak ditemukan', data: { detail: 'AI Action tidak ditemukan' } })
 
   return await db.transaction(async (tx) => {
-    const tdb = tx as unknown as ReturnType<typeof getDb>
+    // `tx` langsung dipakai — DbLike menerima DB maupun transaction (lihat utils/db.ts).
+    const tdb = tx
     const rows = await tdb.select().from(aiActions).where(eq(aiActions.id, id as never)).limit(1)
     const a = rows[0]
     if (!a) throw createError({ statusCode: 404, message: 'AI Action tidak ditemukan', data: { detail: 'AI Action tidak ditemukan' } })
@@ -56,7 +58,7 @@ export default defineEventHandler(async (event) => {
         endDate: new Date(String(payload.end_date)) as never,
         status: 'ACTIVE'
       }).returning({ id: promotions.id })
-      const targetId = String(ins[0].id)
+      const targetId = String(firstRow(ins, 'insert promo dari AI action').id)
       await tdb.update(aiActions).set({ status: 'EXECUTED', executedAt: new Date() as never, resultTargetId: targetId }).where(eq(aiActions.id, id as never))
       await logAudit(tdb, 'EXECUTED', 'USER', { actorId: owner.id, aiActionId: id, detail: { result_target_id: targetId } })
       return { ai_action_id: id, status: 'EXECUTED', result_target_id: targetId, validation_failures: null }

@@ -5,7 +5,7 @@
       <section class="enter flex flex-col justify-between gap-10 bg-bby-dark px-6 py-8 text-white md:px-12 md:py-10">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
-            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
+            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
           </div>
           <div>
             <span class="font-display text-lg font-bold tracking-tight text-white">SHAF <span class="text-bby-yellow">STORE</span></span>

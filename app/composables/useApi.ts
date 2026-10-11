@@ -48,12 +48,14 @@ export function useApi() {
     const needAuth = opts.auth !== false
     if (needAuth && auth.token) headers.Authorization = `Bearer ${auth.token}`
     try {
-      return await $fetch<T>(`${base}${path}`, {
+      // $fetch mengembalikan tipe response terinferens, bukan T langsung.
+      // Cast lewat `as T` karena pemanggil sudah menyatakan T lewat generic.
+      return await $fetch(`${base}${path}`, {
         method: opts.method || 'GET',
         body: opts.body as never,
         query: opts.query as never,
         headers
-      })
+      }) as T
     }
     catch (e: unknown) {
       const parsed = toApiError(e)

@@ -53,6 +53,11 @@ export interface OrderOut {
   id: string
   customer_id: string
   status: string
+  /** UNPAID = stok di-reserve s/d expires_at; PAID = sudah dibayar kasir (migrasi 0004). */
+  payment_status: 'UNPAID' | 'PAID' | string
+  paid_at: string | null
+  /** Deadline pembayaran; lewat = order auto-CANCELLED dan stok kembali. */
+  expires_at: string | null
   conversation_id: string | null
   channel_origin: string
   total_amount: number

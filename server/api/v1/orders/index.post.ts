@@ -1,5 +1,9 @@
 import { createOrderFromSummary, ensureSeeded } from '../../../utils/business'
 import { OrderError, toOrderHttpCode, isUuid } from '../../../utils/errors'
+import { webIdentity } from '../../../utils/identity'
+
+/** Batas kolom idempotency_keys.key = VARCHAR(64). */
+const MAX_KEY_LEN = 64
 
 /**
  * Checkout langsung (tanpa chat/AI): items -> order -> QRIS.
@@ -23,24 +27,34 @@ export default defineEventHandler(async (event) => {
   if (!items.length || items.length > 50) invalid('items wajib 1-50')
   // Idempotency key wajib dari client (UC-02 E5): retry dengan key yang sama
   // tidak boleh membuat order ganda. Fallback random sengaja DIHAPUS.
-  if (!body?.idempotency_key?.trim()) {
+  // PERBAIKAN: panjang juga dibatasi — kolom DB VARCHAR(64); key > 64 char
+  // sebelumnya memicu error Postgres 22001 -> HTTP 500.
+  const idempotencyKey = String(body?.idempotency_key || '').trim()
+  if (!idempotencyKey) {
     const msg = 'idempotency_key wajib — kirim ulang key yang sama bila retry.'
     throw createError({ statusCode: 422, message: msg, data: { detail: { code: 'IDEMPOTENCY_KEY_REQUIRED', message: msg } } })
+  }
+  if (idempotencyKey.length > MAX_KEY_LEN) {
+    const msg = `idempotency_key maksimal ${MAX_KEY_LEN} karakter.`
+    throw createError({ statusCode: 422, message: msg, data: { detail: { code: 'VALIDATION', message: msg } } })
   }
   for (const it of items) {
     if (!isUuid(it.product_id)) invalid(`Produk ${it.product_id} tidak ditemukan.`)
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) invalid('Quantity harus bilangan bulat positif.')
   }
 
+  // PERBAIKAN: identitas guest tidak lagi 'Tamu|guest' (semua pembeli anonim
+  // menyatu ke satu customer). Session id diterbitkan server via cookie.
+  const web = webIdentity(event)
   const name = body?.customer?.name?.trim() || 'Tamu'
-  const contact = body?.customer?.contact?.trim() || 'guest'
+  const contact = body?.customer?.contact?.trim() || null
   try {
     const { order, replayed } = await createOrderFromSummary(db, {
       conversationId: null,
       channel: 'WEB',
-      customerIdentity: { channel: 'WEB', identifier: `${name}|${contact}`, name, contact },
+      customerIdentity: { channel: 'WEB', identifier: web.identifier, name, contact },
       items,
-      idempotencyKey: body!.idempotency_key!.trim(),
+      idempotencyKey,
       fulfillment: body?.fulfillment || null
     })
     return {

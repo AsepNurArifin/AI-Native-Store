@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { promotions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { checkOverlap, effectiveStatus, ensureSeeded, logAudit, num, refreshPromotionExpiry } from '../../../utils/business'
+import { firstRow } from '../../../utils/errors'
 
 /** Status yang boleh di-set manual user. EXPIRED/SCHEDULED diturunkan effectiveStatus;
  *  REJECTED hanya via reject AI-action; sisanya via refreshPromotionExpiry. */
@@ -57,10 +58,11 @@ export default defineEventHandler(async (event) => {
     productId: body.product_id as never, discountPercentage: String(body.discount_percentage) as never,
     startDate: start as never, endDate: end as never, status
   }).returning()
+  const created = firstRow(ins, 'insert promo')
   await logAudit(db, 'PROMO_CREATED', 'USER', {
     actorId: owner.id,
-    detail: { promotion_id: String(ins[0].id), product_id: body.product_id, discount_percentage: body.discount_percentage, status }
+    detail: { promotion_id: String(created.id), product_id: body.product_id, discount_percentage: body.discount_percentage, status }
   })
   setResponseStatus(event, 201)
-  return out(ins[0])
+  return out(created)
 })

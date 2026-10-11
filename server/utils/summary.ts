@@ -66,6 +66,15 @@ export async function getForConversation(db: ReturnType<typeof getDb>, convId: s
   return row ? { ...(row.payload as unknown as OrderSummary), conversation_id: String(row.conversationId), channel: row.channel } : null
 }
 
-export async function popForConversation(db: ReturnType<typeof getDb>, convId: string) {
+/**
+ * Buang ringkasan milik sebuah percakapan.
+ * `ref` opsional — kalau diisi, hanya baris itu yang dihapus (dipakai setelah
+ * konfirmasi sukses). Tanpa ref, semua ringkasan percakapan dibersihkan.
+ */
+export async function popForConversation(db: ReturnType<typeof getDb>, convId: string, ref?: string) {
+  if (ref) {
+    await db.delete(orderSummaries).where(and(eq(orderSummaries.conversationId, convId as never), eq(orderSummaries.summaryRef, ref)))
+    return
+  }
   await db.delete(orderSummaries).where(eq(orderSummaries.conversationId, convId as never))
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ShieldCheck, Truck, QrCode, MessageCircle, Store, Flame, ChevronRight, Zap } from '@lucide/vue'
+import { Truck, QrCode, MessageCircle, ChevronRight, Zap } from '@lucide/vue'
 
 const config = useRuntimeConfig()
 const base = (config.public.apiBase as string) || '/api/v1'
@@ -58,7 +58,7 @@ function goSearch(q: string) {
           <!-- Logo SHAF STORE Best Buy Styled -->
           <NuxtLink to="/" class="group flex shrink-0 items-center gap-2.5">
             <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-md transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11">
-              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
             </div>
             <div class="min-w-0">
               <div class="whitespace-nowrap font-display text-lg font-black tracking-tight text-white sm:text-2xl">
@@ -148,7 +148,7 @@ function goSearch(q: string) {
         <div class="space-y-3">
           <div class="flex items-center gap-2.5 font-display text-lg font-black text-white">
             <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-white p-0.5">
-              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" />
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" >
             </div>
             SHAF STORE
           </div>

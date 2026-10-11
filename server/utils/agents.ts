@@ -1,16 +1,26 @@
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { desc, eq, inArray, sql } from 'drizzle-orm'
 import {
-  conversationMessages, conversations, conversations as convTable, customers,
-  inventoryTransactions, orderItems, orders, products, promotions
+  conversationMessages, conversations as convTable,
+  orderItems, orders, products
 } from '../database/schema'
-import { ACTION_TOOLS, ANALYST_TOOLS, ANALYST_SYSTEM, PRODUCT_TOOLS, SALES_SYSTEM, actionSystem, llmComplete } from './llm'
-import { activePromotionFor, currentStock, ensureSeeded, num, stockSummary, withStock } from './business'
+import { ACTION_TOOLS, ANALYST_SYSTEM, PRODUCT_TOOLS, SALES_SYSTEM, actionSystem, llmComplete } from './llm'
+import { activePromotionFor, activePromosFor, catalogOut, currentStock, ensureSeeded, num, stocksFor, withStock } from './business'
 import { putSummary, putForConversation, getForConversation, type OrderSummary } from './summary'
+import { firstRow } from './errors'
 import { quoteLine, quoteTotal } from '../../shared/utils/pricing'
 
-/** Order yang dihitung analitik (bukan CANCELLED) — definisi dipakai semua tool. */
-const isCountableOrder = (o: { status: string }) => o.status === 'CONFIRMED' || o.status === 'COMPLETED'
+/**
+ * Order yang dihitung analitik.
+ *
+ * PERBAIKAN (migrasi 0004): dulu `CONFIRMED || COMPLETED`, sehingga order yang
+ * BELUM dibayar ikut terhitung sebagai pendapatan — padahal QRIS hanya simulasi
+ * dan tidak ada payment gateway. Sekarang wajib paymentStatus='PAID' (dan belum
+ * CANCELLED). Order UNPAID yang lewat TTL di-cancel oleh expireStaleOrders() yang
+ * dipanggil endpoint baca, jadi tidak pernah dihitung revenue.
+ */
+const isCountableOrder = (o: { status: string, paymentStatus?: string | null }) =>
+  (o.paymentStatus ?? 'UNPAID') === 'PAID' && (o.status === 'CONFIRMED' || o.status === 'COMPLETED')
 
 /** Key minggu ISO = tanggal Senin minggu tersebut (YYYY-MM-DD). */
 function weekKey(d: Date): string {
@@ -35,17 +45,13 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
       rows = rows.filter(r => r.name.toLowerCase().includes(needle) || JSON.stringify(r.specification).toLowerCase().includes(needle))
     }
     if (budgetMax) rows = rows.filter(r => num(r.price) <= budgetMax)
-    if (args.stock_only) {
-      const kept = []
-      for (const r of rows) {
-        const s = await currentStock(db, String(r.id))
-        if (s > 0) kept.push(r)
-      }
-      rows = kept
-    }
-    const out = []
-    for (const r of rows.slice(0, limit)) out.push(await withStock(db, r, lowDefault))
-    return out
+    // PERBAIKAN N+1: stok + promo untuk semua kandidat diambil batch (2 query),
+    // sebelumnya 1 query stok per produk saat stock_only + 2 query per baris
+    // lewat withStock(). Pakai catalogOut() langsung agar tidak query ulang.
+    const ids = rows.map(r => String(r.id))
+    const [stocks, promos] = await Promise.all([stocksFor(db, ids), activePromosFor(db, ids)])
+    if (args.stock_only) rows = rows.filter(r => (stocks.get(String(r.id)) ?? 0) > 0)
+    return rows.slice(0, limit).map(r => catalogOut(r, stocks.get(String(r.id)) ?? 0, lowDefault, promos.get(String(r.id)) ?? null))
   }
   if (name === 'get_product') {
     const id = String(args.product_id || '')
@@ -121,10 +127,31 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
       const c = new Date(o.createdAt as unknown as string)
       return c >= from && c < to && isCountableOrder(o)
     })
+    // PERBAIKAN N+1: sebelumnya 1 query order_items per order + 1 query products
+    // per item (O(orders x items)). Sekarang batch: semua item dalam 1 query,
+    // semua nama produk dalam 1 query.
+    const itemsByOrder = new Map<string, Array<typeof orderItems.$inferSelect>>()
+    if (inRange.length) {
+      const rows = await db.select().from(orderItems)
+        .where(inArray(orderItems.orderId, inRange.map(o => o.id) as never))
+      for (const it of rows) {
+        const k = String(it.orderId)
+        const arr = itemsByOrder.get(k) ?? []
+        arr.push(it)
+        itemsByOrder.set(k, arr)
+      }
+    }
+    const productIds = [...new Set([...itemsByOrder.values()].flat().map(i => String(i.productId)))]
+    const nameById = new Map<string, string>()
+    if (productIds.length) {
+      const prows = await db.select({ id: products.id, name: products.name }).from(products)
+        .where(inArray(products.id, productIds as never))
+      for (const pr of prows) nameById.set(String(pr.id), String(pr.name))
+    }
     const agg = new Map<string, { units: number, revenue: number }>()
     const names: Record<string, string> = {}
     for (const o of inRange) {
-      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id))
+      const items = itemsByOrder.get(String(o.id)) ?? []
       for (const it of items) {
         let key = String(it.productId)
         if (groupBy === 'day' || groupBy === 'week' || groupBy === 'month') {
@@ -137,8 +164,8 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
         cur.revenue += num(it.lineTotal)
         agg.set(key, cur)
         if (groupBy === 'product' && !names[key]) {
-          const pr = await db.select().from(products).where(eq(products.id, it.productId)).limit(1)
-          if (pr[0]) names[key] = pr[0].name
+          const nm = nameById.get(key)
+          if (nm) names[key] = nm
         }
       }
     }
@@ -156,8 +183,11 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     const list = (txs as unknown as Array<{ product_id: string, quantity: number }>) ?? (txs as unknown as { rows?: Array<{ product_id: string, quantity: number }> })?.rows ?? []
     for (const t of list) sold.set(String(t.product_id), (sold.get(String(t.product_id)) || 0) + Number(t.quantity))
     const out = []
+    // PERBAIKAN N+1: stok semua produk dalam 1 query (view v_product_stock),
+    // sebelumnya 1 query per produk di dalam loop.
+    const stocks = await stocksFor(db, all.map(p => String(p.id)))
     for (const p of all) {
-      const stock = await currentStock(db, String(p.id))
+      const stock = stocks.get(String(p.id)) ?? 0
       const avg = (sold.get(String(p.id)) || 0) / 30
       const est = avg > 0 ? stock / avg : Number.POSITIVE_INFINITY
       out.push({
@@ -203,7 +233,7 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
 function extractBudget(text: string): number | null {
   const m = text.replace(/\./g, '').match(/(\d[\d\s]*)\s*(juta|jt|m|ribu|rb|k)?/i)
   if (!m) return null
-  let n = Number(m[1].replace(/\s/g, ''))
+  let n = Number((m[1] ?? '').replace(/\s/g, ''))
   const unit = (m[2] || '').toLowerCase()
   if (unit.startsWith('juta') || unit === 'jt' || unit === 'm') n *= 1_000_000
   else if (unit.startsWith('ribu') || unit === 'rb' || unit === 'k') n *= 1000
@@ -364,8 +394,10 @@ export async function analystAsk(db: ReturnType<typeof getDb>, question: string)
   await ensureSeeded(db)
   const provider = String(useRuntimeConfig().llmProvider || 'mock')
   const q = question.toLowerCase()
-  let data: unknown = null
-  let queryUsed: string | null = null
+  // Tanpa initializer: ketiga cabang if/else-if/else pasti mengisinya,
+  // jadi nilai awal `null` hanya dead assignment.
+  let data: unknown
+  let queryUsed: string
   let disclaimer: string | null = null
   if (/channel|kanal|web|telegram|whatsapp/.test(q)) {
     data = await toolCall(db, 'channel_distribution', {})
@@ -451,7 +483,7 @@ export async function actionCreateDraft(db: ReturnType<typeof getDb>, instructio
     const found = all.find(p => t.includes(p.name.toLowerCase().split(' ').slice(0, 2).join(' ')) || t.includes(p.name.toLowerCase()))
       || all.find(p => instruction.split(/\s+/).some(w => w.length > 3 && p.name.toLowerCase().includes(w.toLowerCase())))
     if (/diskon|promo|promosi/.test(t) && discMatch && found) {
-      const pct = Number(discMatch[1].replace(',', '.'))
+      const pct = Number((discMatch[1] ?? '0').replace(',', '.'))
       const now = new Date()
       const end = new Date(now.getTime() + 14 * 864e5)
       draft = { action_type: 'CREATE_PROMOTION', payload: { product_id: String(found.id), discount_percentage: pct, start_date: now.toISOString(), end_date: end.toISOString() } }
@@ -483,8 +515,9 @@ export async function actionCreateDraft(db: ReturnType<typeof getDb>, instructio
     payload = { ...payload, product_id: resolved }
   }
   const ins = await db.insert(aiActions).values({ actionType, payload: payload as never, status: 'DRAFT', requestedBy: requestedBy as never }).returning()
-  await logAudit(db, 'CREATED', 'AI_SYSTEM', { aiActionId: String(ins[0].id), detail: { action_type: actionType } })
-  return ins[0]
+  const action = firstRow(ins, 'insert ai action')
+  await logAudit(db, 'CREATED', 'AI_SYSTEM', { aiActionId: String(action.id), detail: { action_type: actionType } })
+  return action
 }
 
 function isUuid(v: unknown): boolean {

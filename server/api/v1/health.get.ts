@@ -16,7 +16,7 @@ export default defineEventHandler(async () => {
       scheduler: 'nitro-lazy'
     }
   }
-  catch (e) {
+  catch {
     throw createError({ statusCode: 503, message: 'degraded', data: { detail: 'degraded' } })
   }
 })

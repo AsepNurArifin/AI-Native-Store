@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { aiActions, approvals } from '../../../../database/schema'
 import { requireOwner } from '../../../../utils/auth'
 import { ensureSeeded, logAudit } from '../../../../utils/business'
-import { isUuid } from '../../../../utils/errors'
+import { firstRow, isUuid } from '../../../../utils/errors'
 
 export default defineEventHandler(async (event) => {
   const owner = await requireOwner(event)
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   await db.update(aiActions).set({ status: 'REJECTED', decidedAt: new Date() as never }).where(eq(aiActions.id, id as never))
   await db.insert(approvals).values({ aiActionId: id as never, actorId: owner.id as never, decision: 'REJECTED', note: body?.note || null })
   await logAudit(db, 'REJECTED', 'USER', { actorId: owner.id, aiActionId: id, detail: { note: body?.note || null } })
-  const fresh = (await db.select().from(aiActions).where(eq(aiActions.id, id as never)).limit(1))[0]
+  const fresh = firstRow(await db.select().from(aiActions).where(eq(aiActions.id, id as never)).limit(1), 'ai-action setelah reject')
   return {
     id: String(fresh.id), action_type: fresh.actionType, payload: fresh.payload, status: fresh.status,
     requested_by: String(fresh.requestedBy), created_at: (fresh.createdAt as Date).toISOString(),

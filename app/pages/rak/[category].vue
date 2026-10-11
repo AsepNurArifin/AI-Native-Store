@@ -92,11 +92,11 @@ const loadError = computed(() => fetchError.value ? 'Rak tidak bisa dimuat sekar
           placeholder="Cari di rak ini…"
           aria-label="Cari di rak ini"
           class="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm placeholder:text-stone-500 focus:border-brand-500 focus:outline-2 focus:outline-brand-600"
-        />
+        >
       </div>
       <div class="flex items-center gap-2">
         <label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
-          <input v-model="promoOnly" type="checkbox" class="h-4 w-4 accent-brand-700" />
+          <input v-model="promoOnly" type="checkbox" class="h-4 w-4 accent-brand-700" >
           Promo saja
         </label>
         <select v-model="sort" aria-label="Urutkan" class="h-10 rounded-lg border border-stone-300 bg-white px-2 text-xs font-medium text-stone-700">

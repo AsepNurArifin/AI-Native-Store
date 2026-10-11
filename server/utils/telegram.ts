@@ -1,15 +1,19 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { eq, sql } from 'drizzle-orm'
 import { conversationMessages, conversations, idempotencyKeys } from '../database/schema'
-import { ensureCustomer, ensureSeeded } from './business'
+import { createOrderFromSummary, ensureCustomer, ensureSeeded } from './business'
 import { getSummary, popForConversation, type OrderSummary } from './summary'
-import { createOrderFromSummary } from './business'
 import { salesHandleMessage } from './agents'
-import { OrderError } from './errors'
+import { OrderError, firstRow } from './errors'
 
 export function verifyTelegramSecret(header: string | undefined): boolean {
   const provider = String(useRuntimeConfig().telegramProvider || process.env.TELEGRAM_PROVIDER || 'mock')
-  if (provider === 'mock') return true
+  // PERBAIKAN (fail-closed): semula `return true` saat provider=mock, sehingga
+  // /api/v1/webhooks/telegram menerima POST dari siapa pun — termasuk menjalankan
+  // createOrderFromSummary (order sungguhan) lewat callback CONFIRM:<ref>.
+  // Mock sudah punya jalurnya sendiri (/api/v1/dev/mock-tg, DEBUG-gated) yang
+  // memanggil handleTelegramWebhook() langsung tanpa lewat secret check.
+  if (provider === 'mock') return false
   const secret = String(useRuntimeConfig().telegramWebhookSecret || process.env.TELEGRAM_WEBHOOK_SECRET || '')
   if (!secret || !header) return false
   try {
@@ -79,11 +83,11 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
 
   const customer = await ensureCustomer(db, 'TELEGRAM', parsed.chatId!, parsed.name || 'Telegram User', null)
   const open = await db.select().from(conversations).where(eq(conversations.customerId, customer.id as never))
-  let conv = open.filter(c => c.channel === 'TELEGRAM' && (c.outcome === 'OPEN' || !c.outcome)).sort((a, b) => +new Date(b.lastActivityAt as unknown as string) - +new Date(a.lastActivityAt as unknown as string))[0]
-  if (!conv) {
-    const ins = await db.insert(conversations).values({ customerId: customer.id, channel: 'TELEGRAM', outcome: 'OPEN' }).returning()
-    conv = ins[0]
-  }
+  const existingConv = open.filter(c => c.channel === 'TELEGRAM' && (c.outcome === 'OPEN' || !c.outcome)).sort((a, b) => +new Date(b.lastActivityAt as unknown as string) - +new Date(a.lastActivityAt as unknown as string))[0]
+  const conv = existingConv ?? firstRow(
+    await db.insert(conversations).values({ customerId: customer.id, channel: 'TELEGRAM', outcome: 'OPEN' }).returning(),
+    'insert percakapan telegram'
+  )
   const convId = String(conv.id)
 
   if (parsed.kind === 'cancel') {
@@ -100,7 +104,8 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
       return { status: 'ok', reply: 'expired' }
     }
     // Scoping: summary hanya bisa dikonfirmasi dari percakapan pemiliknya.
-    if (summary.conversation_id && summary.conversation_id !== convId) {
+    // PERBAIKAN: null dianggap tidak dimiliki (lihat chat/[id]/confirm.post.ts).
+    if (summary.conversation_id !== convId) {
       await sendTelegramMessage(parsed.chatId!, 'Ringkasan pesanan ini bukan milik percakapan ini. Ulangi pencarian produk.')
       return { status: 'ok', reply: 'mismatch' }
     }
@@ -113,7 +118,7 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
         expected: summary
       })
       await db.update(conversations).set({ outcome: 'ORDERED', lastActivityAt: new Date() as never }).where(eq(conversations.id, convId as never))
-      await popForConversation(db, convId)
+      await popForConversation(db, convId, parsed.ref!)
       const total = Number(order.totalAmount)
       await sendTelegramMessage(parsed.chatId!, `Pesanan #${String(order.id).slice(0, 8)} ${replayed ? 'sudah diproses' : 'berhasil'}. Total Rp${total.toLocaleString('id-ID')}`)
       return { status: 'ok', reply: 'ordered', order_id: String(order.id) }

@@ -1,13 +1,11 @@
+// Tipe bcryptjs dideklarasikan di server/utils/bcryptjs.d.ts (paketnya tanpa .d.ts).
+// WAJIB default-import: bcryptjs@2 itu CommonJS, named import gagal saat runtime.
 import bcryptPkg from 'bcryptjs'
-
-const { compare, genSalt, hash } = (bcryptPkg as unknown as {
-  compare: (plain: string, hashed: string) => Promise<boolean>
-  genSalt: (rounds: number) => Promise<string>
-  hash: (plain: string, salt: string) => Promise<string>
-})
 import { SignJWT, jwtVerify } from 'jose'
 import { eq } from 'drizzle-orm'
 import { users } from '../database/schema'
+
+const { compare, genSalt, hash } = bcryptPkg
 
 export async function hashPassword(plain: string): Promise<string> {
   const salt = await genSalt(10)

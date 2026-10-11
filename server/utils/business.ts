@@ -1,18 +1,18 @@
-import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, lt, sql } from 'drizzle-orm'
 import {
-  aiActions, approvals, auditLogs, conversationMessages, conversations, customers,
-  idempotencyKeys, inventoryTransactions, orderItems, orders, products, promotions,
-  recommendations, users
+  auditLogs, customers, idempotencyKeys, inventoryTransactions, orderItems, orders, products,
+  promotions, users
 } from '../database/schema'
 import { discountedPrice, quoteLine, round2 } from '../../shared/utils/pricing'
-import { OrderError, isUuid } from './errors'
+import { OrderError, firstRow, isUuid } from './errors'
 import type { OrderSummary } from './summary'
+import type { DbLike } from './db'
 
 export const num = (v: unknown): number => Number((v as string | number) ?? 0)
 
 // ---------- Inventory ----------
 /** Stok = agregasi transaksi lewat view `v_product_stock` (sumber kebenaran tunggal). */
-export async function stocksFor(db: ReturnType<typeof getDb>, ids: string[]): Promise<Map<string, number>> {
+export async function stocksFor(db: DbLike, ids: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>()
   if (!ids.length) return map
   const rows = await db.execute(sql`SELECT product_id, current_stock FROM v_product_stock WHERE product_id IN (${sql.join(ids.map(id => sql`${id}::uuid`), sql`, `)})`)
@@ -22,11 +22,11 @@ export async function stocksFor(db: ReturnType<typeof getDb>, ids: string[]): Pr
   return map
 }
 
-export async function currentStock(db: ReturnType<typeof getDb>, productId: string): Promise<number> {
+export async function currentStock(db: DbLike, productId: string): Promise<number> {
   return (await stocksFor(db, [productId])).get(productId) ?? 0
 }
 
-export async function recordTx(db: ReturnType<typeof getDb>, input: {
+export async function recordTx(db: DbLike, input: {
   productId: string, type: string, movement: 'IN' | 'OUT', referenceType?: string, quantity: number, referenceId?: string | null, actorId?: string | null
 }) {
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new OrderError('INVALID_QTY', 'Quantity harus bilangan bulat positif')
@@ -37,7 +37,7 @@ export async function recordTx(db: ReturnType<typeof getDb>, input: {
   })
 }
 
-export async function stockSummary(db: ReturnType<typeof getDb>, lowDefault: number) {
+export async function stockSummary(db: DbLike, lowDefault: number) {
   const all = await db.select().from(products)
   const stocks = await stocksFor(db, all.map(p => String(p.id)))
   return all.map((p) => {
@@ -51,7 +51,7 @@ export async function stockSummary(db: ReturnType<typeof getDb>, lowDefault: num
   })
 }
 
-export async function withStock(db: ReturnType<typeof getDb>, p: typeof products.$inferSelect, lowDefault: number) {
+export async function withStock(db: DbLike, p: typeof products.$inferSelect, lowDefault: number) {
   const stock = await currentStock(db, String(p.id))
   // Termasuk field promo supaya AI/chat mengutip harga yang sama dengan katalog.
   const promo = await activePromotionFor(db, String(p.id))
@@ -59,7 +59,7 @@ export async function withStock(db: ReturnType<typeof getDb>, p: typeof products
 }
 
 /** Batch: promo ACTIVE (belum kedaluwarsa) banyak produk dalam 1 query. */
-export async function activePromosFor(db: ReturnType<typeof getDb>, ids: string[]): Promise<Map<string, typeof promotions.$inferSelect>> {
+export async function activePromosFor(db: DbLike, ids: string[]): Promise<Map<string, typeof promotions.$inferSelect>> {
   const map = new Map<string, typeof promotions.$inferSelect>()
   if (!ids.length) return map
   const rows = await db.select().from(promotions)
@@ -98,7 +98,7 @@ export function catalogOut(
 
 /** Satu paket: stok + promo + payload untuk daftar produk (2 query tambahan saja). */
 export async function catalogList(
-  db: ReturnType<typeof getDb>, rows: Array<typeof products.$inferSelect>, lowDefault: number
+  db: DbLike, rows: Array<typeof products.$inferSelect>, lowDefault: number
 ) {
   const ids = rows.map(p => String(p.id))
   const [stocks, promos] = await Promise.all([stocksFor(db, ids), activePromosFor(db, ids)])
@@ -115,7 +115,7 @@ export function effectiveStatus(promo: { status: string, startDate: Date | strin
   return promo.status === 'ACTIVE' ? 'ACTIVE' : promo.status
 }
 
-export async function refreshPromotionExpiry(db: ReturnType<typeof getDb>) {
+export async function refreshPromotionExpiry(db: DbLike) {
   const actives = await db.select().from(promotions).where(eq(promotions.status, 'ACTIVE'))
   const now = new Date()
   for (const p of actives) {
@@ -125,8 +125,17 @@ export async function refreshPromotionExpiry(db: ReturnType<typeof getDb>) {
   }
 }
 
-export async function checkOverlap(db: ReturnType<typeof getDb>, productId: string, start: Date, end: Date, excludeId?: string): Promise<boolean> {
-  const actives = await db.select().from(promotions).where(and(eq(promotions.productId, productId as never), eq(promotions.status, 'ACTIVE')))
+export async function checkOverlap(db: DbLike, productId: string, start: Date, end: Date, excludeId?: string): Promise<boolean> {
+  // PERBAIKAN: filter `end_date > now()`. Sebelumnya hanya status='ACTIVE' yang
+  // dicek, sehingga promo yang sudah lewat tanggal tapi belum di-refresh oleh
+  // refreshPromotionExpiry() tetap dianggap aktif dan bisa menolak promo baru
+  // dengan 409 PROMO_OVERLAP (false positive) — tergantung apakah Owner kebetulan
+  // membuka halaman list promo lebih dulu.
+  const actives = await db.select().from(promotions).where(and(
+    eq(promotions.productId, productId as never),
+    eq(promotions.status, 'ACTIVE'),
+    gt(promotions.endDate, new Date())
+  ))
   for (const p of actives) {
     if (excludeId && String(p.id) === excludeId) continue
     const s = new Date(p.startDate as unknown as string)
@@ -136,7 +145,7 @@ export async function checkOverlap(db: ReturnType<typeof getDb>, productId: stri
   return false
 }
 
-export async function activePromotionFor(db: ReturnType<typeof getDb>, productId: string) {
+export async function activePromotionFor(db: DbLike, productId: string) {
   const rows = await db.select().from(promotions).where(and(eq(promotions.productId, productId as never), eq(promotions.status, 'ACTIVE')))
   for (const p of rows) {
     if (effectiveStatus({ status: p.status, startDate: p.startDate as unknown as Date, endDate: p.endDate as unknown as Date }) === 'ACTIVE') return p
@@ -156,7 +165,7 @@ export interface CreateOrderInput {
   expected?: OrderSummary | null
 }
 
-export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input: CreateOrderInput) {
+export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput) {
   if (!input.items?.length) throw new OrderError('EMPTY_ORDER', 'Tidak ada item untuk dipesan.')
   for (const it of input.items) {
     if (!isUuid(it.product_id)) {
@@ -168,6 +177,7 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
   }
   // Urut per product_id -> kunci FOR UPDATE tidak pernah deadlock antar order.
   const items = [...input.items].sort((a, b) => a.product_id.localeCompare(b.product_id))
+  const orderTtlMinutes = Number(useRuntimeConfig().orderTtlMinutes ?? 120)
 
   return await db.transaction(async (tx) => {
     // Idempotency atomik (UC-02 E5): key diklaim di AWAL transaksi dengan
@@ -208,7 +218,7 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
         name: input.customerIdentity.name || null,
         contact: input.customerIdentity.contact || null
       }).returning({ id: customers.id })
-      customerId = String(ins[0].id)
+      customerId = String(firstRow(ins, 'insert customer').id)
     }
 
     // Kunci baris produk sebelum cek stok (anti oversell saat paralel).
@@ -217,12 +227,18 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
     const created = await tx.insert(orders).values({
       customerId: customerId as never,
       status: 'CONFIRMED',
+      // Order baru SELALU belum dibayar (migrasi 0004). Stok sudah dikurangi di
+      // bawah, jadi order ini "reserve" stok sampai expires_at -> bayar (PAID)
+      // atau cancel/expire (stok kembali). Jangan set PAID di sini: tidak ada
+      // payment gateway, konfirmasi bayar dilakukan kasir via POST /orders/:id/pay.
+      paymentStatus: 'UNPAID',
+      expiresAt: new Date(Date.now() + orderTtlMinutes * 60_000) as never,
       conversationId: (input.conversationId || null) as never,
       channelOrigin: input.channel,
       totalAmount: '0' as never,
       fulfillment: (input.fulfillment || null) as never
     }).returning()
-    const order = created[0]
+    const order = firstRow(created, 'insert orders')
 
     // Price lock: bandingkan quote baru vs ringkasan yang dikonfirmasi customer.
     const expectedByProduct = new Map<string, NonNullable<OrderSummary['items']>>()
@@ -239,10 +255,10 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
       const p = prow[0]
       if (!p) throw new OrderError('PRODUCT_NOT_FOUND', `Produk ${item.product_id} tidak ditemukan.`)
       if (p.status !== 'ACTIVE') throw new OrderError('PRODUCT_INACTIVE', `${p.name} tidak aktif.`)
-      const stock = (await stocksFor(tx as never, [String(p.id)])).get(String(p.id)) ?? 0
+      const stock = (await stocksFor(tx, [String(p.id)])).get(String(p.id)) ?? 0
       if (stock < item.quantity) throw new OrderError('INSUFFICIENT_STOCK', `Stok ${p.name} hanya tersisa ${stock}.`, { product_id: String(p.id), available: stock })
 
-      const promo = await activePromotionFor(tx as never, String(p.id))
+      const promo = await activePromotionFor(tx, String(p.id))
       const discountPct = promo ? num(promo.discountPercentage) : 0
       const q = quoteLine(num(p.price), discountPct, item.quantity)
       if (promo) {
@@ -252,7 +268,15 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
         }
       }
       const exp = expectedByProduct.get(item.product_id)?.shift()
-      const unchanged = exp && exp.quantity === item.quantity && Math.abs(exp.line_total - q.line_total) <= 0.001
+      // PERBAIKAN price lock: bandingkan komposisi harga, bukan hanya total.
+      // Dua promo berbeda bisa menghasilkan line_total identik (mis. basis 100
+      // qty 2 diskon 10% = 180 vs basis 90 qty 2 tanpa diskon = 180), sehingga
+      // pelanggan sempat menyetujui harga/unit yang berbeda tanpa ketahuan.
+      const unchanged = !!exp
+        && exp.quantity === item.quantity
+        && Math.abs(exp.line_total - q.line_total) <= 0.001
+        && Math.abs(Number(exp.unit_price ?? 0) - q.unit_price) <= 0.001
+        && Math.abs(Number(exp.discount_per_unit ?? 0) - q.discount_per_unit) <= 0.001
       if (input.expected && !unchanged) {
         throw new OrderError(
           'PRICE_CHANGED',
@@ -287,15 +311,105 @@ export async function createOrderFromSummary(db: ReturnType<typeof getDb>, input
   })
 }
 
-// ---------- Conversations ----------
-export async function ensureCustomer(db: ReturnType<typeof getDb>, channel: string, identifier: string, name?: string | null, contact?: string | null) {
-  const found = await db.select().from(customers).where(and(eq(customers.channel, channel), eq(customers.identifier, identifier))).limit(1)
-  if (found[0]) return found[0]
-  const ins = await db.insert(customers).values({ channel, identifier, name: name || null, contact: contact || null }).returning()
-  return ins[0]
+// ---------- Order lifecycle (payment state machine, migrasi 0004) ----------
+
+/**
+ * Proyeksi order untuk API (sumber tunggal — sebelumnya mapping ini diduplikasi
+ * di 4 file handler dan `GET /orders/:id` tertinggal tidak punya payment_status).
+ */
+export async function orderOut(db: DbLike, id: string) {
+  const o = (await db.select().from(orders).where(eq(orders.id, id as never)).limit(1))[0]
+  if (!o) return null
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id as never))
+  return {
+    id: String(o.id), customer_id: String(o.customerId), status: o.status,
+    payment_status: o.paymentStatus,
+    paid_at: o.paidAt ? new Date(o.paidAt as unknown as Date).toISOString() : null,
+    expires_at: o.expiresAt ? new Date(o.expiresAt as unknown as Date).toISOString() : null,
+    conversation_id: o.conversationId ? String(o.conversationId) : null,
+    channel_origin: o.channelOrigin, total_amount: num(o.totalAmount),
+    promotion_snapshot: o.promotionSnapshot || null, fulfillment: o.fulfillment || null,
+    created_at: new Date(o.createdAt as unknown as Date).toISOString(),
+    completed_at: o.completedAt ? new Date(o.completedAt as unknown as Date).toISOString() : null,
+    cancelled_at: o.cancelledAt ? new Date(o.cancelledAt as unknown as Date).toISOString() : null,
+    items: items.map(i => ({ id: String(i.id), product_id: String(i.productId), quantity: i.quantity, price_at_order: num(i.priceAtOrder), line_total: num(i.lineTotal) }))
+  }
 }
 
-export async function logAudit(db: ReturnType<typeof getDb>, event: string, actorType: string, opts: { actorId?: string | null, aiActionId?: string | null, detail?: Record<string, unknown> } = {}) {
+/**
+ * Batalkan order + kembalikan stok. Dipakai oleh tiga jalur:
+ *   (1) POST /orders/:id/cancel  — kasir membatalkan manual
+ *   (2) expireStaleOrders()      — order UNPAID lewat TTL (abandoned)
+ *   (3)ai-actions approve/reject (via endpoint cancel bila relevan)
+ *
+ * WAJIB dipanggil DI DALAM db.transaction dengan baris order sudah dikunci
+ * FOR UPDATE supaya cancel & complete/expire paralel saling eksklusif.
+ * Idempoten: order yang bukan CONFIRMED diloloskan tanpa aksi.
+ */
+export async function cancelOrderTx(
+  tx: DbLike,
+  orderId: string,
+  opts: { actorId?: string | null, actorType?: string, reason?: string } = {}
+) {
+  const rows = await tx.select().from(orders).where(eq(orders.id, orderId as never)).limit(1)
+  const o = rows[0]
+  if (!o) throw new OrderError('ORDER_NOT_FOUND', 'Order tidak ditemukan.')
+  if (o.status !== 'CONFIRMED') return { cancelled: false, order: o, restocked: 0 }
+
+  const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id))
+  for (const it of items) {
+    await tx.insert(inventoryTransactions).values({
+      productId: it.productId, type: 'ADJUSTMENT', movement: 'IN',
+      referenceType: 'CANCELLATION', quantity: it.quantity, referenceId: o.id,
+      actorId: (opts.actorId || null) as never
+    })
+  }
+  await tx.update(orders).set({ status: 'CANCELLED', cancelledAt: new Date() as never }).where(eq(orders.id, o.id))
+  await logAudit(tx, 'ORDER_CANCELLED', opts.actorType || 'USER', {
+    actorId: opts.actorId || null,
+    detail: { order_id: orderId, restocked_lines: items.length, reason: opts.reason || 'manual' }
+  })
+  return { cancelled: true, order: o, restocked: items.length }
+}
+
+/**
+ * Lazy expiry: batalkan order UNPAID yang lewat deadline dan kembalikan stok.
+ *
+ * Dipanggil di awal endpoint baca (GET /orders, GET /inventory/summary, katalog)
+ * alih-alih cron — aman di serverless tanpa Vercel Cron, dan idempoten.
+ * Order yang sudah dibayar (PAID) tidak pernah disentuh.
+ */
+export async function expireStaleOrders(db: DbLike): Promise<number> {
+  const now = new Date()
+  const stale = await db.select({ id: orders.id }).from(orders).where(
+    and(eq(orders.paymentStatus, 'UNPAID'), eq(orders.status, 'CONFIRMED'), lt(orders.expiresAt, now))
+  )
+  let n = 0
+  for (const s of stale) {
+    try {
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT id FROM orders WHERE id = ${s.id}::uuid FOR UPDATE`)
+        const r = await cancelOrderTx(tx as never, s.id, { actorType: 'SYSTEM', reason: 'expired_unpaid' })
+        if (r.cancelled) n++
+      })
+    }
+    catch {
+      // Order sudah dibatal/dibayar racing -> abaikan, coba lagi di request berikutnya.
+    }
+  }
+  return n
+}
+
+// ---------- Conversations ----------
+export async function ensureCustomer(db: DbLike, channel: string, identifier: string, name?: string | null, contact?: string | null) {
+  const found = await db.select().from(customers).where(and(eq(customers.channel, channel), eq(customers.identifier, identifier))).limit(1)
+  const existing = found[0]
+  if (existing) return existing
+  const ins = await db.insert(customers).values({ channel, identifier, name: name || null, contact: contact || null }).returning()
+  return firstRow(ins, `insert customer ${channel}:${identifier}`)
+}
+
+export async function logAudit(db: DbLike, event: string, actorType: string, opts: { actorId?: string | null, aiActionId?: string | null, detail?: Record<string, unknown> } = {}) {
   await db.insert(auditLogs).values({
     event, actorType,
     actorId: (opts.actorId || null) as never,
@@ -306,7 +420,7 @@ export async function logAudit(db: ReturnType<typeof getDb>, event: string, acto
 
 // ---------- Seed ----------
 let _seeded = false
-export async function ensureSeeded(db: ReturnType<typeof getDb>) {
+export async function ensureSeeded(db: DbLike) {
   if (_seeded) return
   const cfg = useRuntimeConfig()
   const seedOn = String(cfg.seedOnStartup ?? process.env.SEED_ON_STARTUP ?? 'true') === 'true'
@@ -322,10 +436,24 @@ export async function ensureSeeded(db: ReturnType<typeof getDb>) {
   const { hashPassword } = await import('./auth')
   const email = (cfg.seedOwnerEmail as string) || process.env.SEED_OWNER_EMAIL || 'owner@store.demo'
   const pass = (cfg.seedDefaultPassword as string) || process.env.SEED_DEFAULT_PASSWORD || 'ChangeMe123!'
-  const owner = await db.insert(users).values({
-    name: 'Owner Demo', email, passwordHash: await hashPassword(pass), role: 'OWNER', status: 'ACTIVE'
-  }).returning({ id: users.id })
-  const ownerId = String(owner[0].id)
+  // PERBAIKAN race multi-instance: di serverless beberapa cold start bisa jalan
+  // bersamaan dan semua melihat users kosong. Sebelumnya INSERT biasa →
+  // instance kedua gagal UNIQUE(email) → HTTP 500 untuk request itu.
+  // Sekarang dikunci advisory lock (aman lintas instance) + ON CONFLICT DO NOTHING.
+  const owner = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(72701)`)
+    const still = await tx.select({ id: users.id }).from(users).limit(1)
+    if (still.length) {
+      _seeded = true
+      return [] as Array<{ id: string }>
+    }
+    return await tx.insert(users).values({
+      name: 'Owner Demo', email, passwordHash: await hashPassword(pass), role: 'OWNER', status: 'ACTIVE'
+    }).onConflictDoNothing({ target: users.email })
+      .returning({ id: users.id })
+  })
+  if (!owner.length) return
+  const ownerId = String(firstRow(owner, 'insert owner seed').id)
   // Katalog demo 12 SKU
   const demo: Array<{ name: string, category: string, price: number, spec: Record<string, unknown>, stock: number }> = [
     { name: 'iPhone 15 Pro 128GB', category: 'HP', price: 18999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 128 }, stock: 12 },
@@ -346,7 +474,7 @@ export async function ensureSeeded(db: ReturnType<typeof getDb>) {
       name: d.name, category: d.category, specification: d.spec as never, price: String(d.price) as never, status: 'ACTIVE'
     }).returning({ id: products.id })
     await db.insert(inventoryTransactions).values({
-      productId: pins[0].id, type: 'IN', movement: 'IN', referenceType: 'MANUAL', quantity: d.stock, actorId: ownerId as never
+      productId: firstRow(pins, `insert seed produk "${d.name}"`).id, type: 'IN', movement: 'IN', referenceType: 'MANUAL', quantity: d.stock, actorId: ownerId as never
     })
   }
   _seeded = true

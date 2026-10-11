@@ -58,8 +58,8 @@
         <div v-if="action.validation_failures" class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">
           <p class="mb-1 font-semibold">Validasi gagal:</p>
           <ul class="list-inside list-disc">
-            <li v-for="(msg, field) in action.validation_failures" :key="String(field)">
-              <span class="font-mono text-xs">{{ field }}</span>: {{ msg }}
+            <li v-for="(failure, field) in action.validation_failures" :key="String(field)">
+              <span class="font-mono text-xs">{{ field }}</span>: {{ failure }}
             </li>
           </ul>
         </div>

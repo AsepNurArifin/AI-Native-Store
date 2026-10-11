@@ -41,7 +41,7 @@
             <div v-if="sales.data.length" class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead><tr class="border-b text-left text-stone-500">
-                  <th class="py-2 pr-2">#</th><th class="pr-2">Produk</th><th class="pr-2 text-right">Unit terjual</th><th class="pr-2 text-right">Pendapatan</th><th class="w-24"></th>
+                  <th class="py-2 pr-2">#</th><th class="pr-2">Produk</th><th class="pr-2 text-right">Unit terjual</th><th class="pr-2 text-right">Pendapatan</th><th class="w-24"/>
                 </tr></thead>
                 <tbody>
                   <tr v-for="(row, i) in sales.data" :key="row.key" class="border-b border-stone-100">
@@ -56,9 +56,9 @@
                 </tbody>
                 <tfoot>
                   <tr class="font-semibold">
-                    <td class="py-2"></td><td>Total</td>
+                    <td class="py-2"/><td>Total</td>
                     <td class="text-right">{{ salesTotal.units }}</td>
-                    <td class="text-right">{{ formatIDR(salesTotal.revenue) }}</td><td></td>
+                    <td class="text-right">{{ formatIDR(salesTotal.revenue) }}</td><td/>
                   </tr>
                 </tfoot>
               </table>
@@ -88,7 +88,7 @@
             <div v-if="inv.data.length" class="max-h-72 overflow-auto">
               <table class="w-full text-sm">
                 <thead><tr class="border-b text-left text-stone-500">
-                  <th class="py-2 pr-2">Produk</th><th class="pr-2 text-right">Stok</th><th class="pr-2 text-right">Rata²/hari</th><th class="pr-2 text-right">Sisa hari</th><th></th>
+                  <th class="py-2 pr-2">Produk</th><th class="pr-2 text-right">Stok</th><th class="pr-2 text-right">Rata²/hari</th><th class="pr-2 text-right">Sisa hari</th><th/>
                 </tr></thead>
                 <tbody>
                   <tr

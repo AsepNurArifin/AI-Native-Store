@@ -6,7 +6,7 @@
       <aside class="hidden w-64 shrink-0 flex-col border-r border-stone-200/80 bg-sidebar md:sticky md:top-0 md:h-screen md:self-start md:flex">
         <div class="flex h-16 items-center gap-3 border-b border-white/10 px-5">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
-            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
+            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
           </div>
           <div>
             <span class="font-display text-sm font-bold tracking-tight text-white">SHAF <span class="text-sidebar-primary">STORE</span></span>
@@ -66,7 +66,7 @@
         <div class="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <div class="flex items-center gap-3">
             <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
-              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" />
+              <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
             </div>
             <div>
               <span class="font-display text-sm font-bold tracking-tight text-white">SHAF <span class="text-sidebar-primary">STORE</span></span>
@@ -120,7 +120,7 @@
           <div class="flex items-center gap-3">
             <NuxtLink to="/" class="md:hidden flex items-center gap-2 font-display font-bold text-sm">
               <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-white p-0.5">
-                <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" />
+                <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded" >
               </div>
               <span>SHAF STORE</span>
             </NuxtLink>

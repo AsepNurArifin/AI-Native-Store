@@ -34,7 +34,7 @@ const payload = computed(() => buildQrisPayload({
 
     <div class="space-y-0.5">
       <div class="flex items-center justify-center gap-1.5">
-        <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-4 w-4 rounded object-contain" />
+        <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-4 w-4 rounded object-contain" >
         <p class="font-display text-xs font-bold tracking-normal text-stone-800">SHAF STORE</p>
       </div>
       <p class="font-mono text-[10px] text-stone-500">Ref: {{ reference.slice(0, 8) }}</p>

@@ -13,7 +13,7 @@
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
-              <th class="py-2 pr-2">ID</th><th class="pr-2">Channel</th><th class="pr-2">Outcome</th><th class="pr-2">Aktivitas</th><th></th>
+              <th class="py-2 pr-2">ID</th><th class="pr-2">Channel</th><th class="pr-2">Outcome</th><th class="pr-2">Aktivitas</th><th/>
             </tr></thead>
             <tbody>
               <tr v-if="loading">

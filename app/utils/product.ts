@@ -28,9 +28,10 @@ export function categoryAccent(category: string): string {
 /** Label inisial 1-2 huruf untuk tile fallback (mis. "iP" untuk iPhone). */
 export function productInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean)
-  if (!words.length) return 'PR'
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-  return (words[0][0] + words[1][0]).toUpperCase()
+  const [first, second] = words
+  if (!first) return 'PR'
+  if (!second) return first.slice(0, 2).toUpperCase()
+  return `${first[0] ?? ''}${second[0] ?? ''}`.toUpperCase()
 }
 
 /** Helper spec parser ala Newegg/BestBuy: ekstrak chip/RAM/Storage/Layar dari nama atau deskripsi. */
@@ -40,21 +41,26 @@ export function extractSpecs(p: { name: string; description?: string | null }): 
 
   // Chip / Processor / GPU
   const chipMatch = text.match(/(M[1-4]|Ryzen\s+[3579]|Core\s+i[3579]|RTX\s+\d{4}|Snapdragon\s+\d+|A1[678]\s+Pro|Dimensity\s+\d+)/i)
-  if (chipMatch) specs.push(chipMatch[0])
+  if (chipMatch?.[0]) specs.push(chipMatch[0])
 
   // RAM
   const ramMatch = text.match(/(\d+\s*GB\s*(?:DDR[45]|RAM)?)/i) // match RAM
   const ramSpecific = text.match(/(\d{1,2}\s*GB)\s+(?:RAM|DDR)/i) || text.match(/(?:RAM|DDR)\s*(\d{1,2}\s*GB)/i)
-  if (ramSpecific) specs.push(ramSpecific[1])
-  else if (ramMatch && !specs.some(s => s.toLowerCase().includes('gb'))) specs.push(ramMatch[1])
+  // Group capture selalu ada kalau regex-nya match, tapi TS tidak bisa-dih-know itu.
+  const ramValue = ramSpecific?.[1]
+  const ramValueLoose = ramMatch?.[1]
+  if (ramValue) specs.push(ramValue)
+  else if (ramValueLoose && !specs.some(s => s.toLowerCase().includes('gb'))) specs.push(ramValueLoose)
 
   // Storage
   const storageMatch = text.match(/(\d{3}\s*GB|1\s*TB|2\s*TB)\s*(?:SSD|NVMe|Storage)?/i)
-  if (storageMatch && !specs.includes(storageMatch[1])) specs.push(storageMatch[1])
+  const storageValue = storageMatch?.[1]
+  if (storageValue && !specs.includes(storageValue)) specs.push(storageValue)
 
   // Screen
   const screenMatch = text.match(/(\d{1,2}(?:\.\d)?["”']|\d{1,2}(?:\.\d)?\s*inch)/i)
-  if (screenMatch) specs.push(screenMatch[1])
+  const screenValue = screenMatch?.[1]
+  if (screenValue) specs.push(screenValue)
 
   return [...new Set(specs)].slice(0, 3)
 }

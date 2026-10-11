@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { currentStock, ensureSeeded, logAudit, num } from '../../../utils/business'
-import { isUuid } from '../../../utils/errors'
+import { isUuid, firstRow } from '../../../utils/errors'
 
 export default defineEventHandler(async (event) => {
   const owner = await requireOwner(event)
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
   await logAudit(db, 'PRODUCT_UPDATED', 'USER', {
     actorId: owner.id, detail: { product_id: id, changed: Object.keys(patch).filter(k => k !== 'updatedAt') }
   })
-  const fresh = (await db.select().from(products).where(eq(products.id, id as never)).limit(1))[0]
+  const fresh = firstRow(await db.select().from(products).where(eq(products.id, id as never)).limit(1), 'produk setelah update')
   const stock = await currentStock(db, id)
   return {
     id: String(fresh.id), name: fresh.name, category: fresh.category, specification: fresh.specification || {},

@@ -20,9 +20,23 @@ export function formatWIB(iso: string | null | undefined): string {
   }) + ' WIB'
 }
 
+/**
+ * Union variant Badge (harus sinkron dengan variants di app/components/ui/Badge.vue).
+ * Dikembalikan `statusVariant()` sebagai tipe konkret — sebelumnya `string`, sehingga
+ * `<Badge :variant="statusVariant(x)">` gagal typecheck di 9 halaman admin.
+ */
+export type BadgeVariant =
+  | 'default' | 'secondary' | 'destructive' | 'outline'
+  | 'success' | 'warning' | 'info' | 'muted' | 'danger' | 'neutral'
+
 /** Varian badge shadcn untuk status (dipakai `<Badge :variant="statusVariant(...)">`). */
-export function statusVariant(status: string | null | undefined): string {
+export function statusVariant(status: string | null | undefined): BadgeVariant {
   switch ((status || '').toUpperCase()) {
+    case 'PAID':
+      return 'success'
+    case 'UNPAID':
+      // Belum dibayar — perlu perhatian kasir, tapi bukan error.
+      return 'warning'
     case 'ACTIVE':
     case 'CONFIRMED':
     case 'COMPLETED':

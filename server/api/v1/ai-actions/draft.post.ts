@@ -1,4 +1,4 @@
-import { aiActions } from '../../../database/schema'
+import type { aiActions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded } from '../../../utils/business'
 import { actionCreateDraft } from '../../../utils/agents'

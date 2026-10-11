@@ -68,7 +68,9 @@ async function openAiCompatibleComplete(baseUrl: string, apiKey: string, model: 
       const json = await res.json() as { choices?: Array<{ message?: { content?: string, tool_calls?: Array<{ id: string, function: { name: string, arguments: string } }> } }> }
       const msg = json.choices?.[0]?.message
       const calls: LlmToolCall[] = (msg?.tool_calls || []).map(tc => {
-        let args: Record<string, unknown> = {}
+        // Parameter tool yang tidak valid JSON harus diperlakukan sebagai "tanpa argumen",
+        // bukan membuat seluruh panggilan tool gagal.
+        let args: Record<string, unknown>
         try {
           args = JSON.parse(tc.function.arguments || '{}')
         }

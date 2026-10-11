@@ -70,6 +70,12 @@ export const orders = pgTable('orders', {
   id: uuidPk(),
   customerId: uuid('customer_id').notNull().references(() => customers.id),
   status: varchar('status', { length: 12 }).notNull().default('CONFIRMED'),
+  // Pemisahan "order dibuat" vs "sudah dibayar" (migrasi 0004).
+  // UNPAID -> stok di-reserve s/d expires_at; PAID -> boleh COMPLETED.
+  paymentStatus: varchar('payment_status', { length: 12 }).notNull().default('UNPAID'),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  // Deadline pembayaran; lewat ini order auto-CANCELLED dan stok kembali.
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   conversationId: uuid('conversation_id').references(() => conversations.id),
   channelOrigin: varchar('channel_origin', { length: 10 }).notNull(),
   totalAmount: numeric('total_amount', { precision: 14, scale: 2 }).notNull().default('0'),

@@ -41,7 +41,10 @@ export async function uploadProductImage(mime: string, data: Uint8Array): Promis
       'x-upsert': 'false',
       'cache-control': '31536000'
     },
-    body: data
+    // `body` harus tipe BodyInit yang didukung fetch. Uint8Array (ArrayBufferView)
+// tidak selalu cocok dengan overload union BodyInit di lib.dom — Buffer.from()
+// memberirepresentasi binary yang pasti diterima.
+    body: Buffer.from(data)
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => '')

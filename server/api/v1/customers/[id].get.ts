@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
-import { customers, orderItems, orders } from '../../../database/schema'
+import { customers, orders } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded, num } from '../../../utils/business'
 import { isUuid } from '../../../utils/errors'

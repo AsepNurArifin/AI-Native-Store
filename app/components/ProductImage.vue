@@ -32,7 +32,7 @@ const boxClass = computed(() => {
       :alt="name"
       loading="lazy"
       class="h-full w-full object-cover"
-    />
+    >
     <div v-else class="flex flex-col items-center gap-1.5 p-4 text-center">
       <component :is="iconComp" class="h-8 w-8 opacity-70" />
       <span class="font-display text-lg font-extrabold tracking-tight opacity-60">{{ productInitials(name) }}</span>

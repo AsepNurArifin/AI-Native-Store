@@ -5,9 +5,12 @@
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="order">
       <CardHeader>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
           <span class="font-mono text-sm">{{ order.id }}</span>
           <Badge :variant="statusVariant(order.status)">{{ order.status }}</Badge>
+          <Badge v-if="order.status === 'CONFIRMED'" :variant="statusVariant(order.payment_status)">
+            {{ order.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -15,6 +18,11 @@
           <div><dt class="text-stone-500">Channel</dt><dd>{{ order.channel_origin }}</dd></div>
           <div><dt class="text-stone-500">Total</dt><dd class="font-bold">{{ formatIDR(order.total_amount) }}</dd></div>
           <div><dt class="text-stone-500">Dibuat</dt><dd>{{ formatWIB(order.created_at) }}</dd></div>
+          <div v-if="order.payment_status === 'PAID'"><dt class="text-stone-500">Dibayar</dt><dd>{{ formatWIB(order.paid_at) }}</dd></div>
+          <div v-else-if="order.expires_at && order.status === 'CONFIRMED'">
+            <dt class="text-stone-500">Batas bayar</dt>
+            <dd :class="expiringSoon ? 'font-semibold text-amber-700' : ''">{{ formatWIB(order.expires_at) }}</dd>
+          </div>
           <div><dt class="text-stone-500">Percakapan</dt><dd class="font-mono text-xs">{{ order.conversation_id || '-' }}</dd></div>
           <div v-if="order.fulfillment" class="md:col-span-2">
             <dt class="text-stone-500">Pengambilan</dt>
@@ -53,9 +61,13 @@
       </CardContent>
       <CardFooter>
         <div class="flex gap-2">
-          <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete()">Complete</Button>
+          <Button v-if="order.status === 'CONFIRMED' && order.payment_status !== 'PAID'" size="sm" variant="secondary" @click="markPaid()">Tandai Lunas</Button>
+          <Button v-if="order.status === 'CONFIRMED' && order.payment_status === 'PAID'" size="sm" variant="secondary" @click="complete()">Complete</Button>
           <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel()">Cancel</Button>
         </div>
+        <p v-if="order.status === 'CONFIRMED' && order.payment_status !== 'PAID'" class="mt-2 text-xs text-stone-500">
+          Order belum dibayar — stok ditahan sampai {{ formatWIB(order.expires_at) }}, lalu otomatis dibatalkan dan stok dikembalikan.
+        </p>
       </CardFooter>
     </Card>
     <p v-else-if="!error" class="text-sm text-stone-500">Memuat…</p>
@@ -88,6 +100,12 @@ const promoEntries = computed(() => {
   }))
 })
 
+/** Order UNPAID yang deadline-nya < 30 menit lagi — perluditindak kasir. */
+const expiringSoon = computed(() => {
+  if (!order.value?.expires_at || order.value.payment_status === 'PAID') return false
+  return new Date(order.value.expires_at).getTime() - Date.now() < 30 * 60_000
+})
+
 async function load() {
   try {
     // Order + daftar produk (untuk nama item) di-fetch paralel.
@@ -101,6 +119,11 @@ async function load() {
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
 }
 onMounted(load)
+async function markPaid() {
+  if (!confirm('Konfirmasi pembayaran diterima?')) return
+  try { order.value = await request<OrderOut>(`/orders/${route.params.id}/pay`, { method: 'POST' }) }
+  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+}
 async function complete() {
   try { order.value = await request<OrderOut>(`/orders/${route.params.id}/complete`, { method: 'POST' }) }
   catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }

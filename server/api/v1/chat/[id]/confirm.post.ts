@@ -2,8 +2,9 @@ import { eq } from 'drizzle-orm'
 import { conversations, customers } from '../../../../database/schema'
 import { createOrderFromSummary, ensureSeeded } from '../../../../utils/business'
 import { getSummary } from '../../../../utils/summary'
-import { OrderError, toOrderHttpCode } from '../../../../utils/errors'
-import { isUuid } from '../../../../utils/errors'
+import { webIdentity } from '../../../../utils/identity'
+import { OrderError, toOrderHttpCode, isUuid  } from '../../../../utils/errors'
+
 
 export default defineEventHandler(async (event) => {
   const db = getDb()
@@ -29,7 +30,10 @@ export default defineEventHandler(async (event) => {
     })
   }
   // Scoping: summary hanya bisa dikonfirmasi dari percakapan pemiliknya.
-  if (summary.conversation_id && summary.conversation_id !== id) {
+  // PERBAIKAN: cek lama `summary.conversation_id && ...` meloloskan summary yang
+  // conversation_id-nya null (baru ditulis tool build_order_summary sebelum
+  // putForConversation). Sekarang null = tidak dimiliki -> tolak.
+  if (summary.conversation_id !== id) {
     throw createError({
       statusCode: 409, message: 'Ringkasan pesanan ini bukan milik percakapan ini.',
       data: { detail: { code: 'SUMMARY_MISMATCH', message: 'Ringkasan pesanan ini bukan milik percakapan ini.' } }
@@ -38,17 +42,19 @@ export default defineEventHandler(async (event) => {
   const identity = conv.channel === 'TELEGRAM'
     ? { channel: 'TELEGRAM', identifier: customer.identifier, name: customer.name, contact: customer.contact }
     : {
-        channel: 'WEB',
-        identifier: `${body.customer?.name || 'guest'}|${body.customer?.contact || 'guest'}`,
-        name: body.customer?.name || 'Tamu',
-        contact: body.customer?.contact || null
+        // PERBAIKAN: identitas web juga dari cookie server (lihat utils/identity.ts),
+        // bukan `${name}|${contact}` yang menyatukan semua pembeli anonim.
+        channel: 'WEB', identifier: webIdentity(event).identifier,
+        name: body.customer?.name?.trim() || 'Tamu', contact: body.customer?.contact?.trim() || null
       }
   try {
     const { order, replayed } = await createOrderFromSummary(db, {
       conversationId: id, channel: conv.channel, customerIdentity: identity,
       items: summary.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-      // Key deterministik dari summary_ref -> retry tidak pernah dobel-order.
-      idempotencyKey: body.idempotency_key?.trim() || `chat:${body.order_summary_ref}`,
+      // PERBAIKAN: key SELALU diturunkan server dari summary_ref. Sebelumnya
+      // client boleh meng-override -> FE yang mengirim key acak baru tiap retry
+      // akan membuat order dobel ketika request pertama sukses tapi respons hilang.
+      idempotencyKey: `chat:${body.order_summary_ref}`,
       fulfillment: body.fulfillment || null,
       expected: summary
     })

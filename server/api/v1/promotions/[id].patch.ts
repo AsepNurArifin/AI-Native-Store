@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { promotions } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { checkOverlap, effectiveStatus, ensureSeeded, logAudit, num } from '../../../utils/business'
-import { isUuid } from '../../../utils/errors'
+import { firstRow, isUuid } from '../../../utils/errors'
 import { PROMO_STATUSES } from './index'
 
 export default defineEventHandler(async (event) => {
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
   await logAudit(db, 'PROMO_UPDATED', 'USER', {
     actorId: owner.id, detail: { promotion_id: id, changed: Object.keys(patch), status: nextStatus }
   })
-  const fresh = (await db.select().from(promotions).where(eq(promotions.id, id as never)).limit(1))[0]
+  const fresh = firstRow(await db.select().from(promotions).where(eq(promotions.id, id as never)).limit(1), 'promo setelah update')
   return {
     id: String(fresh.id), product_id: String(fresh.productId), discount_percentage: num(fresh.discountPercentage),
     start_date: (fresh.startDate as Date).toISOString(), end_date: (fresh.endDate as Date).toISOString(),

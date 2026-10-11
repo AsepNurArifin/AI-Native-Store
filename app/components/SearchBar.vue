@@ -35,7 +35,7 @@ function onSubmit() {
         aria-label="Cari produk"
         class="h-11 w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/30 focus:outline-hidden"
         @input="onInput"
-      />
+      >
     </div>
     <!-- Best Buy Yellow Submit Button -->
     <button

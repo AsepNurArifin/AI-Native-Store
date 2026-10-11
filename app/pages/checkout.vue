@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, MessageCircle, Minus, Plus, ShoppingCart, Truck } from '@lucide/vue'
 import type { ConfirmOrderResponse, FulfillmentInfo, ProductOut } from '~/utils/api-types'
-import { formatIDR } from '~/utils/format'
+import { formatIDR, formatWIB } from '~/utils/format'
 import { effectivePrice, hasPromo } from '~/utils/product'
 import { quoteLine } from '#shared/utils/pricing'
 import { NormalizedApiError } from '~/composables/useApi'
@@ -60,6 +60,17 @@ const placed = ref<ConfirmOrderResponse | null>(null)
 const placedInfo = ref<FulfillmentInfo | null>(null)
 const idemKey = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
+/**
+ * Batas pembayaran order yang baru dibuat (migrasi 0004). Nilai ini duplikat dari
+ * ORDER_TTL_MINUTES server karena endpoint POST /orders tidak mengembalikan
+ * expires_at — hanya dipakai untuk teks informatif, TIDAK menentukan expire
+ * (itu murni keputusan server lewat order_summaries/orders.expires_at).
+ */
+const PAY_WINDOW_MINUTES = 120
+const placedAt = ref<number | null>(null)
+const payDeadline = computed(() =>
+  placedAt.value ? formatWIB(new Date(placedAt.value + PAY_WINDOW_MINUTES * 60_000).toISOString()) : '-')
+
 function decQty() { qty.value = Math.max(1, qty.value - 1) }
 function incQty() { qty.value = Math.min(maxQty.value, qty.value + 1) }
 
@@ -95,6 +106,7 @@ async function submit() {
     })
     placed.value = res
     placedInfo.value = info
+    placedAt.value = Date.now()
   }
   catch (e: unknown) {
     errorMsg.value = e instanceof NormalizedApiError ? e.message : 'Gagal membuat pesanan'
@@ -134,6 +146,9 @@ async function submit() {
         </div>
         <div class="space-y-1 text-sm text-stone-700">
           <p v-if="placed.replayed" class="text-xs font-medium text-stone-500">Order ini sudah tercatat sebelumnya, tidak ada duplikasi.</p>
+          <p class="text-xs font-medium text-amber-700">
+            Menunggu pembayaran — stok ditahan sampai {{ payDeadline }}. Belum dibayar dalam batas itu, pesanan otomatis dibatalkan dan stok dikembalikan.
+          </p>
           <template v-if="placedInfo?.method === 'PICKUP'">
             <p><span class="font-semibold">Ambil di toko.</span> Tunjukkan ID pesanan ini ke kasir saat pengambilan.</p>
           </template>

@@ -1,6 +1,7 @@
 import { inventoryTransactions, products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { currentStock, ensureSeeded, logAudit, num } from '../../../utils/business'
+import { firstRow } from '../../../utils/errors'
 
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE']
 
@@ -42,7 +43,7 @@ export default defineEventHandler(async (event) => {
     lowStockThreshold: (body.low_stock_threshold ?? null) as never,
     imageUrl: imageUrl as never
   }).returning()
-  const p = ins[0]
+  const p = firstRow(ins, 'insert products')
   if (initStock > 0) {
     await db.insert(inventoryTransactions).values({
       productId: p.id, type: 'IN', movement: 'IN', referenceType: 'MANUAL', quantity: initStock, actorId: owner.id as never

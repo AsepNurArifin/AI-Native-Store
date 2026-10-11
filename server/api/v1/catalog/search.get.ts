@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
       from ${inventoryTransactions} where ${inventoryTransactions.productId} = ${products.id}) > 0`)
   }
 
-  let query = db.select().from(products).where(and(...conds))
+  const query = db.select().from(products).where(and(...conds))
   // Sort harga = harga EFEKTIF (setelah diskon), rumus kanonik shared/utils/pricing:
   // discount_per_unit = round(price*pct/100, 2); unit_effective = max(round(price - disc, 2), 0).
   // Tanpa ini "termurah" mengurutkan harga sebelum diskon -> menyesatkan saat promo.

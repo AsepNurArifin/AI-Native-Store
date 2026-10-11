@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   try {
     return await salesHandleMessage(db, id, body.content.trim(), { allowOrder: false })
   }
-  catch (e) {
+  catch {
     await db.update(conversations).set({ outcome: 'ERROR' }).where(eq(conversations.id, id as never))
     throw createError({ statusCode: 500, message: 'Gagal memproses pesan', data: { detail: 'Gagal memproses pesan' } })
   }

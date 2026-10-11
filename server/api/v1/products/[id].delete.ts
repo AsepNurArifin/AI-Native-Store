@@ -12,11 +12,18 @@ export default defineEventHandler(async (event) => {
   if (!isUuid(id)) throw createError({ statusCode: 404, message: 'Produk tidak ditemukan', data: { detail: 'Produk tidak ditemukan' } })
   const rows = await db.select().from(products).where(eq(products.id, id as never)).limit(1)
   if (!rows[0]) throw createError({ statusCode: 404, message: 'Produk tidak ditemukan', data: { detail: 'Produk tidak ditemukan' } })
-  // Tolak hapus destruktif bila direferensikan
-  const refs = await db.execute(sql`SELECT 1 FROM order_items WHERE product_id = ${id}::uuid LIMIT 1`)
+  // Tolak hapus destruktif bila direferensikan.
+  // PERBAIKAN: recommendations.product_id DAN order_items.product_id sama-sama
+  // FK tanpa ON DELETE. Sebelumnya hanya order_items yang dicek, jadi produk yang
+  // pernah direkomendasikan sales agent di chat gagal hapus -> Postgres 23503 -> HTTP 500.
+  const refs = await db.execute(sql`
+    SELECT 1 FROM order_items WHERE product_id = ${id}::uuid
+    UNION ALL
+    SELECT 1 FROM recommendations WHERE product_id = ${id}::uuid
+    LIMIT 1`)
   const hasRef = Array.isArray(refs) ? refs.length > 0 : ((refs as unknown as { rows?: unknown[] })?.rows?.length || 0) > 0
   if (hasRef) {
-    throw createError({ statusCode: 409, message: 'Produk sudah dipakai order, nonaktifkan saja', data: { detail: { code: 'PRODUCT_IN_USE', message: 'Produk sudah dipakai order, nonaktifkan saja' } } })
+    throw createError({ statusCode: 409, message: 'Produk sudah dipakai order/percakapan, nonaktifkan saja', data: { detail: { code: 'PRODUCT_IN_USE', message: 'Produk sudah dipakai order/percakapan, nonaktifkan saja' } } })
   }
   await db.execute(sql`DELETE FROM inventory_transactions WHERE product_id = ${id}::uuid`)
   await db.execute(sql`DELETE FROM promotions WHERE product_id = ${id}::uuid`)
