@@ -16,6 +16,11 @@ export interface ConfirmOptions {
   cancelLabel?: string
   /** `danger` = tombol merah untuk aksi destruktif. */
   tone?: 'default' | 'danger'
+  /**
+   * Aksi kedua yang-destructive-dan-berbeda, mis. "Nonaktifkan" vs "Hapus Paksa".
+   * Tombolnya muncul di sebelah kiri tombol utama.
+   */
+  alt?: { label: string, tone?: 'default' | 'danger' }
   /** Bila diisi, dialog jadi input teks (pengganti `window.prompt`). */
   input?: {
     label?: string
@@ -23,6 +28,9 @@ export interface ConfirmOptions {
     value?: string
   }
 }
+
+/** Hasil `ask()`: `'alt'`, `'primary'`, atau `null` (batal/Escape). */
+export type ConfirmChoice = 'alt' | 'primary' | null
 
 export interface ConfirmState extends ConfirmOptions {
   /** `ask` = tombol biasa, `askText` = tombol + input teks. */
@@ -35,10 +43,10 @@ export interface ConfirmState extends ConfirmOptions {
  * dipanggil dari event handler di sisi klien, dan hanya satu dialog boleh
  * terbuka pada satu waktu.
  */
-let resolver: ((value: boolean | string | null) => void) | null = null
+let resolver: ((value: boolean | string | ConfirmChoice) => void) | null = null
 
 /** Dipanggil `<ConfirmHost>` saat pengguna menekan tombol / Escape. */
-export function resolveConfirm(value: boolean | string | null) {
+export function resolveConfirm(value: boolean | string | ConfirmChoice) {
   const done = resolver
   resolver = null
   done?.(value)
@@ -47,7 +55,7 @@ export function resolveConfirm(value: boolean | string | null) {
 export function useConfirm() {
   const state = useState<ConfirmState | null>('ui:confirm', () => null)
 
-  function open(opts: ConfirmOptions & { mode: 'ask' | 'askText' }): Promise<boolean | string | null> {
+  function open(opts: ConfirmOptions & { mode: 'ask' | 'askText' }): Promise<boolean | string | ConfirmChoice> {
     // Dialog yang belum ditutup (double-click) digantikan oleh yang baru.
     resolver?.(null)
     state.value = {
@@ -57,6 +65,7 @@ export function useConfirm() {
       confirmLabel: opts.confirmLabel ?? (opts.mode === 'ask' ? 'Lanjutkan' : 'Simpan'),
       cancelLabel: opts.cancelLabel ?? 'Batal',
       tone: opts.tone ?? 'default',
+      alt: opts.alt,
       input: opts.input
     }
     return new Promise((resolve) => {
@@ -67,8 +76,17 @@ export function useConfirm() {
     })
   }
 
+  /**
+   * Konfirmasi dengan 2 atau 3 pilihan.
+   * Bila `alt` diisi, hasilnya `'alt'` atau `'primary'`; tanpa `alt`, cukup
+   * `true` / `false` supaya call site lama tidak berubah.
+   */
+  function choose(opts: ConfirmOptions): Promise<ConfirmChoice> {
+    return open({ ...opts, mode: 'ask' }).then(v => (v === true ? 'primary' : v === 'alt' ? 'alt' : null))
+  }
+
   /** Konfirmasi ya/tidak. */
-  function ask(opts: ConfirmOptions): Promise<boolean> {
+  function ask(opts: Omit<ConfirmOptions, 'alt'>): Promise<boolean> {
     return open({ ...opts, mode: 'ask' }).then(v => v === true)
   }
 
@@ -77,5 +95,5 @@ export function useConfirm() {
     return open({ ...opts, mode: 'askText' }).then(v => (typeof v === 'string' ? v : null))
   }
 
-  return { state, ask, askText }
+  return { state, choose, ask, askText }
 }

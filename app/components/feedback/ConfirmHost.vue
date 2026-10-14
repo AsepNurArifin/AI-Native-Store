@@ -48,6 +48,13 @@
       <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" @click="cancel">{{ state.cancelLabel }}</Button>
         <Button
+          v-if="state.alt"
+          :variant="state.alt.tone === 'danger' ? 'ghostDanger' : 'secondary'"
+          @click="resolveConfirm('alt')"
+        >
+          {{ state.alt.label }}
+        </Button>
+        <Button
           :variant="state.tone === 'danger' ? 'destructive' : 'default'"
           @click="accept"
         >
@@ -88,6 +95,8 @@ function accept() {
   resolveConfirm(state.value?.mode === 'askText' ? inputValue.value : true)
 }
 function cancel() {
+  // `false` (bukan `null`) supaya `ask()` lama yang membandingkan `=== true`
+  // tetap dianggap batal.
   resolveConfirm(false)
 }
 </script>

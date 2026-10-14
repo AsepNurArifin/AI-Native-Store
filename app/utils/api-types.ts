@@ -25,6 +25,11 @@ export interface ProductOut {
   low_stock_threshold: number | null
   current_stock: number
   is_low_stock: boolean
+  /**
+   * Berapa `order_items` yang memakai produk ini (0 = bebas hapus).
+   * Endpoint admin produk mengirimnya; katalog publik tidak, jadi opsional.
+   */
+  order_count?: number
   image_url: string | null
   discount_percentage?: number
   discounted_price?: number | null

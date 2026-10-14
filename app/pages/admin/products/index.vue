@@ -67,6 +67,20 @@
             <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Cari</Button>
+          <label class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
+            <input type="checkbox" class="size-4 accent-brand-700" :checked="allSelected" @change="toggleSelectAll">
+            Pilih semua di halaman ini
+          </label>
+        </div>
+        <!-- Baris aksi massal: Muncul hanya ada yang dicentang. -->
+        <div
+          v-if="selected.size"
+          class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
+        >
+          <span class="text-sm font-medium text-stone-700">{{ selected.size }} produk dipilih</span>
+          <Badge v-if="selectedOrderCount > 0" variant="warning">{{ selectedOrderCount }} baris order ikut terhapus</Badge>
+          <Button size="sm" variant="outline" class="ml-auto" @click="clearSelection">Batalkan pilihan</Button>
+          <Button size="sm" variant="ghostDanger" :loading="bulkLoading" @click="bulkRemove()">Hapus terpilih</Button>
         </div>
         <p v-if="loading" class="text-sm text-stone-500">Memuat…</p>
         <div v-else>
@@ -75,8 +89,15 @@
           <div class="space-y-3 sm:hidden">
             <template v-for="(p, i) in items" :key="p.id">
             <p v-if="isNewCategory(i)" class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</p>
-            <div class="rounded-xl border border-stone-200 bg-white p-3">
+            <div class="rounded-xl border bg-white p-3" :class="selected.has(p.id) ? 'border-brand-500 ring-1 ring-brand-500/30' : 'border-stone-200'">
               <div class="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  class="mt-1 size-4 shrink-0 accent-brand-700"
+                  :checked="selected.has(p.id)"
+                  :aria-label="`Pilih ${p.name}`"
+                  @change="toggleSelect(p)"
+                >
                 <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg border object-cover" >
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-2">
@@ -85,6 +106,7 @@
                   </div>
               <p class="mt-1 text-xs text-stone-500">{{ p.category }} · <span class="font-semibold text-stone-800">{{ formatIDR(p.price) }}</span> · Stok
                 <span :class="p.is_low_stock ? 'font-semibold text-amber-700' : ''">{{ p.current_stock }}</span>
+                <span v-if="p.order_count" class="ml-1 font-medium text-rose-600">· dipakai {{ p.order_count }} order</span>
               </p>
               <details class="mt-1.5">
                 <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
@@ -103,20 +125,31 @@
           <div class="hidden overflow-x-auto sm:block">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
+              <th class="w-8 py-2 pr-2"><span class="sr-only">Pilih</span></th>
               <th class="py-2 pr-2">Nama</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th>
               <th class="pr-2">Stok</th><th class="pr-2">Status</th><th>Aksi</th>
             </tr></thead>
             <tbody>
               <template v-for="(p, i) in items" :key="p.id">
               <tr v-if="isNewCategory(i)" class="border-b border-stone-200 bg-stone-50">
-                <td colspan="6" class="py-1.5 pr-2 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</td>
+                <td colspan="7" class="py-1.5 pr-2 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</td>
               </tr>
-              <tr class="border-b border-stone-100">
+              <tr class="border-b border-stone-100" :class="selected.has(p.id) ? 'bg-brand-50/60' : ''">
+                <td class="py-2 pr-2 align-top">
+                  <input
+                    type="checkbox"
+                    class="mt-1 size-4 accent-brand-700"
+                    :checked="selected.has(p.id)"
+                    :aria-label="`Pilih ${p.name}`"
+                    @change="toggleSelect(p)"
+                  >
+                </td>
                 <td class="py-2 pr-2 font-medium">
                   <div class="flex items-start gap-2">
                     <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg border object-cover" >
                     <div class="min-w-0">
                       {{ p.name }}
+                      <span v-if="p.order_count" class="ml-1 text-xs font-medium text-rose-600">{{ p.order_count }} order</span>
                       <details class="mt-2 max-w-sm font-normal">
                         <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
                         <ProductSpecifications class="mt-2" :specification="p.specification" />
@@ -174,6 +207,32 @@ function isNewCategory(i: number) {
 }
 const form = reactive({ name: '', category: '', price: 0, status: 'ACTIVE', image_url: '' as string })
 const uploading = ref(false)
+
+// --- Hapus massal ---
+// Pilihan bertahan lintas halaman (Set id, bukan index baris) supaya owner
+// bisa centang di halaman 1, pindah halaman, lalu centang lagi.
+const selected = ref(new Set<string>())
+const bulkLoading = ref(false)
+const allSelected = computed(() => items.value.length > 0 && items.value.every(p => selected.value.has(p.id)))
+const selectedOrderCount = computed(
+  () => items.value.reduce((s, p) => s + (selected.value.has(p.id) ? (p.order_count ?? 0) : 0), 0)
+)
+function toggleSelect(p: ProductOut) {
+  const next = new Set(selected.value)
+  if (next.has(p.id)) next.delete(p.id)
+  else next.add(p.id)
+  selected.value = next
+}
+function toggleSelectAll() {
+  // Pilih semua = gabungkan yang sudah tercentang di halaman lain.
+  const next = new Set(selected.value)
+  for (const p of items.value) {
+    if (allSelected.value) next.delete(p.id)
+    else next.add(p.id)
+  }
+  selected.value = next
+}
+function clearSelection() { selected.value = new Set() }
 
 // Spesifikasi diedit sebagai baris key-value (bukan JSON mentah).
 const specRows = ref<Array<{ key: string, value: string }>>([])
@@ -265,9 +324,29 @@ async function toggleStatus(p: ProductOut) {
   catch (e: unknown) { toast.fromError(e, 'Gagal ubah status') }
 }
 async function remove(p: ProductOut) {
+  const used = p.order_count ?? 0
+  if (used > 0) {
+    // Dua jalur: nonaktifkan (aman,_history utuh) atau hapus paksa untuk
+    // data seed yang memang tidak lagi dipakai.
+    const choice = await confirmAction.choose({
+      title: `"${p.name}" sudah dipakai ${used} order.`,
+      message: 'Nonaktifkan saja supaya produk hilang dari etalase tapi riwayat order tetap utuh. Hapus paksa akan menghapus produk beserta baris ordernya, lalu total order yang tersisa dihitung ulang.',
+      confirmLabel: 'Nonaktifkan',
+      alt: { label: 'Hapus paksa', tone: 'danger' }
+    })
+    if (choice === 'alt') {
+      await forceDelete([p.id], `"${p.name}"`)
+      return
+    }
+    if (choice === 'primary') {
+      await setInactive(p)
+      return
+    }
+    return
+  }
   const ok = await confirmAction.ask({
     title: `Hapus "${p.name}"?`,
-    message: 'Tindakan ini tidak bisa dibatalkan. Kalau produk sudah dipakai di order atau rekomendasi chat, penghapusan ditolak — nonaktifkan saja.',
+    message: 'Tindakan ini tidak bisa dibatalkan. Rekomendasi chat yang menunjuk produk ini ikut terhapus.',
     confirmLabel: 'Hapus',
     tone: 'danger'
   })
@@ -278,5 +357,54 @@ async function remove(p: ProductOut) {
     await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal hapus produk') }
+}
+
+async function setInactive(p: ProductOut) {
+  try {
+    await request(`/products/${p.id}`, { method: 'PATCH', body: { status: 'INACTIVE' } })
+    toast.success(`"${p.name}" dinonaktifkan — hilang dari etalase, riwayat order tetap utuh.`)
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menonaktifkan produk') }
+}
+
+/**
+ * Hapus paksa (untuk data seed): produk + baris order + rekomendasi chat.
+ * Angka dampak diambil dari BALASAN endpoint, bukan dari tebakan sebelum
+ * request — jadi yang ditampilkan adalah yang benar-benar terjadi.
+ */
+async function forceDelete(ids: string[], label: string) {
+  try {
+    const res = await request<{ deleted: number, orders_touched: number, orders_cancelled: number }>(
+      '/products/bulk', { method: 'DELETE', body: { ids, force: true } }
+    )
+    const parts = [`${label} dihapus.`]
+    if (res.orders_touched) parts.push(`${res.orders_touched} order disesuaikan totalnya.`)
+    if (res.orders_cancelled) parts.push(`${res.orders_cancelled} order jadi kosong → CANCELLED.`)
+    toast.success(parts.join(' '))
+    clearSelection()
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menghapus produk') }
+}
+
+async function bulkRemove() {
+  if (bulkLoading.value || !selected.value.size) return
+  const n = selected.value.size
+  const used = selectedOrderCount.value
+  const ok = await confirmAction.ask({
+    title: `Hapus ${n} produk?`,
+    message: used > 0
+      ? `${n} produk, ${used} baris order ikut terhapus. Total order yang tersisa dihitung ulang, dan order yang jadi tanpa item ditandai CANCELLED. Rekomendasi chat ikut terhapus.`
+      : `${n} produk dihapus permanen, termasuk riwayat stok dan promosinya. Rekomendasi chat yang menunjuk produk ini ikut terhapus.`,
+    confirmLabel: `Hapus ${n} produk`,
+    tone: 'danger'
+  })
+  if (!ok) return
+  bulkLoading.value = true
+  try {
+    await forceDelete([...selected.value], `${n} produk`)
+  }
+  finally { bulkLoading.value = false }
 }
 </script>

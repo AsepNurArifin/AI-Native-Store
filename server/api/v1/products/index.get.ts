@@ -1,5 +1,5 @@
-import { and, asc, eq, ilike, lte, or, sql } from 'drizzle-orm'
-import { products } from '../../../database/schema'
+import { and, asc, eq, ilike, inArray, lte, or, sql } from 'drizzle-orm'
+import { orderItems, products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded, num, stocksFor } from '../../../utils/business'
 
@@ -34,6 +34,18 @@ export default defineEventHandler(async (event) => {
 
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
   const stocks = await stocksFor(db, rows.map(p => String(p.id)))
+  // Berapa order yang memakai produk ini. Satu agregat untuk seluruh baris
+  // halaman ini (BUKAN satu query per produk) supaya UI bisa membedakan
+  // "Hapus" vs "Hapus Paksa" sebelum pengguna menekan apa pun.
+  const orderCounts = new Map<string, number>()
+  if (rows.length) {
+    const ids = rows.map(p => String(p.id))
+    const used = await db.select({ productId: orderItems.productId, n: sql<number>`count(*)::int` })
+      .from(orderItems)
+      .where(inArray(orderItems.productId, ids as never))
+      .groupBy(orderItems.productId)
+    for (const u of used) orderCounts.set(String(u.productId), Number(u.n))
+  }
   return rows.map((p) => {
     const stock = stocks.get(String(p.id)) ?? 0
     const thr = (p.lowStockThreshold as number | null) ?? lowDefault
@@ -41,6 +53,7 @@ export default defineEventHandler(async (event) => {
       id: String(p.id), name: p.name, category: p.category, specification: p.specification || {},
       price: num(p.price), status: p.status, low_stock_threshold: p.lowStockThreshold ?? null,
       current_stock: stock, is_low_stock: stock <= thr,
+      order_count: orderCounts.get(String(p.id)) ?? 0,
       image_url: (p.imageUrl as string | null) ?? null
     }
   })
