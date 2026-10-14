@@ -82,7 +82,20 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     // Private (server-only, tidak ikut ke bundle browser):
-    appEnv: process.env.APP_ENV || process.env.NODE_ENV || 'development',
+    //
+    // PENTING — `appEnv` TIDAK boleh memakai `process.env.NODE_ENV` sebagai
+    // fallback. `nuxt build` MEMAKSA NODE_ENV='production' sebelum nuxt.config
+    // dievaluasi (@nuxt/cli: `overrideEnv('production')` di build-*.mjs). Jadi
+    // fallback itu membuat setiap build Vercel yang tanpa APP_ENV ikut jadi
+    // mode production — lengkap dengan default tidak aman di bawah ini
+    // (debug=true, seedOnStartup=true, provider=mock) yang membuat guard
+    // produksi menolak boot. Gejalanya di Vercel hanya "FUNCTION_INVOCATION_FAILED"
+    // di SEMUA route, karena plugin Nitro gagal start.
+    //
+    // Lokal tidak terpengaruh karena `.env` selalu menyediakan APP_ENV.
+    // Sumber kebenaran: APP_ENV eksplisit, atau VERCEL_ENV untuk auto-deteksi
+    // (production -> production, preview -> development).
+    appEnv: process.env.APP_ENV || (process.env.VERCEL_ENV === 'production' ? 'production' : 'development'),
     debug: process.env.DEBUG || 'true',
     databaseUrl: process.env.DATABASE_URL || '',
     jwtSecret: process.env.JWT_SECRET_KEY || 'change-me-64-char-random-secret',

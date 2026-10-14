@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Gamepad2, Headphones, Laptop, MessageCircle, Smartphone, Tablet, Watch, Package,
-  Truck, ShieldCheck, Flame, Clock, Zap, CheckCircle2, QrCode, ArrowRight
+  Truck, ShieldCheck, Flame, Clock, Zap, CheckCircle2, QrCode, ArrowRight, AlertTriangle
 } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
@@ -45,26 +45,29 @@ const { getCachedData } = useCache()
 // promos + catalog PARALEL + cache lintas navigasi. Key reaktif per kombinasi
 // filter: ganti filter = key baru = refetch otomatis (tanpa watch manual),
 // balik ke filter yang sama = tampil instan dari cache.
-const [{ data: promos }, { data: catalog, pending: catalogPending }] = await Promise.all([
+// TIDAK ada try/catch yang menelan error jadi `[]`. Kalau API/DB sedang gangguan,
+// `useAsyncData` menyimpan errornya di `catalogError` dan kita tampilkan sebagai
+// "katalog tidak bisa dimuat" — bukan sebagai "Produk Tidak Ditemukan".
+// Bug sebelumnya: 500 dari /catalog/search diubah jadi array kosong, sehingga
+// outage DB (EMAXCONNSESSION) terlihat seperti toko yang produknya kosong.
+const [{ data: promos }, {
+  data: catalog, pending: catalogPending, error: catalogError, refresh: refreshCatalog
+}] = await Promise.all([
   useAsyncData('mkt-promos', async () => {
-    try { return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }) }
-    catch { return [] as ProductOut[] }
+    return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } })
   }, { default: () => [] as ProductOut[], getCachedData }),
   useAsyncData(
     computed(() => `mkt-catalog:${searchQuery.value}:${activeCategory.value}:${selectedBrand.value}:${sort.value}`),
     async () => {
-      try {
-        const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
-        return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
-          query: {
-            q: combinedQ || undefined,
-            category: activeCategory.value || undefined,
-            sort: sort.value || undefined,
-            limit: 24
-          }
-        })
-      }
-      catch { return [] as ProductOut[] }
+      const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
+      return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+        query: {
+          q: combinedQ || undefined,
+          category: activeCategory.value || undefined,
+          sort: sort.value || undefined,
+          limit: 24
+        }
+      })
     },
     { default: () => [] as ProductOut[], getCachedData }
   )
@@ -327,6 +330,16 @@ useHead({
       <!-- Catalog Loading State -->
       <div v-if="catalogPending" class="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
         <div v-for="i in 8" :key="i" class="h-72 animate-pulse rounded-2xl bg-stone-200/70" aria-label="Memuat produk" />
+      </div>
+
+      <!-- Catalog Error State: outage DB/API tidak boleh disamarkan jadi "toko kosong" -->
+      <div v-else-if="catalogError" class="rounded-3xl border border-dashed border-rose-300 bg-rose-50/70 p-10 text-center shadow-xs" role="alert">
+        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+          <AlertTriangle class="h-6 w-6" />
+        </div>
+        <h3 class="mt-3 font-display font-bold text-stone-900">Katalog tidak bisa dimuat</h3>
+        <p class="mx-auto mt-1 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya kosong. Coba muat ulang beberapa saat lagi.</p>
+        <Button class="mt-4" variant="ai" @click="refreshCatalog()">Muat Ulang Katalog</Button>
       </div>
 
       <!-- Empty State -->

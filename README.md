@@ -100,7 +100,7 @@ capstone/                     # Nuxt 4 FULLSTACK (satu-satunya aplikasi)
 |---|---|---|
 | Node.js | 20/22/24 | Aplikasi (FE + API satu origin) |
 | npm | 10+ | Package manager |
-| PostgreSQL | Supabase (session pooler :5432) | DB |
+| PostgreSQL | Supabase (transaction pooler :6543) | DB |
 
 ---
 
@@ -117,7 +117,7 @@ Isi minimal di `.env` (lihat `.env.example` untuk daftar lengkap):
 
 | Variabel | Wajib | Catatan |
 |---|---|---|
-| `DATABASE_URL` | ya | Supabase **session pooler** port **5432** (`postgresql://…`, tanpa `+asyncpg`) |
+| `DATABASE_URL` | ya | Supabase **transaction pooler** port **6543** (`postgresql://…`, tanpa `+asyncpg`) |
 | `JWT_SECRET_KEY` | ya (produksi) | min 32 char acak |
 | `IDEMPOTENCY_TTL_MINUTES` | tidak | masa berlaku idempotency key (default 30 menit) |
 | `LLM_PROVIDER` | ya | `mock` untuk dev, `groq`/`openrouter`/`openai` untuk nyata |
@@ -166,6 +166,45 @@ Seed tidak mengganti data toko yang sudah terisi.
 di `.env` (default `owner@store.demo` / `ChangeMe123!`).
 `SEED_ON_STARTUP` **wajib `false` di produksi** (dicek `assertProductionSafe`).
 
+### 5.4 Koneksi DB di serverless — transaction pooler, bukan session pooler
+
+`DATABASE_URL` **wajib** memakai Supabase **transaction pooler** port **6543**.
+
+Kenapa session pooler (5432) tidak boleh dipakai dari Vercel: mode session
+mengalokasikan satu backend Postgres khusus untuk tiap koneksi client, dan
+Vercel **membekukan lambda di antara request**. Saat beku, timer `idle_timeout`
+driver DB tidak jalan, jadi koneksi tidak pernah dilepas. Tiap cold start menambah
+slot baru sampai batas 15, lalu **semua** request gagal dengan:
+
+```
+PostgresError: (EMAXCONNSESSION) max clients reached in session mode
+               - max clients are limited to pool_size: 15
+```
+
+`/api/v1/health` balas `503 degraded`, `/catalog/*` balas `500`. Transaction pooler
+melayani banyak client dengan sedikit backend, sehingga lambda yang beku tidak
+mengunci slot apa pun.
+
+Prasyarat yang sudah dipenuhi kodenya (`server/utils/db.ts`):
+`prepare: false` (wajib untuk transaction pooler) dan tidak ada fitur session-level
+(temporary table, `LISTEN`/`NOTIFY`, `SET` per-session). Advisory lock yang dipakai
+seed adalah `pg_advisory_xact_lock` — scope-nya transaksi, aman di transaction pooler.
+
+**Melepas slot yang sudah terlanjur macet** (kalau pernah salah pakai port 5432):
+
+```sql
+-- jalankan via SQL Editor Supabase, atau psql dari transaction pooler
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = 'postgres'
+  AND application_name = 'Supavisor'
+  AND state = 'idle'
+  AND extract(epoch FROM (now() - state_change)) > 60;
+```
+
+Setelah itu periksa kembali: `SELECT count(*) FROM pg_stat_activity WHERE
+application_name = 'Supavisor'` harus kembali kecil.
+
 ---
 
 ## 6. Menjalankan Aplikasi
@@ -180,14 +219,35 @@ npm run build                 # produksi (node-server; dipakai Vercel via preset
 ### Deployment
 
 - **Satu deploy** → aplikasi Nuxt (FE + `/api/v1` + `/health`) + Supabase managed.
-- **Vercel**: deploy repo root; set env server (`DATABASE_URL`, `JWT_SECRET_KEY`,
-  `LLM_PROVIDER=groq` + `GROQ_API_KEY`, `TELEGRAM_PROVIDER=bot` + token/secret)
-  di Environment Variables Vercel. `NUXT_PUBLIC_API_BASE=/api/v1` (default).
+- **Vercel**: deploy repo root; set env di Environment Variables Vercel. **WAJIB
+  pakai awalan `NUXT_`** — `NUXT_APP_ENV`, `NUXT_DEBUG`, `NUXT_SEED_ON_STARTUP`,
+  `NUXT_DATABASE_URL`, `NUXT_SUPABASE_URL`, `NUXT_SUPABASE_SERVICE_ROLE_KEY`,
+  `NUXT_JWT_SECRET_KEY`, `NUXT_LLM_PROVIDER=groq` + `NUXT_GROQ_API_KEY`,
+  `NUXT_TELEGRAM_PROVIDER=bot` + `NUXT_TELEGRAM_BOT_TOKEN` +
+  `NUXT_TELEGRAM_WEBHOOK_SECRET`, `NUXT_PUBLIC_SITE_URL`. Daftar lengkap ada di
+  `.env.example`. `NUXT_PUBLIC_API_BASE=/api/v1` (default).
 - Webhook Telegram → `https://<domain>/api/v1/webhooks/telegram` dengan header
   `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`
   (via `https://api.telegram.org/bot<token>/setWebhook`).
 - Semua state penting (ringkasan order, dedup update Telegram, idempotency) ada
   di database — aman untuk lingkungan serverless tanpa state in-memory.
+
+#### Kenapa env Vercel harus berawalan `NUXT_`
+
+Nitro hanya meng-override `runtimeConfig` dari environment variable berawalan
+`nitro.envPrefix` (Nuxt menge-setnya ke `NUXT_`) **saat runtime**. Nama telanjang
+(`DATABASE_URL`, `DEBUG`, `APP_ENV`, …) hanya terbaca kalau ada ketika `nuxt build`
+berjalan — jadi nilai bake-nya ikut terpasang ke dalam `.output/server/`.
+
+Konsekuensinya kalau pakai nama telanjang: mengubah env berarti **harus redeploy**,
+Community plan membatasi jumlah build harian, dan preview build bisa memakai env
+Production. Prefix `NUXT_` aman untuk kedua skenario. Nama `NUXT_PUBLIC_*` untuk
+kunci yang memang harus masuk ke bundle browser.
+
+Catatan: `serverConfig()` masih punya fallback `|| process.env.X` setelah
+`useRuntimeConfig()`. Fallback itu berguna saat build, tapi karena `nuxt.config.ts`
+selalu mengisi tiap kunci dengan nilai non-kosong, cabang `process.env` praktis
+tidak pernah tersentuh saat runtime. Jangan andalkan dia — andalkan `NUXT_`.
 
 ---
 
@@ -328,13 +388,15 @@ konfirmasi (web / telegram)
 | Gejala | Penyebab umum | Solusi |
 |---|---|---|
 | `DATABASE_URL belum diset` | `.env` belum ada / rebuild belum dilakukan | `cp .env.example .env`, isi, lalu `npm run build` ulang (env dibaca saat build) |
+| Seluruh halaman & API balas `500` + header `X-Vercel-Error: FUNCTION_INVOCATION_FAILED` | plugin Nitro gagal boot — biasanya guard produksi menolak start | buka **Vercel → Logs**, cari `[config] GAGAL guard produksi:`; pesan itu mencantumkan seluruh env `NUXT_*` yang kurang. Set di Environment Variables (scope Production), lalu redeploy |
 | `promotions is not defined` / `X is not defined` saat runtime | import hilang tapi build tetap hijau | `npm run typecheck` (atau `npm run verify`) |
-| `DB tetap tidak terjangkau` saat request | `DATABASE_URL` salah / transaction pooler | pakai Supabase **session pooler** port **5432**, bukan 6543 |
+| `DB tetap tidak terjangkau` saat request | `DATABASE_URL` salah / port bukan pooler | pakai Supabase **transaction pooler** port **6543** (lihat `.env.example`) |
+| Semua request API `500`/`503` (`EMAXCONNSESSION`, `max clients reached in session mode`) | app memakai **session pooler :5432** + Vercel membekukan lambda, sehingga koneksi idle tidak pernah dilepas dan slot penuh di 15 | pindah `DATABASE_URL` ke **transaction pooler :6543**; lepas slot yang macet dengan `pg_terminate_backend()` (lihat §5.4) |
 | Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat §6 Deployment) |
 | Konfirmasi chat ditolak `PRICE_CHANGED` | harga/promo berubah sejak ringkasan dibuat | desain begitu: ulangi pesanan untuk harga baru — 0 order tercipta, stok utuh |
 | `SUMMARY_EXPIRED` saat konfirmasi | ringkasan > 30 menit (TTL `order_summaries`) | buat ringkasan baru lewat chat |
 | Retry checkout membuat error | `idempotency_key` wajib | kirim ulang dengan **key yang sama** untuk replay, key baru untuk order baru |
-| Server tidak mau boot setelah deploy | guard produksi menolak start | set `APP_ENV=production`, `JWT_SECRET_KEY` acak ≥32 char, `DEBUG=false`, `SEED_ON_STARTUP=false`, provider bukan `mock` |
+| Server tidak mau boot setelah deploy | guard produksi menolak start | set `APP_ENV=production`, `JWT_SECRET_KEY` acak ≥32 char, `DEBUG=false`, `SEED_ON_STARTUP=false`, provider bukan `mock` — di Vercel pakai awalan `NUXT_` (lihat §6) |
 | Telegram membalas `401` | `TELEGRAM_PROVIDER=mock` (webhook fail-closed) | pakai `POST /dev/mock-tg` untuk dev, atau set `bot` + `TELEGRAM_WEBHOOK_SECRET` |
 | Login `429` | kena rate limit 5×/15 mnt per (IP+email) | tunggu 15 menit; counter direset otomatis setelah login sukses |
 | `NOT_PAID` saat complete | order belum dikonfirmasi bayar | `POST /orders/:id/pay` dulu (atau tombol "Tandai Lunas" di admin) |
@@ -346,11 +408,20 @@ konfirmasi (web / telegram)
 
 - **Jangan pernah commit `.env`** — hanya `.env.example` (sudah di `.gitignore`).
 - **Guard produksi berjalan saat boot** (`server/plugins/00-assert-production.ts`) —
-  menolak start bila `JWT_SECRET_KEY` masih default, `DEBUG=true`,
-  `SEED_ON_STARTUP=true`, atau `LLM_PROVIDER`/`TELEGRAM_PROVIDER=mock`.
-  **Wajib set `APP_ENV=production` di Vercel.** `node .output/server/index.mjs`
-  tidak selalu mengeset `NODE_ENV`, jadi andalkan `NODE_ENV` saja tidak cukup.
-  Untuk lokal, `.env` dibiarkan `APP_ENV=development` supaya guard tidak menolak boot.
+  menolak start bila `DATABASE_URL` kosong, `JWT_SECRET_KEY` masih default,
+  `DEBUG=true`, `SEED_ON_STARTUP=true`, atau `LLM_PROVIDER`/`TELEGRAM_PROVIDER=mock`.
+  Semua pelanggaran dikumpulkan dan dilaporkan **sekaligus** dalam satu pesan, jadi
+  tidak perlu redeploy berulang hanya untuk menemukan env berikutnya yang kurang.
+- **Deteksi produksi tidak lagi bergantung `NODE_ENV`.** `nuxt build` memaksa
+  `NODE_ENV=production`, jadi memakainya sebagai fallback membuat build Vercel
+  tanpa `APP_ENV` diam-diam menjadi mode production — guard menolak boot dan
+  seluruh site balas `FUNCTION_INVOCATION_FAILED`. Sekarang: `APP_ENV` eksplisit,
+  atau `VERCEL_ENV` untuk auto-deteksi (preview → `development`, production →
+  `production`). Untuk lokal, `.env` dibiarkan `APP_ENV=development` supaya guard
+  tidak menolak boot.
+- **Env Vercel wajib berawalan `NUXT_`** — Nitro hanya meng-override `runtimeConfig`
+  saat runtime lewat prefix tersebut; nama telanjang hanya ter-bake saat build.
+  Detail di §6.
 - **Webhook Telegram fail-closed** — tanpa `TELEGRAM_WEBHOOK_SECRET` (atau saat
   provider `mock`), `POST /webhooks/telegram` selalu `401`. Kalau `TELEGRAM_PROVIDER=bot`
   tapi token kosong, bot tidak bisa mengirim pesan dan webhook menolak semua update

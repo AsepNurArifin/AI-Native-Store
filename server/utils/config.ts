@@ -47,16 +47,37 @@ export function isProduction(cfg: ReturnType<typeof serverConfig>): boolean {
  * Guard wajibnya environment produksi. Dijalankan dari server/plugins/00-assert-production.ts.
  * PERBAIKAN: semula `TELEGRAM_PROVIDER=mock` hanya ditolak kalau token ikut
  * ter-set, sehingga mock tanpa token lolos dan webhook terbuka tanpa secret.
+ *
+ * Semua pelanggaran dikumpulkan dulu lalu dilempar SEKALI. Versi lama melempar
+ * error pertama yang ketemu, jadi begitu satu var kurang, vars lain yang juga
+ * kurang ikut terlewat — harus tambah env satu-satu, redeploy, gagal lagi.
+ * Di Vercel yang terlihat dari luar cuma 500 `FUNCTION_INVOCATION_FAILED` tanpa
+ * petunjuk apa pun, karena satu plugin Nitro yang gagal start mematikan seluruh
+ * site. Sekarang pesannya langsung menyebut seluruh env yang harus di-set.
+ *
+ * Kriteria fail-closed TIDAK dilonggarkan — hanya cara melaporkannya.
  */
 export function assertProductionSafe(cfg: ReturnType<typeof serverConfig>) {
   if (!isProduction(cfg)) return
+  const problems: string[] = []
+  if (!cfg.databaseUrl)
+    problems.push('NUXT_DATABASE_URL wajib diset (Supabase session pooler :5432, bukan 6543)')
   if (!cfg.jwtSecret || cfg.jwtSecret.includes('change-me') || cfg.jwtSecret.length < 32)
-    throw new Error('JWT_SECRET_KEY wajib non-default (>=32 char) di production')
-  if (cfg.debug) throw new Error('DEBUG wajib false di production')
-  if (cfg.seedOnStartup) throw new Error('SEED_ON_STARTUP wajib false di production')
-  if (cfg.llmProvider === 'mock') throw new Error('LLM_PROVIDER=mock tidak boleh di production')
+    problems.push('NUXT_JWT_SECRET_KEY wajib string acak >= 32 char (bukan default `change-me-...`)')
+  if (cfg.debug) problems.push('NUXT_DEBUG wajib `false`')
+  if (cfg.seedOnStartup) problems.push('NUXT_SEED_ON_STARTUP wajib `false`')
+  if (cfg.llmProvider === 'mock')
+    problems.push('NUXT_LLM_PROVIDER tidak boleh `mock` (mis. `groq`) + NUXT_GROQ_API_KEY')
   // Mock apa pun = jebakan: verifyTelegramSecret() fail-closed saat mock sehingga
   // webhook 401 total. Tolak di boot lebih baik daripada diam-diam lumpuh.
   if (cfg.telegramProvider === 'mock')
-    throw new Error('TELEGRAM_PROVIDER=mock tidak boleh di production (webhook jadi 401 total)')
+    problems.push('NUXT_TELEGRAM_PROVIDER tidak boleh `mock` (mis. `bot`) + NUXT_TELEGRAM_WEBHOOK_SECRET')
+  if (problems.length) {
+    throw new Error(
+      'Environment produksi tidak aman — server menolak boot:\n'
+      + problems.map(p => `  - ${p}`).join('\n')
+      + '\n\nSet di Vercel → Project → Settings → Environment Variables (scope Production), lalu redeploy.'
+      + '\nNama env WAJIB berawalan NUXT_ (Nitro hanya override runtimeConfig lewat prefix itu).'
+    )
+  }
 }

@@ -12,17 +12,16 @@ const base = (config.public.apiBase as string) || '/api/v1'
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const id = computed(() => String(route.params.id || ''))
 
-const { data: product, error } = await useAsyncData(`produk-${id.value}`, async () => {
+// `error` dipisah dari "tidak ditemukan": kalau API/DB sedang gangguan, kita
+// tampilkan "tidak bisa dimuat" + tombol muat ulang, BUKAN "Produk tidak ditemukan".
+const { data: product, error, refresh: refreshProduct } = await useAsyncData(`produk-${id.value}`, async () => {
   return await $fetch<ProductOut>(`${base}/catalog/${id.value}`)
 }, { default: () => null as ProductOut | null })
 
 const { data: related } = await useAsyncData(`produk-related-${id.value}`, async () => {
   if (!product.value) return [] as ProductOut[]
-  try {
-    const list = await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { category: product.value.category, limit: 9 } })
-    return list.filter(p => p.id !== id.value).slice(0, 4)
-  }
-  catch { return [] as ProductOut[] }
+  const list = await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { category: product.value.category, limit: 9 } })
+  return list.filter(p => p.id !== id.value).slice(0, 4)
 }, { default: () => [] as ProductOut[] })
 
 const promo = computed(() => product.value ? hasPromo(product.value) : false)
@@ -102,7 +101,17 @@ useHead(() => ({
       </ol>
     </nav>
 
-    <div v-if="error || !product" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
+    <!-- Error: server/DB lagi bermasalah — bukan berarti produk hilang -->
+    <div v-if="error" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center" role="alert">
+      <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak bisa dimuat</h1>
+      <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya sudah hilang. Coba muat ulang beberapa saat lagi.</p>
+      <div class="mt-5 flex justify-center gap-2">
+        <Button variant="ai" @click="refreshProduct()">Muat Ulang</Button>
+        <Button to="/#katalog" variant="outline">Lihat katalog</Button>
+      </div>
+    </div>
+
+    <div v-else-if="!product" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
       <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak ditemukan</h1>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Mungkin sudah nonaktif atau tautannya keliru. Coba cari di katalog atau tanya lewat chat.</p>
       <div class="mt-5 flex justify-center gap-2">
