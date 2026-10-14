@@ -61,7 +61,24 @@ export function assertProductionSafe(cfg: ReturnType<typeof serverConfig>) {
   if (!isProduction(cfg)) return
   const problems: string[] = []
   if (!cfg.databaseUrl)
-    problems.push('NUXT_DATABASE_URL wajib diset (Supabase session pooler :5432, bukan 6543)')
+    problems.push('NUXT_DATABASE_URL wajib diset (Supabase transaction pooler :6543, bukan session pooler :5432)')
+  // Port salah ketik = penyebab outage `EMAXCONNSESSION` yang mahal dicari.
+  // Hanya ditegur kalau host-nya memang pooler Supabase, supaya koneksi langsung
+  // (`db.<ref>.supabase.co`) yang sah tidak ikut ditolak.
+  //
+  // SENGAJA TIDAK mengecek tanda kutip/spasi: `parseEnvValue` Nitro sudah menstrip
+  // kutip pembungkus, dan driver `postgres` terbukti mentoleransi spasi — cek
+  // seperti itu hanya menolak konfigurasi yang sebenarnya berfungsi.
+  if (cfg.databaseUrl) {
+    try {
+      const u = new URL(cfg.databaseUrl)
+      if (u.hostname.endsWith('.pooler.supabase.com') && u.port !== '6543')
+        problems.push(`NUXT_DATABASE_URL memakai session pooler (port ${u.port || '5432'}) — wajib transaction pooler :6543 (README 5.4). Di Vercel lambda dibekukan sehingga slot terkunci sampai 15 lalu semua request 500`)
+    }
+    catch {
+      problems.push('NUXT_DATABASE_URL bukan URL postgres yang valid')
+    }
+  }
   if (!cfg.jwtSecret || cfg.jwtSecret.includes('change-me') || cfg.jwtSecret.length < 32)
     problems.push('NUXT_JWT_SECRET_KEY wajib string acak >= 32 char (bukan default `change-me-...`)')
   if (cfg.debug) problems.push('NUXT_DEBUG wajib `false`')

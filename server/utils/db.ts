@@ -10,11 +10,21 @@ let _sql: ReturnType<typeof postgres> | null = null
 export function getDb() {
   if (_db) return _db
   const url = useRuntimeConfig().databaseUrl as string || process.env.DATABASE_URL || ''
-  if (!url) throw new Error('DATABASE_URL belum diset. Salin .env.example menjadi .env dan isi DATABASE_URL (Supabase session pooler :5432).')
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL belum diset. Isi DATABASE_URL di .env (lokal), atau NUXT_DATABASE_URL di Vercel '
+      + '(scope Production) memakai Supabase TRANSACTION POOLER port 6543 — bukan session pooler 5432.'
+    )
+  }
   _sql = postgres(url, {
+    // WAJIB untuk transaction pooler: prepared statement tidak boleh di-cache
+    // antar transaksi karena backend Postgres-nya berganti-ganti.
     prepare: false,
-    // Supabase session pooler membatasi total koneksi (pool_size kecil):
-    // batasi pool driver + tutup koneksi idle agar tidak menghabiskan slot.
+    // Transaction pooler (:6543) multiplex banyak client ke sedikit backend,
+    // jadi `max: 3` di sini bukan upaya memperlelah session pooler — ini cuma
+    // menjaga jumlah koneksi driver tetap kecil dan murah.
+    // `idle_timeout` hanya berguna saat instance hidup (dev). Di Vercel lambda
+    // dibekukan di antara request sehingga timer ini praktis tidak pernah jalan.
     max: 3,
     idle_timeout: 20,
     connect_timeout: 10

@@ -23,10 +23,22 @@ export default defineNitroPlugin(() => {
   for (const k of SAFE_KEYS) safe[k] = (cfg as unknown as Record<string, unknown>)[k]
   safe.hasJwtSecret = Boolean(cfg.jwtSecret) && !cfg.jwtSecret.includes('change-me') && cfg.jwtSecret.length >= 32
   safe.hasDatabaseUrl = Boolean(cfg.databaseUrl)
+  // Host + port DB, TANPA kredensial. Salah port adalah penyebab outage
+  // `EMAXCONNSESSION` yang dari luar hanya terlihat sebagai 500 tanpa petunjuk,
+  // jadi targetnya harus terlihat di log boot tanpa perlu menebak.
+  let dbTarget = '(tidak diset)'
+  if (cfg.databaseUrl) {
+    try {
+      const u = new URL(cfg.databaseUrl)
+      dbTarget = `${u.hostname}:${u.port || '(default)'}`
+    }
+    catch { dbTarget = 'URL TIDAK VALID' }
+  }
+  safe.dbTarget = dbTarget
   safe.hasTelegramSecret = Boolean(cfg.telegramWebhookSecret)
   try {
     assertProductionSafe(cfg)
-    console.log('[config] guard produksi OK (appEnv=%s, debug=%s)', cfg.appEnv, cfg.debug)
+    console.log('[config] guard produksi OK (appEnv=%s, debug=%s, db=%s)', cfg.appEnv, cfg.debug, dbTarget)
   }
   catch (e) {
     console.error('[config] GAGAL guard produksi:', (e as Error).message, safe)
