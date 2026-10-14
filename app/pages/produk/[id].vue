@@ -24,6 +24,13 @@ const { data: related } = await useAsyncData(`produk-related-${id.value}`, async
   return list.filter(p => p.id !== id.value).slice(0, 4)
 }, { default: () => [] as ProductOut[] })
 
+// Gagal memuat = notifikasi pop-up; kartu "Produk tidak bisa dimuat" di bawah
+// tetap ada karena memuat tombol muat ulang.
+const toast = useToast()
+watch(error, (err) => {
+  if (err) toast.error('Produk tidak bisa dimuat. Koneksi ke database toko sedang terganggu.')
+})
+
 const promo = computed(() => product.value ? hasPromo(product.value) : false)
 const finalPrice = computed(() => product.value ? effectivePrice(product.value) : 0)
 const soldOut = computed(() => (product.value?.current_stock ?? 0) <= 0)

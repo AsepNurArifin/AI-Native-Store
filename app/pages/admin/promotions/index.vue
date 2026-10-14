@@ -21,14 +21,12 @@
           </div>
           <div><label class="mb-1 block text-sm">Mulai</label><Input v-model="form.start_date" type="datetime-local" /></div>
           <div><label class="mb-1 block text-sm">Selesai</label><Input v-model="form.end_date" type="datetime-local" /></div>
-          <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
           <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving">Simpan</Button></div>
         </form>
       </CardContent>
     </Card>
     <Card>
       <CardContent>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -59,13 +57,12 @@ import type { ProductOut, PromotionOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
 const items = ref<PromotionOut[]>([])
 const products = ref<ProductOut[]>([])
-const error = ref('')
 const loading = ref(false)
 const showForm = ref(false)
 const saving = ref(false)
-const formError = ref('')
 const form = reactive({ product_id: '', discount_percentage: 10, status: 'DRAFT', start_date: '', end_date: '' })
 const page = ref(1)
 const pageSize = 10
@@ -74,7 +71,6 @@ function productName(id: string) {
   return products.value.find(p => p.id === id)?.name || id.slice(0, 8) + '…'
 }
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     // Promosi + daftar produk di-fetch paralel (bukan berurutan).
@@ -86,12 +82,15 @@ async function load() {
     else throw iRes.reason
     if (pRes.status === 'fulfilled') products.value = pRes.value
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat promosi') }
   finally { loading.value = false }
 }
 onMounted(load)
 async function onSave() {
-  saving.value = true; formError.value = ''
+  if (saving.value) return
+  if (!form.product_id) { toast.warning('Pilih produk dulu.'); return }
+  if (!form.start_date || !form.end_date) { toast.warning('Isi tanggal mulai dan selesai.'); return }
+  saving.value = true
   try {
     await request('/promotions', {
       method: 'POST',
@@ -103,13 +102,18 @@ async function onSave() {
         end_date: new Date(form.end_date).toISOString()
       }
     })
+    toast.success('Promosi disimpan.')
     showForm.value = false; await load()
   }
-  catch (e: unknown) { formError.value = e instanceof Error ? e.message : 'Gagal menyimpan (cek overlap / maks diskon 50%)' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menyimpan (cek overlap / maks diskon 50%)') }
   finally { saving.value = false }
 }
 async function activate(pr: PromotionOut) {
-  try { await request(`/promotions/${pr.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } }); await load() }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal aktivasi (kemungkinan overlap)' }
+  try {
+    await request(`/promotions/${pr.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } })
+    toast.success(`Promosi ${productName(pr.product_id)} diaktifkan.`)
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal aktivasi (kemungkinan overlap)') }
 }
 </script>

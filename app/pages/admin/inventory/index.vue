@@ -21,7 +21,6 @@
           <div><label class="mb-1 block text-sm">Qty</label><Input v-model.number="adj.quantity" type="number" class="w-24" /></div>
           <Button type="submit" size="sm" :loading="adjLoading">Catat</Button>
         </form>
-        <p v-if="adjMsg" class="mt-2 text-sm" :class="adjOk ? 'text-emerald-600' : 'text-red-600'">{{ adjMsg }}</p>
       </CardContent>
     </Card>
     <Card>
@@ -29,7 +28,6 @@
         <CardTitle>Ringkasan stok</CardTitle>
       </CardHeader>
       <CardContent>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -91,20 +89,18 @@ import type { InventoryTx, StockSummaryItem } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
 const summary = ref<StockSummaryItem[]>([])
 const tx = ref<InventoryTx[]>([])
-const error = ref('')
 const fType = ref('')
 const txPage = ref(1)
 const txPageSize = 10
 const adj = reactive({ product_id: '', movement: 'IN', quantity: 1 })
 const adjLoading = ref(false)
-const adjMsg = ref('')
-const adjOk = ref(false)
 
 async function loadSummary() {
   try { summary.value = await request<StockSummaryItem[]>('/inventory/summary') }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat ringkasan stok') }
 }
 // Ringkasan + riwayat di-fetch paralel (bukan berurutan).
 onMounted(() => Promise.all([loadSummary(), loadTx()]))
@@ -117,13 +113,15 @@ async function loadTx() {
   catch { /* abaikan, tabel boleh kosong */ }
 }
 async function onAdjust() {
-  adjLoading.value = true; adjMsg.value = ''
+  if (adjLoading.value) return
+  if (!adj.product_id) { toast.warning('Pilih produk dulu sebelum mencatat penyesuaian.'); return }
+  adjLoading.value = true
   try {
     await request('/inventory/adjustments', { method: 'POST', body: { ...adj } })
-    adjOk.value = true; adjMsg.value = 'Penyesuaian tercatat.'
+    toast.success('Penyesuaian stok tercatat.')
     await Promise.all([loadSummary(), loadTx()])
   }
-  catch (e: unknown) { adjOk.value = false; adjMsg.value = e instanceof Error ? e.message : 'Gagal' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal mencatat penyesuaian stok') }
   finally { adjLoading.value = false }
 }
 </script>

@@ -73,6 +73,13 @@ const [{ data: promos }, {
   )
 ])
 
+const toast = useToast()
+// Katalog gagal dimuat = notifikasi pop-up. Kartu error di template tetap
+// dipertahankan karena memuat tombol "Muat Ulang", bukan sekadar pesan.
+watch(catalogError, (err) => {
+  if (err) toast.error('Katalog tidak bisa dimuat. Koneksi ke database toko sedang terganggu.')
+})
+
 const categoryIcons: Record<string, object> = {
   HP: Smartphone, Smartphone: Smartphone, Laptop: Laptop, Tablet: Tablet,
   Wearable: Watch, Audio: Headphones, Aksesori: Headphones, Komputer: Laptop, Gaming: Gamepad2

@@ -165,8 +165,8 @@
               </div>
             </div>
           </div>
-          <div v-else-if="lowError" class="py-6 text-center text-xs text-rose-600">
-            {{ lowError }}
+          <div v-else-if="lowFailed" class="py-6 text-center text-xs text-stone-500">
+            Ringkasan stok tidak termuat. Lihat notifikasi di pojok kanan atas.
           </div>
           <div v-else class="py-6 text-center text-xs text-stone-500">
             Semua stok berada dalam batas aman.
@@ -212,8 +212,8 @@
               </div>
             </div>
           </div>
-          <div v-else-if="ordersError" class="py-6 text-center text-xs text-rose-600">
-            {{ ordersError }}
+          <div v-else-if="ordersFailed" class="py-6 text-center text-xs text-stone-500">
+            Pesanan terbaru tidak termuat. Lihat notifikasi di pojok kanan atas.
           </div>
           <div v-else class="py-6 text-center text-xs text-stone-500">
             Belum ada pesanan yang tercatat.
@@ -232,13 +232,13 @@ import type { AIActionOut, OrderOut, StockSummaryItem } from '~/utils/api-types'
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const auth = useAuthStore()
 const { request } = useApi()
+const toast = useToast()
 const apiBase = useRuntimeConfig().public.apiBase as string
 const health = ref<{ status: string } | null>(null)
-const healthError = ref('')
 const low = ref<StockSummaryItem[]>([])
-const lowError = ref('')
+const lowFailed = ref(false)
 const orders = ref<OrderOut[]>([])
-const ordersError = ref('')
+const ordersFailed = ref(false)
 const pendingActions = ref(0)
 
 onMounted(async () => {
@@ -250,11 +250,11 @@ onMounted(async () => {
     request<AIActionOut[]>('/ai-actions', { query: { status: 'DRAFT', page: 1, page_size: 100 } })
   ])
   if (h.status === 'fulfilled') health.value = h.value
-  else healthError.value = h.reason instanceof Error ? h.reason.message : 'Backend tidak terjangkau'
+  else toast.fromError(h.reason, 'Backend tidak terjangkau')
   if (s.status === 'fulfilled') low.value = s.value.filter(i => i.is_low_stock)
-  else lowError.value = s.reason instanceof Error ? s.reason.message : 'Gagal memuat stok'
+  else { lowFailed.value = true; toast.fromError(s.reason, 'Gagal memuat ringkasan stok') }
   if (o.status === 'fulfilled') orders.value = o.value
-  else ordersError.value = o.reason instanceof Error ? o.reason.message : 'Gagal memuat order'
+  else { ordersFailed.value = true; toast.fromError(o.reason, 'Gagal memuat pesanan') }
   pendingActions.value = d.status === 'fulfilled' ? d.value.length : 0
 })
 </script>

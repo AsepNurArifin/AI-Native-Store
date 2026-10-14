@@ -10,6 +10,7 @@ const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 
 const category = computed(() => decodeURIComponent(String(route.params.category || '')))
 const categoryPath = computed(() => `/rak/${encodeURIComponent(category.value)}`)
+const toast = useToast()
 const q = ref('')
 const qDebounced = ref('')
 const sort = ref('')
@@ -60,7 +61,11 @@ useHead(() => ({
   }]
 }))
 
-const loadError = computed(() => fetchError.value ? 'Rak tidak bisa dimuat sekarang (backend sedang tidak aktif?).' : '')
+// Gagal memuat = notifikasi pop-up (satu pesan, tidak berulang tiap re-render).
+// Yang tersisa di halaman cuma tombol coba lagi supaya rak bisa dipulihkan.
+watch(fetchError, (err) => {
+  if (err) toast.error('Rak tidak bisa dimuat sekarang. Koneksi ke database toko sedang terganggu.')
+})
 </script>
 
 <template>
@@ -108,10 +113,9 @@ const loadError = computed(() => fetchError.value ? 'Rak tidak bisa dimuat sekar
       </div>
     </div>
 
-    <p v-if="loadError" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-      {{ loadError }}
-      <button class="ml-2 font-semibold underline" @click="() => refresh()">Coba lagi</button>
-    </p>
+    <div v-if="fetchError" class="flex justify-center">
+      <Button size="sm" variant="outline" @click="() => refresh()">Coba lagi muat rak</Button>
+    </div>
 
     <div v-else-if="pending" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <div v-for="i in 8" :key="i" class="h-64 animate-pulse rounded-xl bg-stone-100" aria-label="Memuat produk" />

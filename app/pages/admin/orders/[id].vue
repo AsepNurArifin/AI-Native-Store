@@ -2,7 +2,6 @@
   <div class="space-y-4">
     <NuxtLink to="/admin/orders" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Order</h1>
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="order">
       <CardHeader>
         <div class="flex items-center gap-2">
@@ -70,7 +69,7 @@
         </p>
       </CardFooter>
     </Card>
-    <p v-else-if="!error" class="text-sm text-stone-500">Memuat…</p>
+    <p v-else-if="!loadFailed" class="text-sm text-stone-500">Memuat…</p>
   </div>
 </template>
 
@@ -81,8 +80,10 @@ import type { OrderOut, ProductOut } from '~/utils/api-types'
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const route = useRoute()
 const { request } = useApi()
+const toast = useToast()
+const confirmAction = useConfirm()
 const order = ref<OrderOut | null>(null)
-const error = ref('')
+const loadFailed = ref(false)
 const productNames = ref<Record<string, string>>({})
 
 function productName(id: string) {
@@ -114,23 +115,44 @@ async function load() {
       request<ProductOut[]>('/products', { query: { page_size: 500 } }).catch(() => [] as ProductOut[])
     ])
     order.value = o
+    loadFailed.value = false
     productNames.value = Object.fromEntries(prods.map(p => [p.id, p.name]))
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { loadFailed.value = true; toast.fromError(e, 'Gagal memuat detail order') }
 }
 onMounted(load)
 async function markPaid() {
-  if (!confirm('Konfirmasi pembayaran diterima?')) return
-  try { order.value = await request<OrderOut>(`/orders/${route.params.id}/pay`, { method: 'POST' }) }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  const ok = await confirmAction.ask({
+    title: 'Konfirmasi pembayaran diterima?',
+    message: 'Status order jadi LUNAS dan stok keluar dari reserve.',
+    confirmLabel: 'Ya, sudah dibayar'
+  })
+  if (!ok) return
+  try {
+    order.value = await request<OrderOut>(`/orders/${route.params.id}/pay`, { method: 'POST' })
+    toast.success('Pembayaran dikonfirmasi.')
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal mengonfirmasi pembayaran') }
 }
 async function complete() {
-  try { order.value = await request<OrderOut>(`/orders/${route.params.id}/complete`, { method: 'POST' }) }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  try {
+    order.value = await request<OrderOut>(`/orders/${route.params.id}/complete`, { method: 'POST' })
+    toast.success('Order ditandai selesai.')
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menyelesaikan order') }
 }
 async function cancel() {
-  if (!confirm('Batalkan order ini?')) return
-  try { order.value = await request<OrderOut>(`/orders/${route.params.id}/cancel`, { method: 'POST' }) }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  const ok = await confirmAction.ask({
+    title: 'Batalkan order ini?',
+    message: 'Stok produk akan dikembalikan ke katalog.',
+    confirmLabel: 'Batalkan order',
+    tone: 'danger'
+  })
+  if (!ok) return
+  try {
+    order.value = await request<OrderOut>(`/orders/${route.params.id}/cancel`, { method: 'POST' })
+    toast.success('Order dibatalkan, stok dikembalikan.')
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal membatalkan order') }
 }
 </script>

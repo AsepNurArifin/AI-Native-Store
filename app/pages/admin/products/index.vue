@@ -32,7 +32,6 @@
                 >
                 <Button v-if="form.image_url" type="button" size="sm" variant="ghost" @click="form.image_url = ''">Hapus gambar</Button>
                 <p v-if="uploading" class="text-xs text-stone-500">Mengunggah…</p>
-                <p v-if="uploadError" class="text-xs text-red-600">{{ uploadError }}</p>
               </div>
             </div>
           </div>
@@ -51,7 +50,6 @@
             <Button type="button" size="sm" variant="outline" class="mt-2" @click="specRows.push({ key: '', value: '' })">+ Baris spesifikasi</Button>
             <p class="mt-1 text-xs text-stone-500">Isi angka untuk ram_gb dan storage_gb (1 TB = 1000 GB). Jangan isi fitur yang belum diketahui; false berarti tidak didukung.</p>
           </div>
-          <p v-if="formError" class="text-sm text-red-600 md:col-span-2">{{ formError }}</p>
           <div class="flex gap-2 md:col-span-2">
             <Button type="submit" size="sm" :loading="saving">Simpan</Button>
             <Button type="button" size="sm" variant="ghost" @click="resetForm()">Batal</Button>
@@ -70,7 +68,6 @@
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Cari</Button>
         </div>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <p v-if="loading" class="text-sm text-stone-500">Memuat…</p>
         <div v-else>
           <!-- Mobile: kartu per produk -->
@@ -158,15 +155,15 @@ import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
+const confirmAction = useConfirm()
 const items = ref<ProductOut[]>([])
 const loading = ref(true)
-const error = ref('')
 const q = ref('')
 const category = ref('')
 const status = ref('ACTIVE')
 const showForm = ref(false)
 const saving = ref(false)
-const formError = ref('')
 const editing = ref<ProductOut | null>(null)
 const page = ref(1)
 // Muat sedikit demi sedikit per halaman (bukan setengah katalog sekaligus).
@@ -177,7 +174,6 @@ function isNewCategory(i: number) {
 }
 const form = reactive({ name: '', category: '', price: 0, status: 'ACTIVE', image_url: '' as string })
 const uploading = ref(false)
-const uploadError = ref('')
 
 // Spesifikasi diedit sebagai baris key-value (bukan JSON mentah).
 const specRows = ref<Array<{ key: string, value: string }>>([])
@@ -204,21 +200,21 @@ function rowsFromSpec(spec: Record<string, unknown>) {
 }
 
 async function load() {
-  loading.value = true; error.value = ''
+  loading.value = true
   try {
     items.value = await request<ProductOut[]>('/products', {
       query: { q: q.value || undefined, category: category.value || undefined, status: status.value, page: page.value, page_size: pageSize }
     })
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat produk') }
   finally { loading.value = false }
 }
 onMounted(load)
 
 function resetForm() {
-  editing.value = null; showForm.value = false; formError.value = ''
+  editing.value = null; showForm.value = false
   form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'; form.image_url = ''
-  specRows.value = []; uploadError.value = ''
+  specRows.value = []
 }
 function startEdit(p: ProductOut) {
   editing.value = p; showForm.value = true
@@ -231,45 +227,56 @@ async function onFileChange(e: Event) {
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
-  uploadError.value = ''; uploading.value = true
+  uploading.value = true
   try {
     const fd = new FormData()
     fd.append('file', file)
     const res = await request<{ image_url: string }>('/uploads/images', { method: 'POST', body: fd })
     form.image_url = res.image_url
+    toast.success('Gambar produk diunggah.')
   }
-  catch (e: unknown) { uploadError.value = e instanceof Error ? e.message : 'Gagal mengunggah gambar' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal mengunggah gambar') }
   finally { uploading.value = false }
 }
 async function onSave() {
-  saving.value = true; formError.value = ''
+  saving.value = true
   try {
     const spec = specFromRows()
     const payload = { ...form, image_url: form.image_url.trim() || null, specification: spec }
-    if (editing.value) {
-      await request(`/products/${editing.value.id}`, { method: 'PATCH', body: payload })
+    const editingId = editing.value?.id
+    if (editingId) {
+      await request(`/products/${editingId}`, { method: 'PATCH', body: payload })
     }
     else {
       await request('/products', { method: 'POST', body: payload })
     }
+    toast.success(editingId ? `Produk "${form.name}" diperbarui.` : `Produk "${form.name}" dibuat.`)
     resetForm(); await load()
   }
-  catch (e: unknown) { formError.value = e instanceof Error ? e.message : 'Gagal menyimpan' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menyimpan produk') }
   finally { saving.value = false }
 }
 async function toggleStatus(p: ProductOut) {
   try {
     await request(`/products/${p.id}`, { method: 'PATCH', body: { status: p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } })
+    toast.success(`"${p.name}" ${p.status === 'ACTIVE' ? 'dinonaktifkan' : 'diaktifkan'}.`)
     await load()
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal ubah status' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal ubah status') }
 }
 async function remove(p: ProductOut) {
-  if (!confirm(`Hapus "${p.name}"? Bila sudah dipakai order/promosi, backend menolak (409); nonaktifkan saja.`)) return
+  const ok = await confirmAction.ask({
+    title: `Hapus "${p.name}"?`,
+    message: 'Tindakan ini tidak bisa dibatalkan. Kalau produk sudah dipakai di order atau rekomendasi chat, penghapusan ditolak — nonaktifkan saja.',
+    confirmLabel: 'Hapus',
+    tone: 'danger'
+  })
+  if (!ok) return
   try {
     await request(`/products/${p.id}`, { method: 'DELETE' })
+    toast.success(`"${p.name}" dihapus.`)
     await load()
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal hapus' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal hapus produk') }
 }
 </script>

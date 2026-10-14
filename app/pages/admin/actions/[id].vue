@@ -2,7 +2,6 @@
   <div class="space-y-4">
     <NuxtLink to="/admin/actions" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail AI Action</h1>
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="action">
       <CardHeader>
         <div class="flex items-center justify-between">
@@ -71,8 +70,6 @@
           <summary class="cursor-pointer">Payload mentah (JSON)</summary>
           <pre class="mt-1 overflow-x-auto rounded bg-stone-950 p-3 font-mono text-emerald-200">{{ JSON.stringify(action.payload, null, 2) }}</pre>
         </details>
-
-        <p v-if="msg" class="mb-2 text-sm" :class="ok ? 'text-emerald-600' : 'text-red-600'">{{ msg }}</p>
       </CardContent>
       <CardFooter>
         <div v-if="action.status === 'DRAFT'" class="flex gap-2">
@@ -93,10 +90,9 @@ import type { AIActionOut, ProductOut } from '~/utils/api-types'
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const route = useRoute()
 const { request } = useApi()
+const toast = useToast()
+const confirmAction = useConfirm()
 const action = ref<AIActionOut | null>(null)
-const error = ref('')
-const msg = ref('')
-const ok = ref(false)
 const busy = ref(false)
 const product = ref<ProductOut | null>(null)
 
@@ -136,28 +132,39 @@ async function load() {
       catch { /* produk mungkin sudah dihapus; id saja cukup */ }
     }
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat detail aksi') }
 }
 onMounted(load)
 async function approve() {
-  busy.value = true; msg.value = ''
+  if (busy.value) return
+  busy.value = true
   try {
     const res = await request<{ status: string }>(`/ai-actions/${route.params.id}/approve`, { method: 'POST' })
-    ok.value = true; msg.value = `Hasil: ${res.status}`
+    toast.success(`Aksi disetujui. Hasil: ${res.status}`)
     await load()
   }
-  catch (e: unknown) { ok.value = false; msg.value = e instanceof Error ? e.message : 'Gagal' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menyetujui aksi') }
   finally { busy.value = false }
 }
 async function reject() {
-  const note = prompt('Alasan reject (opsional):') || undefined
-  busy.value = true; msg.value = ''
+  if (busy.value) return
+  // Input alasan lewat dialog yang sama (pengganti window.prompt): satu pola
+  // pop-up untuk konfirmasi dan isian.
+  const note = await confirmAction.askText({
+    title: 'Tolak draft ini?',
+    message: 'Alasan bersifat opsional tapi tersimpan di audit trail sebagai jejak keputusan.',
+    confirmLabel: 'Tolak',
+    tone: 'danger',
+    input: { label: 'Alasan reject (opsional)', placeholder: 'mis. harga stale, festival sudah lewat' }
+  })
+  if (note === null) return
+  busy.value = true
   try {
-    await request(`/ai-actions/${route.params.id}/reject`, { method: 'POST', body: { note } })
-    ok.value = true; msg.value = 'Draft ditolak.'
+    await request(`/ai-actions/${route.params.id}/reject`, { method: 'POST', body: { note: note || undefined } })
+    toast.success('Draft ditolak.')
     await load()
   }
-  catch (e: unknown) { ok.value = false; msg.value = e instanceof Error ? e.message : 'Gagal' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menolak aksi') }
   finally { busy.value = false }
 }
 </script>

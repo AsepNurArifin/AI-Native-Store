@@ -4,7 +4,6 @@ import type { ConfirmOrderResponse, FulfillmentInfo, ProductOut } from '~/utils/
 import { formatIDR, formatWIB } from '~/utils/format'
 import { effectivePrice, hasPromo } from '~/utils/product'
 import { quoteLine } from '#shared/utils/pricing'
-import { NormalizedApiError } from '~/composables/useApi'
 
 /**
  * Checkout langsung (tanpa chat/AI): 1 produk + qty -> data pemesan ->
@@ -16,6 +15,7 @@ const route = useRoute()
 const config = useRuntimeConfig()
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const { request } = useApi()
+const toast = useToast()
 
 const id = computed(() => String(route.query.item || ''))
 const qty = ref(Math.max(1, Number(route.query.qty || 1) || 1))
@@ -55,7 +55,6 @@ const dlvAddress = ref('')
 const dlvNotes = ref('')
 
 const submitting = ref(false)
-const errorMsg = ref('')
 const placed = ref<ConfirmOrderResponse | null>(null)
 const placedInfo = ref<FulfillmentInfo | null>(null)
 const idemKey = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -76,15 +75,14 @@ function incQty() { qty.value = Math.min(maxQty.value, qty.value + 1) }
 
 async function submit() {
   if (submitting.value || !product.value) return
-  errorMsg.value = ''
   if (!custName.value.trim() || !custContact.value.trim()) {
-    errorMsg.value = 'Isi nama & kontak dulu sebelum membuat pesanan.'
+    toast.warning('Isi nama & kontak dulu sebelum membuat pesanan.')
     return
   }
   const info: FulfillmentInfo = { method: method.value }
   if (method.value === 'DELIVERY') {
     if (!dlvRecipient.value.trim() || !dlvPhone.value.trim() || !dlvAddress.value.trim()) {
-      errorMsg.value = 'Isi nama penerima, no. HP, dan alamat lengkap dulu.'
+      toast.warning('Isi nama penerima, no. HP, dan alamat lengkap dulu.')
       return
     }
     info.recipient = dlvRecipient.value.trim()
@@ -107,9 +105,10 @@ async function submit() {
     placed.value = res
     placedInfo.value = info
     placedAt.value = Date.now()
+    toast.success(`Pesanan #${res.order_id.slice(0, 8)}… tercatat.`)
   }
   catch (e: unknown) {
-    errorMsg.value = e instanceof NormalizedApiError ? e.message : 'Gagal membuat pesanan'
+    toast.fromError(e, 'Gagal membuat pesanan')
   }
   finally { submitting.value = false }
 }
@@ -267,8 +266,6 @@ async function submit() {
           <Input v-model="dlvNotes" placeholder="Catatan kurir (opsional)" class="h-9 text-xs" />
         </div>
       </div>
-
-      <p v-if="errorMsg" role="alert" class="text-center text-xs font-medium text-rose-600">{{ errorMsg }}</p>
 
       <Button
         variant="ai"

@@ -2,7 +2,6 @@
   <div class="space-y-4">
     <NuxtLink to="/admin/conversations" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Percakapan</h1>
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <div v-if="detail" class="grid gap-4 lg:grid-cols-3">
       <div class="space-y-3 lg:col-span-2">
         <Card>
@@ -43,7 +42,7 @@
         </Card>
       </div>
     </div>
-    <p v-else-if="!error" class="text-sm text-stone-500">Memuat…</p>
+    <p v-else-if="!loadFailed" class="text-sm text-stone-500">Memuat…</p>
   </div>
 </template>
 
@@ -54,11 +53,15 @@ import type { ConversationDetail } from '~/utils/api-types'
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const route = useRoute()
 const { request } = useApi()
+const toast = useToast()
 const detail = ref<ConversationDetail | null>(null)
-const error = ref('')
+const loadFailed = ref(false)
 
 onMounted(async () => {
-  try { detail.value = await request<ConversationDetail>(`/conversations/${route.params.id}`) }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  try {
+    detail.value = await request<ConversationDetail>(`/conversations/${route.params.id}`)
+    loadFailed.value = false
+  }
+  catch (e: unknown) { loadFailed.value = true; toast.fromError(e, 'Gagal memuat percakapan') }
 })
 </script>

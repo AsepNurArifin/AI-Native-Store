@@ -9,7 +9,6 @@
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -46,22 +45,21 @@ import type { ConversationOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
 const items = ref<ConversationOut[]>([])
-const error = ref('')
 const loading = ref(false)
 const fChannel = ref('')
 const page = ref(1)
 const pageSize = 10
 
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     items.value = await request<ConversationOut[]>('/conversations', {
       query: { channel: fChannel.value || undefined, page: page.value, page_size: pageSize }
     })
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat percakapan') }
   finally { loading.value = false }
 }
 onMounted(load)

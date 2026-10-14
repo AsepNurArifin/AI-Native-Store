@@ -15,7 +15,6 @@
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -59,8 +58,8 @@ import type { AuditLogOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
+const toast = useToast()
 const items = ref<AuditLogOut[]>([])
-const error = ref('')
 const loading = ref(false)
 const fAction = ref('')
 const fEvent = ref('')
@@ -76,7 +75,6 @@ function detailValue(v: unknown): string {
 }
 
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     items.value = await request<AuditLogOut[]>('/audit/logs', {
@@ -88,7 +86,7 @@ async function load() {
       }
     })
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat audit log') }
   finally { loading.value = false }
 }
 onMounted(load)

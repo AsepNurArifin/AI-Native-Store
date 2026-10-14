@@ -124,24 +124,6 @@
             </div>
           </div>
 
-          <div
-            v-if="error"
-            class="mt-5 flex items-start gap-2 border-l-2 border-destructive bg-white px-3 py-2.5 text-sm font-medium text-destructive"
-            role="alert"
-          >
-            <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{{ error }}</span>
-          </div>
-          <div
-            v-if="okMsg"
-            class="mt-5 flex items-start gap-2 border-l-2 border-brand-700 bg-brand-50 px-3 py-2.5 text-sm font-medium text-brand-700"
-            role="status"
-            aria-live="polite"
-          >
-            <Check class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{{ okMsg }}</span>
-          </div>
-
           <Button
             type="submit"
             variant="ai"
@@ -178,7 +160,8 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Eye, EyeOff, TriangleAlert } from '@lucide/vue'
+import { Eye, EyeOff } from '@lucide/vue'
+import { toApiError } from '~/composables/useApi'
 
 definePageMeta({ layout: false })
 // Halaman internal: jangan diindeks.
@@ -186,12 +169,11 @@ useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 useSeoMeta({ title: 'Masuk Admin: SHAF STORE' })
 const auth = useAuthStore()
 const route = useRoute()
+const toast = useToast()
 const email = ref('')
 const password = ref('')
-const error = ref('')
 const loading = ref(false)
 const showPass = ref(false)
-const okMsg = ref('')
 const restoring = ref(false)
 
 // Validasi pola "touched": dicek saat blur, dihitung ulang otomatis saat diketik.
@@ -232,7 +214,7 @@ onMounted(async () => {
     const me = await auth.fetchMe()
     restoring.value = false
     if (me) {
-      okMsg.value = 'Sesi masih aktif. Membuka dashboard…'
+      toast.info('Sesi masih aktif. Membuka dashboard…')
       await navigateTo(targetAfterLogin())
       return
     }
@@ -240,23 +222,21 @@ onMounted(async () => {
 })
 
 async function onLogin() {
-  error.value = ''
-  okMsg.value = ''
+  if (loading.value) return
   emailTouched.value = true
   passTouched.value = true
   if (emailError.value || passError.value) return
   loading.value = true
   try {
     await auth.login(email.value.trim(), password.value)
-    okMsg.value = 'Tersambung. Membuka dashboard…'
+    toast.success('Tersambung. Membuka dashboard…')
     await navigateTo(targetAfterLogin())
   }
   catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Login gagal'
-    // Salam API terasa mentah; 401 = kredensial salah, sisanya bersihkan prefiks [METHOD].
-    error.value = msg.includes('401')
-      ? 'Email atau password salah — periksa lalu coba lagi.'
-      : msg.replace(/^\[(?:POST|GET)\] "[^"]+":\s*/, '')
+    // 401 = kredensial salah; error lain cukup tampilkan pesan server apa adanya
+    // (toApiError sudah membersihkan salam mentah ofetch, mis. 429 rate limit).
+    const err = toApiError(e)
+    toast.error(err.status === 401 ? 'Email atau password salah — periksa lalu coba lagi.' : err.message)
   }
   finally { loading.value = false }
 }

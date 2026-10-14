@@ -12,8 +12,6 @@
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
         </div>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
-
         <div class="mb-4 rounded-md border border-stone-200 bg-stone-50 p-3">
           <label class="mb-1 block text-sm font-medium">Buat draft dengan AI (FR-AA-01)</label>
           <p class="mb-2 text-xs text-stone-500">
@@ -21,10 +19,8 @@
             “tambahkan stok produk Soda R057 sebanyak 20”
           </p>
           <textarea v-model="instruction" rows="2" class="w-full rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm" placeholder="Instruksi natural language…" />
-          <div class="mt-2 flex items-center gap-3">
+          <div class="mt-2">
             <Button size="sm" :loading="creating" @click="createDraft()">Buat Draft</Button>
-            <span v-if="draftError" class="text-sm text-red-600">{{ draftError }}</span>
-            <span v-if="draftOk" class="text-sm text-green-600">Draft dibuat.</span>
           </div>
         </div>
 
@@ -58,41 +54,37 @@ import type { AIActionOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
+const toast = useToast()
 const items = ref<AIActionOut[]>([])
-const error = ref('')
 const fStatus = ref('')
 const instruction = ref('')
 const creating = ref(false)
 const loading = ref(false)
-const draftError = ref('')
-const draftOk = ref(false)
 const page = ref(1)
 const pageSize = 10
 
 async function createDraft() {
-  draftError.value = ''
-  draftOk.value = false
-  if (!instruction.value.trim()) { draftError.value = 'Isi instruksi dulu.'; return }
+  if (creating.value) return
+  if (!instruction.value.trim()) { toast.warning('Isi instruksi dulu.'); return }
   creating.value = true
   try {
     await request<AIActionOut>('/ai-actions/draft', { method: 'POST', body: { instruction: instruction.value.trim() } })
-    draftOk.value = true
+    toast.success('Draft dibuat. Tinjau di antrean bawah.')
     instruction.value = ''
     await load()
   }
-  catch (e: unknown) { draftError.value = e instanceof Error ? e.message : 'Gagal membuat draft' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal membuat draft') }
   finally { creating.value = false }
 }
 
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     items.value = await request<AIActionOut[]>('/ai-actions', {
       query: { status_: fStatus.value || undefined, page: page.value, page_size: pageSize }
     })
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat antrean draft') }
   finally { loading.value = false }
 }
 onMounted(load)

@@ -2,7 +2,6 @@
   <div class="space-y-4">
     <NuxtLink to="/admin/customers" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
     <h1 class="text-2xl font-bold">Detail Customer</h1>
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <Card v-if="detail">
       <CardContent>
         <dl class="grid gap-2 text-sm md:grid-cols-2">
@@ -35,11 +34,11 @@ import type { CustomerDetail } from '~/utils/api-types'
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const route = useRoute()
 const { request } = useApi()
+const toast = useToast()
 const detail = ref<CustomerDetail | null>(null)
-const error = ref('')
 
 onMounted(async () => {
   try { detail.value = await request<CustomerDetail>(`/customers/${route.params.id}`) }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat detail pelanggan') }
 })
 </script>

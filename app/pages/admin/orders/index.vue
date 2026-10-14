@@ -16,7 +16,6 @@
           </select>
           <Button size="sm" variant="secondary" @click="page = 1; load()">Terapkan filter</Button>
         </div>
-        <p v-if="error" class="mb-2 text-sm text-red-600">{{ error }}</p>
         <!-- Mobile: kartu per pesanan (tabel tidak muat di <640px) -->
         <div v-if="loading" class="py-4 text-center text-sm text-stone-500 sm:hidden">
           Memuat daftar pesanan…
@@ -96,8 +95,9 @@ import type { OrderOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
+const confirmAction = useConfirm()
 const items = ref<OrderOut[]>([])
-const error = ref('')
 const loading = ref(false)
 const fStatus = ref('')
 const fChannel = ref('')
@@ -106,7 +106,6 @@ const page = ref(1)
 const pageSize = 10
 
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     items.value = await request<OrderOut[]>('/orders', {
@@ -119,21 +118,39 @@ async function load() {
       }
     })
   }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal memuat' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat pesanan') }
   finally { loading.value = false }
 }
 onMounted(load)
 async function markPaid(o: OrderOut) {
-  try { await request(`/orders/${o.id}/pay`, { method: 'POST' }); await load() }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  try {
+    await request(`/orders/${o.id}/pay`, { method: 'POST' })
+    toast.success(`Order #${o.id.slice(0, 8)}… ditandai lunas.`)
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menandai lunas') }
 }
 async function complete(o: OrderOut) {
-  try { await request(`/orders/${o.id}/complete`, { method: 'POST' }); await load() }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  try {
+    await request(`/orders/${o.id}/complete`, { method: 'POST' })
+    toast.success(`Order #${o.id.slice(0, 8)}… diselesaikan.`)
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menyelesaikan order') }
 }
 async function cancel(o: OrderOut) {
-  if (!confirm('Batalkan order ini? Stok dikembalikan.')) return
-  try { await request(`/orders/${o.id}/cancel`, { method: 'POST' }); await load() }
-  catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Gagal' }
+  const ok = await confirmAction.ask({
+    title: `Batalkan order #${o.id.slice(0, 8)}…?`,
+    message: 'Stok produk di order ini akan dikembalikan ke katalog.',
+    confirmLabel: 'Batalkan order',
+    tone: 'danger'
+  })
+  if (!ok) return
+  try {
+    await request(`/orders/${o.id}/cancel`, { method: 'POST' })
+    toast.success('Order dibatalkan, stok dikembalikan.')
+    await load()
+  }
+  catch (e: unknown) { toast.fromError(e, 'Gagal membatalkan order') }
 }
 </script>

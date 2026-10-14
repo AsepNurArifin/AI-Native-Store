@@ -11,7 +11,6 @@
             <textarea v-model="question" rows="2" placeholder="Produk apa yang paling laris bulan ini?" class="w-full rounded-md border border-stone-300 p-2 text-sm" />
             <Button type="submit" size="sm" :loading="asking">Tanya</Button>
           </form>
-          <p v-if="askError" class="mt-2 text-sm text-red-600">{{ askError }}</p>
           <div v-if="answer" class="mt-3 rounded bg-stone-50 p-3 text-sm">
             <MarkdownText :text="answer.answer" />
             <details class="mt-2 text-xs text-stone-500">
@@ -32,7 +31,6 @@
             <Input v-model="to" type="date" class="w-40" />
             <Button type="submit" size="sm" variant="secondary">Muat</Button>
           </form>
-          <p v-if="salesError" class="text-sm text-red-600">{{ salesError }}</p>
           <p v-if="salesLoading" class="text-sm text-stone-500">Memuat…</p>
           <template v-else-if="sales">
             <p class="mb-2 text-sm text-stone-500">
@@ -150,14 +148,13 @@ import { formatIDR, formatWIB } from '~/utils/format'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const { request } = useApi()
+const toast = useToast()
 const question = ref('')
 const answer = ref<AnalystResponse | null>(null)
 const asking = ref(false)
-const askError = ref('')
 const from = ref('')
 const to = ref('')
 const sales = ref<SalesAnalytics | null>(null)
-const salesError = ref('')
 const salesLoading = ref(false)
 const threshold = ref<number | undefined>(7)
 const inv = ref<InventoryAnalytics | null>(null)
@@ -184,13 +181,15 @@ function channelLabel(channel: string): string {
 }
 
 async function ask() {
-  asking.value = true; askError.value = ''
+  if (asking.value) return
+  if (!question.value.trim()) { toast.warning('Tulis pertanyaan dulu.'); return }
+  asking.value = true
   try {
     answer.value = await request<AnalystResponse>('/chat/analyst/ask', {
       method: 'POST', body: { question: question.value }
     })
   }
-  catch (e: unknown) { askError.value = e instanceof Error ? e.message : 'Gagal' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal menjawab pertanyaan') }
   finally { asking.value = false }
 }
 function rangeIso() {
@@ -200,30 +199,29 @@ function rangeIso() {
   }
 }
 async function loadSales() {
-  salesError.value = ''
   try {
     const r = rangeIso()
-    if (!r.from_date || !r.to_date) { salesError.value = 'Isi dari & sampai tanggal.'; return }
+    if (!r.from_date || !r.to_date) { toast.warning('Isi tanggal dari & sampai.'); return }
     salesLoading.value = true
     sales.value = await request<SalesAnalytics>('/analytics/sales', { query: { ...r, group_by: 'product', top: 10 } })
   }
-  catch (e: unknown) { salesError.value = e instanceof Error ? e.message : 'Gagal' }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat penjualan') }
   finally { salesLoading.value = false }
 }
 async function loadInv() {
+  if (invLoading.value) return
   invLoading.value = true
   try { inv.value = await request<InventoryAnalytics>('/analytics/inventory', { query: { threshold_days: threshold.value } }) }
-  catch { /* abaikan */ }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat risiko stockout') }
   finally { invLoading.value = false }
 }
 async function loadChannels() {
-  try {
-    const r = rangeIso()
-    if (!r.from_date || !r.to_date) return
-    channelsLoading.value = true
-    channels.value = await request<ChannelAnalytics>('/analytics/channels', { query: r })
-  }
-  catch { /* abaikan */ }
+  if (channelsLoading.value) return
+  const r = rangeIso()
+  if (!r.from_date || !r.to_date) { toast.warning('Isi rentang tanggal di kartu "Penjualan per produk" dulu.'); return }
+  channelsLoading.value = true
+  try { channels.value = await request<ChannelAnalytics>('/analytics/channels', { query: r }) }
+  catch (e: unknown) { toast.fromError(e, 'Gagal memuat distribusi channel') }
   finally { channelsLoading.value = false }
 }
 </script>

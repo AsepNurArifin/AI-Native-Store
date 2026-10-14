@@ -101,7 +101,6 @@
 
     <!-- Input Footer -->
     <div class="border-t border-stone-100/90 bg-stone-50/50 p-3 sm:p-4">
-      <p v-if="error" role="alert" class="mb-2 text-xs font-medium text-rose-600">{{ error }}</p>
       <form class="flex items-center gap-2" @submit.prevent="send()">
         <Input
           v-model="draft"
@@ -140,7 +139,7 @@ const base = (config.public.apiBase as string) || '/api/v1'
 const messages = ref<Msg[]>([])
 const draft = ref('')
 const sending = ref(false)
-const error = ref('')
+const toast = useToast()
 const conversationId = ref<string | null>(null)
 const scrollBox = ref<HTMLElement | null>(null)
 
@@ -152,7 +151,6 @@ function resetChat() {
   localStorage.removeItem(CONV_KEY)
   conversationId.value = null
   messages.value = []
-  error.value = ''
 }
 
 /** Mulai sesi guest. customer_ref lazy "Tamu|guest". */
@@ -176,7 +174,6 @@ async function send(customText?: string) {
   const text = (customText || draft.value).trim()
   if (!text || sending.value) return
   if (!customText) draft.value = ''
-  error.value = ''
   messages.value.push({ role: 'me', text })
   scrollDown()
   sending.value = true
@@ -204,7 +201,9 @@ async function send(customText?: string) {
     messages.value.push({ role: 'ai', text: reply!.reply, products: reply!.products })
   }
   catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Gagal mengirim pesan'
+    // Notifikasi pop-up, bukan teks di dalam widget: pesan error dari server
+    // bisa panjang dan tidak boleh menggeser kotak pesan.
+    toast.fromError(e, 'Gagal mengirim pesan')
   }
   finally { sending.value = false; scrollDown() }
 }
