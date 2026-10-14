@@ -33,19 +33,21 @@ export default defineEventHandler(async (event) => {
     .offset((page - 1) * pageSize)
 
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
-  const stocks = await stocksFor(db, rows.map(p => String(p.id)))
   // Berapa order yang memakai produk ini. Satu agregat untuk seluruh baris
   // halaman ini (BUKAN satu query per produk) supaya UI bisa membedakan
   // "Hapus" vs "Hapus Paksa" sebelum pengguna menekan apa pun.
+  // Stok dan jumlah order tidak saling bergantung -> jalan paralel, satu
+  // round trip lebih sedikit.
+  const ids = rows.map(p => String(p.id))
+  const orderCountQuery = rows.length
+    ? db.select({ productId: orderItems.productId, n: sql<number>`count(*)::int` })
+        .from(orderItems)
+        .where(inArray(orderItems.productId, ids as never))
+        .groupBy(orderItems.productId)
+    : Promise.resolve([] as Array<{ productId: string, n: number }>)
+  const [stocks, used] = await Promise.all([stocksFor(db, ids), orderCountQuery])
   const orderCounts = new Map<string, number>()
-  if (rows.length) {
-    const ids = rows.map(p => String(p.id))
-    const used = await db.select({ productId: orderItems.productId, n: sql<number>`count(*)::int` })
-      .from(orderItems)
-      .where(inArray(orderItems.productId, ids as never))
-      .groupBy(orderItems.productId)
-    for (const u of used) orderCounts.set(String(u.productId), Number(u.n))
-  }
+  for (const u of used) orderCounts.set(String(u.productId), Number(u.n))
   return rows.map((p) => {
     const stock = stocks.get(String(p.id)) ?? 0
     const thr = (p.lowStockThreshold as number | null) ?? lowDefault

@@ -55,6 +55,9 @@ export async function getCurrentUser(event: Parameters<typeof getRequestHeader>[
     throw createError({ statusCode: 401, message: 'Token tidak ada', data: { detail: 'Token tidak ada' } })
   }
   const token = header.slice(7)
+  const cached = userCacheGet(token)
+  if (cached) return cached
+
   let claims: { sub: string, role: string }
   try {
     claims = await verifyAccessToken(token)
@@ -68,14 +71,39 @@ export async function getCurrentUser(event: Parameters<typeof getRequestHeader>[
   if (!u || u.status !== 'ACTIVE') {
     throw createError({ statusCode: 401, message: 'User tidak aktif', data: { detail: 'User tidak aktif' } })
   }
-  return {
+  return userCacheSet(token, {
     id: String(u.id),
     name: String(u.name),
     email: String(u.email),
     role: String(u.role),
     status: String(u.status),
     createdAt: (u.createdAt as Date)?.toISOString?.() || String(u.createdAt)
+  })
+}
+
+// ---------- Cache user per token ----------
+// PERBAIKAN latensi: setiap request admin memanggil getCurrentUser -> 1 query
+// ke DB, dan query itu bayar RTT penuh ke Supabase (50-200ms tergantung jarak).
+// Cache per token memotong 1 round trip di SEMUA endpoint admin.
+// Trade-off: perubahan status/role user baru terlihat setelah TTL habis.
+const USER_CACHE_TTL_MS = 60_000
+const USER_CACHE_MAX = 500
+const userCache = new Map<string, { user: AuthUser, until: number }>()
+
+function userCacheGet(token: string): AuthUser | null {
+  const hit = userCache.get(token)
+  if (!hit) return null
+  if (hit.until < Date.now()) {
+    userCache.delete(token)
+    return null
   }
+  return hit.user
+}
+
+function userCacheSet(token: string, user: AuthUser): AuthUser {
+  if (userCache.size >= USER_CACHE_MAX) userCache.clear()
+  userCache.set(token, { user, until: Date.now() + USER_CACHE_TTL_MS })
+  return user
 }
 
 export async function requireOwner(event: import('h3').H3Event): Promise<AuthUser> {

@@ -258,6 +258,44 @@ function rowsFromSpec(spec: Record<string, unknown>) {
   specRows.value = Object.entries(spec || {}).map(([key, value]) => ({ key, value: value == null ? '' : String(value) }))
 }
 
+/**
+ * Sinkronkan `items` dari hasil mutasi — TANPA `load()` ulang.
+ *
+ * Mutasi produk sudah mengembalikan objek lengkap, jadi refetch list hanya
+ * membuang 5-8 query lagi (50-100ms per round trip ke DB). Filter aktif
+ * dihormati: hasil yang tidak cocok filter justru dikeluarkan dari list.
+ */
+function matchesFilter(p: ProductOut) {
+  if (category.value && p.category !== category.value) return false
+  if (status.value && p.status !== status.value) return false
+  if (q.value) {
+    const needle = q.value.toLowerCase()
+    const hay = `${p.name} ${JSON.stringify(p.specification || {})}`.toLowerCase()
+    if (!hay.includes(needle)) return false
+  }
+  return true
+}
+function applyProduct(res: ProductOut, previous?: ProductOut | null) {
+  const idx = items.value.findIndex(p => p.id === res.id)
+  const merged: ProductOut = { ...previous, ...res, order_count: res.order_count ?? previous?.order_count ?? 0 }
+  if (!matchesFilter(merged)) {
+    if (idx >= 0) items.value.splice(idx, 1)
+    return
+  }
+  if (idx >= 0) items.value[idx] = merged
+  else {
+    // Sisipkan sesuai urutan list (category, name) lalu buang yang kelebihan
+    // halaman supaya pager tetap masuk akal.
+    items.value.push(merged)
+    items.value.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
+    if (items.value.length > pageSize) items.value.pop()
+  }
+}
+function dropProducts(ids: string[]) {
+  const gone = new Set(ids)
+  items.value = items.value.filter(p => !gone.has(p.id))
+}
+
 async function load() {
   loading.value = true
   try {
@@ -304,22 +342,24 @@ async function onSave() {
     const payload = { ...form, image_url: form.image_url.trim() || null, specification: spec }
     const editingId = editing.value?.id
     if (editingId) {
-      await request(`/products/${editingId}`, { method: 'PATCH', body: payload })
+      const res = await request<ProductOut>(`/products/${editingId}`, { method: 'PATCH', body: payload })
+      applyProduct(res, editing.value)
     }
     else {
-      await request('/products', { method: 'POST', body: payload })
+      const res = await request<ProductOut>('/products', { method: 'POST', body: payload })
+      applyProduct(res, null)
     }
     toast.success(editingId ? `Produk "${form.name}" diperbarui.` : `Produk "${form.name}" dibuat.`)
-    resetForm(); await load()
+    resetForm()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menyimpan produk') }
   finally { saving.value = false }
 }
 async function toggleStatus(p: ProductOut) {
   try {
-    await request(`/products/${p.id}`, { method: 'PATCH', body: { status: p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } })
+    const res = await request<ProductOut>(`/products/${p.id}`, { method: 'PATCH', body: { status: p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } })
+    applyProduct(res, p)
     toast.success(`"${p.name}" ${p.status === 'ACTIVE' ? 'dinonaktifkan' : 'diaktifkan'}.`)
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal ubah status') }
 }
@@ -354,16 +394,16 @@ async function remove(p: ProductOut) {
   try {
     await request(`/products/${p.id}`, { method: 'DELETE' })
     toast.success(`"${p.name}" dihapus.`)
-    await load()
+    dropProducts([p.id])
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal hapus produk') }
 }
 
 async function setInactive(p: ProductOut) {
   try {
-    await request(`/products/${p.id}`, { method: 'PATCH', body: { status: 'INACTIVE' } })
+    const res = await request<ProductOut>(`/products/${p.id}`, { method: 'PATCH', body: { status: 'INACTIVE' } })
+    applyProduct(res, p)
     toast.success(`"${p.name}" dinonaktifkan — hilang dari etalase, riwayat order tetap utuh.`)
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menonaktifkan produk') }
 }
@@ -382,8 +422,8 @@ async function forceDelete(ids: string[], label: string) {
     if (res.orders_touched) parts.push(`${res.orders_touched} order disesuaikan totalnya.`)
     if (res.orders_cancelled) parts.push(`${res.orders_cancelled} order jadi kosong → CANCELLED.`)
     toast.success(parts.join(' '))
+    dropProducts(ids)
     clearSelection()
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menghapus produk') }
 }

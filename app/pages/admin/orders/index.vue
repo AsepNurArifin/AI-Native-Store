@@ -122,19 +122,35 @@ async function load() {
   finally { loading.value = false }
 }
 onMounted(load)
+
+/**
+ * Perbarui baris dari balasan mutasi — TANPA `load()` ulang.
+ * Endpoint pay/complete/cancel sudah mengembalikan `OrderOut` lengkap;
+ * refetch list hanya membuang round trip tambahan. Filter aktif dihormati:
+ * order yang tidak lagi cocok filter dikeluarkan dari list.
+ */
+function applyOrder(res: OrderOut) {
+  const idx = items.value.findIndex(o => o.id === res.id)
+  const keep = (!fStatus.value || res.status === fStatus.value)
+    && (!fChannel.value || res.channel_origin === fChannel.value)
+    && (!fPayment.value || res.payment_status === fPayment.value)
+  if (!keep) {
+    if (idx >= 0) items.value.splice(idx, 1)
+    return
+  }
+  if (idx >= 0) items.value[idx] = res
+}
 async function markPaid(o: OrderOut) {
   try {
-    await request(`/orders/${o.id}/pay`, { method: 'POST' })
+    applyOrder(await request<OrderOut>(`/orders/${o.id}/pay`, { method: 'POST' }))
     toast.success(`Order #${o.id.slice(0, 8)}… ditandai lunas.`)
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menandai lunas') }
 }
 async function complete(o: OrderOut) {
   try {
-    await request(`/orders/${o.id}/complete`, { method: 'POST' })
+    applyOrder(await request<OrderOut>(`/orders/${o.id}/complete`, { method: 'POST' }))
     toast.success(`Order #${o.id.slice(0, 8)}… diselesaikan.`)
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menyelesaikan order') }
 }
@@ -147,9 +163,8 @@ async function cancel(o: OrderOut) {
   })
   if (!ok) return
   try {
-    await request(`/orders/${o.id}/cancel`, { method: 'POST' })
+    applyOrder(await request<OrderOut>(`/orders/${o.id}/cancel`, { method: 'POST' }))
     toast.success('Order dibatalkan, stok dikembalikan.')
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal membatalkan order') }
 }

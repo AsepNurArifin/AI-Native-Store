@@ -26,7 +26,12 @@ export function getDb() {
     // `idle_timeout` hanya berguna saat instance hidup (dev). Di Vercel lambda
     // dibekukan di antara request sehingga timer ini praktis tidak pernah jalan.
     max: 3,
-    idle_timeout: 20,
+    // PERBAIKAN latensi: 20 detik terlalu pendek. Admin bisa diam >20 detik
+    // (baca data, isi form, konfirmasi dialog) lalu koneksi dibuang — request
+    // berikutnya harus buat koneksi baru yang butuh ~700ms (diukur: cold
+    // connect + query pertama 715-764ms ke pooler Supabase). 300 detik membuat
+    // koneksi tetap hangat antar aksi, tanpa menumpuk slot pooler (max: 3).
+    idle_timeout: 300,
     connect_timeout: 10
   })
   _db = drizzle(_sql)

@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
-import { orders, orderItems, products } from '../database/schema'
-import { logAudit, num } from './business'
+import { orders, products } from '../database/schema'
+import { logAudit } from './business'
 import { round2 } from '../../shared/utils/pricing'
 import type { DbLike } from './db'
 
@@ -58,6 +58,19 @@ export function productInUse(orderCount: number) {
  * Hapus jejak order untuk satu produk lalu selaraskan order yang tersisa.
  * Dipanggil setelah baris produk dikunci `FOR UPDATE`.
  *
+ * PERBAIKAN latensi: dulu tiap `DELETE`/`SELECT` berdiri sendiri, dan tiap
+ * statement membayar satu round trip ke database (50-200ms tergantung jarak)
+ * sehingga satu aksi hapus butuh belasan round trip. Sekarang:
+ *   1. hitungan referensi order + pembersihan tabel penunjuk dalam SATU
+ *      statement (CTE),
+ *   2. produk yang belum pernah dipakai order cukup satu `DELETE` lagi,
+ *   3. jejak order (jalur `force`) dihitung ulang dengan agregat per order,
+ *      bukan query per baris.
+ *
+ * `order_items` sengaja TIDAK ikut dibersihkan di statement pertama: kolomnya
+ * restrict (bukan cascade) dan `total_amount` order yang tersisa harus
+ * diselaraskan sebelum produknya hilang.
+ *
  * `force` = untuk data demo/seed. Menghapus `order_items` produk tsb lalu:
  *   - `total_amount` order dihitung ulang dari item yang tersisa,
  *   - key produk dibuang dari `promotion_snapshot`,
@@ -68,57 +81,70 @@ export function productInUse(orderCount: number) {
 async function purgeProductTx(tx: DbLike, id: string, force: boolean): Promise<PurgeResult> {
   // `recommendations` cuma log "AI menyarankan produk ini" — tidak ada nilai
   // historis, jadi tidak lagi menghalangi hapus dan dibersihkan diam-diam.
-  // Inilah yang membuat produk yang hanya terkunci rekomendasi bisa dihapus.
-  await tx.execute(sql`DELETE FROM recommendations WHERE product_id = ${id}::uuid`)
+  // `inventory_transactions` + `promotions` memang cascade, tapi dihapus eksplisit
+  // supaya perilakunya tidak bergantung pada definisi FK di database yang bisa
+  // berbeda dengan schema (lihat migrasi).
+  const head = execRows<{ order_ids: string[] | null }>(await tx.execute(sql`
+    WITH del_rec AS (DELETE FROM recommendations WHERE product_id = ${id}::uuid),
+         del_tx AS (DELETE FROM inventory_transactions WHERE product_id = ${id}::uuid),
+         del_promo AS (DELETE FROM promotions WHERE product_id = ${id}::uuid)
+    SELECT (SELECT array_agg(DISTINCT order_id) FROM order_items WHERE product_id = ${id}::uuid) AS order_ids
+  `))
+  const orderIds = [...(head[0]?.order_ids ?? [])].map(String).sort()
+  if (orderIds.length && !force) {
+    // Throw membatalkan transaksi, jadi tiga DELETE di atas ikut batal.
+    throw productInUse(orderIds.length)
+  }
 
-  const used = execRows<{ order_id: string }>(await tx.execute(
-    sql`SELECT order_id FROM order_items WHERE product_id = ${id}::uuid`
-  ))
-  if (used.length && !force) throw productInUse(used.length)
+  if (!orderIds.length) {
+    await tx.delete(products).where(eq(products.id, id as never))
+    return { deleted: 1, orders_touched: 0, orders_cancelled: 0 }
+  }
 
   let ordersTouched = 0
   let ordersCancelled = 0
-  if (used.length) {
-    // Urut id -> kunci FOR UPDATE selalu diambil dengan urutan sama antar
-    // request paralel, jadi tidak ada jalan ke deadlock.
-    const orderIds = [...new Set(used.map(r => String(r.order_id)))].sort()
-    for (const oid of orderIds) {
-      await tx.execute(sql`SELECT id FROM orders WHERE id = ${oid}::uuid FOR UPDATE`)
-    }
-    await tx.execute(sql`DELETE FROM order_items WHERE product_id = ${id}::uuid`)
+  // Urut id -> kunci FOR UPDATE selalu diambil dengan urutan sama antar
+  // request paralel, jadi tidak ada jalan ke deadlock.
+  await tx.execute(sql`SELECT id FROM orders WHERE id IN (${sql.join(orderIds.map(oid => sql`${oid}::uuid`), sql`, `)}) ORDER BY id FOR UPDATE`)
+  await tx.execute(sql`DELETE FROM order_items WHERE product_id = ${id}::uuid`)
 
-    for (const oid of orderIds) {
-      const orderRows = await tx.select().from(orders).where(eq(orders.id, oid as never)).limit(1)
-      const o = orderRows[0]
-      if (!o) continue
-      ordersTouched += 1
-      // Buang key produk ini dari snapshot. Dibuat ulang lewat filter, bukan
-      // `delete` dengan key dinamis (dilarang oleh aturan eslint
-      // no-dynamic-delete).
-      const snapshot = Object.fromEntries(
-        Object.entries((o.promotionSnapshot || {}) as Record<string, unknown>).filter(([k]) => k !== id)
-      )
-      const remaining = await tx.select().from(orderItems).where(eq(orderItems.orderId, oid as never))
-      if (!remaining.length) {
-        await tx.update(orders).set({
-          status: 'CANCELLED',
-          cancelledAt: new Date() as never,
-          totalAmount: '0' as never,
-          promotionSnapshot: (Object.keys(snapshot).length ? snapshot : null) as never
-        }).where(eq(orders.id, oid as never))
-        ordersCancelled += 1
-        continue
-      }
-      const total = round2(remaining.reduce((s, it) => s + num(it.lineTotal), 0))
+  for (const oid of orderIds) {
+    // Satu agregat per order: snapshot promo + jumlah & total item yang tersisa
+    // (sebelumnya dua query per order). Item produk ini sudah dihapus, jadi
+    // `total` tinggal menjumlahkan baris yang tersisa.
+    const agg = execRows<{ promotion_snapshot: Record<string, unknown> | null, n: number, total: string }>(await tx.execute(sql`
+      SELECT o.promotion_snapshot,
+             COUNT(oi.id)::int AS n,
+             COALESCE(SUM(oi.line_total), 0)::numeric AS total
+      FROM orders o LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.id = ${oid}::uuid
+      GROUP BY o.id
+    `))
+    const o = agg[0]
+    if (!o) continue
+    ordersTouched += 1
+    // Buang key produk ini dari snapshot. Dibuat ulang lewat filter, bukan
+    // `delete` dengan key dinamis (dilarang oleh aturan eslint no-dynamic-delete).
+    const snapshot = Object.fromEntries(
+      Object.entries((o.promotion_snapshot || {}) as Record<string, unknown>).filter(([k]) => k !== id)
+    )
+    const promoSnapshot = (Object.keys(snapshot).length ? snapshot : null) as never
+    if (!o.n) {
       await tx.update(orders).set({
-        totalAmount: String(total) as never,
-        promotionSnapshot: (Object.keys(snapshot).length ? snapshot : null) as never
+        status: 'CANCELLED',
+        cancelledAt: new Date() as never,
+        totalAmount: '0' as never,
+        promotionSnapshot: promoSnapshot
       }).where(eq(orders.id, oid as never))
+      ordersCancelled += 1
+      continue
     }
+    await tx.update(orders).set({
+      totalAmount: String(round2(Number(o.total))) as never,
+      promotionSnapshot: promoSnapshot
+    }).where(eq(orders.id, oid as never))
   }
 
-  await tx.execute(sql`DELETE FROM inventory_transactions WHERE product_id = ${id}::uuid`)
-  await tx.execute(sql`DELETE FROM promotions WHERE product_id = ${id}::uuid`)
   await tx.delete(products).where(eq(products.id, id as never))
   return { deleted: 1, orders_touched: ordersTouched, orders_cancelled: ordersCancelled }
 }
@@ -136,8 +162,10 @@ export async function purgeProducts(
   const unique = [...new Set(ids)].sort()
   const out: PurgeResult = { deleted: 0, orders_touched: 0, orders_cancelled: 0 }
   await db.transaction(async (tx) => {
-    for (const id of unique) {
-      await tx.execute(sql`SELECT id FROM products WHERE id = ${id}::uuid FOR UPDATE`)
+    // Kunci semua id dalam SATU statement, tetap urut id agar request paralel
+    // tidak mengunci silang (sebelumnya satu query per id).
+    if (unique.length) {
+      await tx.execute(sql`SELECT id FROM products WHERE id IN (${sql.join(unique.map(id => sql`${id}::uuid`), sql`, `)}) ORDER BY id FOR UPDATE`)
     }
     for (const id of unique) {
       const r = await purgeProductTx(tx, id, opts.force)

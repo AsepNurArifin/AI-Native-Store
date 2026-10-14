@@ -231,6 +231,32 @@ npm run build                 # produksi (node-server; dipakai Vercel via preset
   (via `https://api.telegram.org/bot<token>/setWebhook`).
 - Semua state penting (ringkasan order, dedup update Telegram, idempotency) ada
   di database — aman untuk lingkungan serverless tanpa state in-memory.
+- **Region function mengikuti database.** `vercel.json` men-set
+  `"regions": ["sin1"]` (Singapore) karena Supabase ada di `ap-southeast-1`.
+  Tanpa ini, function Vercel jatuh ke region default (US East) dan tiap query DB
+  bolak-balik antar benua — cukup untuk membuat semua aksi admin terasa lambat.
+
+#### Latensi: kenapa aksi admin bisa terasa lambat
+
+Waktu aksi admin = (jumlah query berurutan) × (RTT ke database). RTT ke
+Supabase `ap-southeast-1` dari Indonesia ≈ 50-100ms, dan koneksi baru ke
+transaction pooler butuh ±700ms lagi. Jadi yang dijaga adalah **jumlah round
+trip**, bukan berat query-nya:
+
+- `server/utils/db.ts` — `idle_timeout` 300 detik (bukan 20) supaya koneksi tidak
+  dibuang saat admin diam >20 detik, lalu request berikutnya membayar koneksi
+  baru.
+- `server/utils/auth.ts` — `getCurrentUser` di-cache per token 60 detik,
+  memotong 1 query di semua endpoint admin. Konsekuensi: perubahan status/role
+  user baru terlihat maksimal 60 detik kemudian.
+- `server/utils/products.ts` — hapus produk memakai CTE (beberapa `DELETE` dalam
+  satu statement) dan agregat per order, bukan query per baris.
+- Halaman admin memperbarui list dari balasan mutasi, tidak memuat ulang seluruh
+  list setiap kali.
+
+Untuk pengembangan lokal yang benar-benar cepat, pakai Postgres lokal
+(Docker / `supabase start`) sebagai `DATABASE_URL` — tidak ada kode yang bisa
+menghapus RTT jaringan ke Singapore.
 
 #### Kenapa env Vercel harus berawalan `NUXT_`
 

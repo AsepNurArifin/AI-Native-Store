@@ -1,6 +1,6 @@
 import { inventoryTransactions, products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { currentStock, ensureSeeded, logAudit, num } from '../../../utils/business'
+import { ensureSeeded, logAudit, num } from '../../../utils/business'
 import { firstRow } from '../../../utils/errors'
 
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE']
@@ -52,7 +52,10 @@ export default defineEventHandler(async (event) => {
   await logAudit(db, 'PRODUCT_CREATED', 'USER', {
     actorId: owner.id, detail: { product_id: String(p.id), name: p.name, price: num(p.price), status, initial_stock: initStock }
   })
-  const stock = await currentStock(db, String(p.id))
+  // Produk baru saja dibuat + transaksi IN awal di atas -> stoknya persis
+  // `initStock`. Mengambilnya lagi dari view berarti satu round trip ekstra
+  // tanpa informasi baru.
+  const stock = initStock
   setResponseStatus(event, 201)
   return {
     id: String(p.id), name: p.name, category: p.category, specification: p.specification || {},

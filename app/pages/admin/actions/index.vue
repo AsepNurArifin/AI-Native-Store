@@ -68,10 +68,15 @@ async function createDraft() {
   if (!instruction.value.trim()) { toast.warning('Isi instruksi dulu.'); return }
   creating.value = true
   try {
-    await request<AIActionOut>('/ai-actions/draft', { method: 'POST', body: { instruction: instruction.value.trim() } })
+    const created = await request<AIActionOut>('/ai-actions/draft', { method: 'POST', body: { instruction: instruction.value.trim() } })
     toast.success('Draft dibuat. Tinjau di antrean bawah.')
     instruction.value = ''
-    await load()
+    // Sisipkan ke antrean (list diurut terbaru dulu) tanpa refetch. Draft yang
+    // tidak cocok filter status aktif dibiarkan — akan muncul saat filter dibuka.
+    if (!fStatus.value || created.status === fStatus.value) {
+      items.value.unshift(created)
+      if (items.value.length > pageSize) items.value.pop()
+    }
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal membuat draft') }
   finally { creating.value = false }

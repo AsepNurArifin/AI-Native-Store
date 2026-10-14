@@ -123,16 +123,19 @@ const promoPreviewPrice = computed(() => {
 async function load() {
   try {
     action.value = await request<AIActionOut>(`/ai-actions/${route.params.id}`)
-    // tampilkan nama produk (payload hanya menyimpan id)
-    const pid = isPromotion.value
-      ? promoPayload.value.product_id
-      : isAdjustStock.value ? stockPayload.value.product_id : null
-    if (pid) {
-      try { product.value = await request<ProductOut>(`/products/${pid}`) }
-      catch { /* produk mungkin sudah dihapus; id saja cukup */ }
-    }
+    await loadProduct()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat detail aksi') }
+}
+/** Tampilkan nama produk (payload hanya menyimpan id). Dipisah supaya bisa
+ *  dimuat ulang sendiri tanpa mengambil ulang seluruh detail aksi. */
+async function loadProduct() {
+  const pid = isPromotion.value
+    ? promoPayload.value.product_id
+    : isAdjustStock.value ? stockPayload.value.product_id : null
+  if (!pid) return
+  try { product.value = await request<ProductOut>(`/products/${pid}`) }
+  catch { /* produk mungkin sudah dihapus; id saja cukup */ }
 }
 onMounted(load)
 async function approve() {
@@ -140,8 +143,11 @@ async function approve() {
   busy.value = true
   try {
     const res = await request<{ status: string }>(`/ai-actions/${route.params.id}/approve`, { method: 'POST' })
+    if (action.value) action.value = { ...action.value, status: res.status }
     toast.success(`Aksi disetujui. Hasil: ${res.status}`)
-    await load()
+    // Hanya stock adjustment yang mengubah data produk (stok) — muat ulang
+    // produk saja, bukan seluruh detail aksi.
+    if (isAdjustStock.value) await loadProduct()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menyetujui aksi') }
   finally { busy.value = false }
@@ -160,9 +166,8 @@ async function reject() {
   if (note === null) return
   busy.value = true
   try {
-    await request(`/ai-actions/${route.params.id}/reject`, { method: 'POST', body: { note: note || undefined } })
+    action.value = await request<AIActionOut>(`/ai-actions/${route.params.id}/reject`, { method: 'POST', body: { note: note || undefined } })
     toast.success('Draft ditolak.')
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menolak aksi') }
   finally { busy.value = false }

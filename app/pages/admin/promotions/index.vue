@@ -86,13 +86,27 @@ async function load() {
   finally { loading.value = false }
 }
 onMounted(load)
+
+/**
+ * Sisipkan/ganti baris promosi dari balasan mutasi — TANPA `load()` ulang.
+ * Tidak ada filter status di halaman ini, jadi objek balasan sudah otoritatif.
+ */
+function applyPromo(res: PromotionOut) {
+  const idx = items.value.findIndex(p => p.id === res.id)
+  if (idx >= 0) items.value[idx] = res
+  else {
+    items.value.push(res)
+    items.value.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    if (items.value.length > pageSize) items.value.pop()
+  }
+}
 async function onSave() {
   if (saving.value) return
   if (!form.product_id) { toast.warning('Pilih produk dulu.'); return }
   if (!form.start_date || !form.end_date) { toast.warning('Isi tanggal mulai dan selesai.'); return }
   saving.value = true
   try {
-    await request('/promotions', {
+    const created = await request<PromotionOut>('/promotions', {
       method: 'POST',
       body: {
         product_id: form.product_id,
@@ -102,17 +116,17 @@ async function onSave() {
         end_date: new Date(form.end_date).toISOString()
       }
     })
+    applyPromo(created)
     toast.success('Promosi disimpan.')
-    showForm.value = false; await load()
+    showForm.value = false
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menyimpan (cek overlap / maks diskon 50%)') }
   finally { saving.value = false }
 }
 async function activate(pr: PromotionOut) {
   try {
-    await request(`/promotions/${pr.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } })
+    applyPromo(await request<PromotionOut>(`/promotions/${pr.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } }))
     toast.success(`Promosi ${productName(pr.product_id)} diaktifkan.`)
-    await load()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal aktivasi (kemungkinan overlap)') }
 }
