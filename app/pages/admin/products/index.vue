@@ -2,64 +2,9 @@
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-2xl font-bold">Produk</h1>
-      <Button size="sm" @click="showForm = !showForm">{{ showForm ? 'Tutup' : '+ Produk' }}</Button>
+      <!-- Tambah katalog kini sebagai popup (bukan form inline yang mendorong daftar turun). -->
+      <Button size="sm" @click="openCreate">+ Produk</Button>
     </div>
-
-    <Card v-if="showForm">
-      <CardHeader>
-        <CardTitle>{{ editing ? 'Ubah produk' : 'Produk baru' }}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
-          <div><label class="mb-1 block text-sm">Nama</label><Input v-model="form.name" placeholder="iPhone 15 Pro 128GB" /></div>
-          <div><label class="mb-1 block text-sm">Kategori</label><Input v-model="form.category" placeholder="Smartphone" /></div>
-          <div><label class="mb-1 block text-sm" for="product-price">Harga (Rp)</label><Input id="product-price" v-model.number="form.price" type="number" min="1" placeholder="9500000" /></div>
-          <div><label class="mb-1 block text-sm" for="product-status">Status</label>
-            <select id="product-status" v-model="form.status" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
-              <option>ACTIVE</option><option>INACTIVE</option>
-            </select>
-          </div>
-          <div><label class="mb-1 block text-sm" for="product-threshold">Ambang stok kritis</label><Input id="product-threshold" v-model.number="form.low_stock_threshold" type="number" min="0" placeholder="default 5" /></div>
-          <div v-if="!editing"><label class="mb-1 block text-sm" for="product-initial-stock">Stok awal</label><Input id="product-initial-stock" v-model.number="form.initial_stock" type="number" min="0" placeholder="0" /></div>
-          <div class="md:col-span-2">
-            <label class="mb-1 block text-sm" for="product-image">Gambar produk (JPG/PNG/WebP/GIF, maks 2 MB)</label>
-            <div class="flex flex-wrap items-start gap-3">
-              <img v-if="form.image_url" :src="form.image_url" alt="Pratinjau gambar produk" class="h-20 w-20 rounded-xl border object-cover" >
-              <div class="space-y-1">
-                <input
-                  id="product-image"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  class="block w-full text-xs text-stone-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-stone-700 hover:file:bg-stone-200"
-                  @change="onFileChange"
-                >
-                <Button v-if="form.image_url" type="button" size="sm" variant="ghost" @click="form.image_url = ''">Hapus gambar</Button>
-                <p v-if="uploading" class="text-xs text-stone-500">Mengunggah…</p>
-              </div>
-            </div>
-          </div>
-          <div class="md:col-span-2">
-            <label class="mb-1 block text-sm">Spesifikasi</label>
-            <div class="space-y-2">
-              <div v-for="(row, i) in specRows" :key="i" class="flex flex-wrap items-center gap-2">
-                <Input v-model="row.key" list="spec-keys" placeholder="mis. ram_gb" class="w-44" />
-                <Input v-model="row.value" placeholder="mis. 16" class="min-w-44 flex-1" />
-                <Button type="button" size="sm" variant="ghostDanger" @click="specRows.splice(i, 1)">Hapus</Button>
-              </div>
-            </div>
-            <datalist id="spec-keys">
-              <option v-for="k in specSuggestions" :key="k" :value="k" />
-            </datalist>
-            <Button type="button" size="sm" variant="outline" class="mt-2" @click="specRows.push({ key: '', value: '' })">+ Baris spesifikasi</Button>
-            <p class="mt-1 text-xs text-stone-500">Isi angka untuk ram_gb dan storage_gb (1 TB = 1000 GB). Jangan isi fitur yang belum diketahui; false berarti tidak didukung.</p>
-          </div>
-          <div class="flex gap-2 md:col-span-2">
-            <Button type="submit" size="sm" :loading="saving">Simpan</Button>
-            <Button type="button" size="sm" variant="ghost" @click="resetForm()">Batal</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
 
     <Card>
       <CardContent>
@@ -113,9 +58,10 @@
                 <span :class="p.is_low_stock ? 'font-semibold text-amber-700' : ''">{{ p.current_stock }}</span>
                 <span v-if="p.order_count" class="ml-1 font-medium text-rose-600">· dipakai {{ p.order_count }} order</span>
               </p>
-              <!-- Chip spek unggulan: preview langsung di kartu, klik → modal spec sheet -->
+              <!-- Chip spek unggulan + label jelas: klik apapun → popup spec sheet.
+                   Bukan sekadar chip tanpa label (itu yang bikin fitur terkesan hilang). -->
               <button
-                v-if="keySpecs(p.specification, 3).length"
+                v-if="hasSpecData(p.specification)"
                 type="button"
                 class="mt-1.5 flex max-w-full flex-wrap items-center gap-1.5 rounded text-left focus-visible:outline-2 focus-visible:outline-brand-600"
                 :aria-label="`Lihat spesifikasi lengkap ${p.name}`"
@@ -124,19 +70,23 @@
                 <span
                   v-for="s in keySpecs(p.specification, 3)"
                   :key="s.key"
-                  class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition-colors hover:border-brand-300 hover:text-brand-800"
+                  class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 transition-colors hover:border-brand-300 hover:text-brand-800 text-[10px] font-medium text-stone-600"
                 >
                   <span class="sr-only">{{ s.label }}: </span>{{ s.value }}
                 </span>
-                <span class="text-[10px] font-semibold text-brand-700 underline-offset-2 hover:underline">…semua</span>
+                <span class="ml-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-brand-700 underline-offset-2 hover:underline">
+                  <Eye class="h-3 w-3" aria-hidden="true" />
+                  Lihat spesifikasi
+                </span>
               </button>
               <button
                 v-else
                 type="button"
-                class="mt-1.5 rounded text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
+                class="mt-1.5 flex items-center gap-1 rounded text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
                 @click="startEdit(p)"
               >
-                + Tambah spek
+                <Plus class="h-3 w-3" aria-hidden="true" />
+                Tambah spek
               </button>
               <div class="mt-2.5 flex gap-2">
                 <Button size="sm" variant="outline" class="flex-1" @click="startEdit(p)">Ubah</Button>
@@ -176,9 +126,9 @@
                     <div class="min-w-0">
                       {{ p.name }}
                       <span v-if="p.order_count" class="ml-1 text-xs font-medium text-rose-600">{{ p.order_count }} order</span>
-                      <!-- Chip spek unggulan: preview 3 chip + pintasan "…semua" → modal -->
+                      <!-- Chip spek unggulan + label jelas: klik apapun → popup spec sheet -->
                       <button
-                        v-if="keySpecs(p.specification, 3).length"
+                        v-if="hasSpecData(p.specification)"
                         type="button"
                         class="mt-2 flex max-w-sm flex-wrap items-center gap-1.5 font-normal focus-visible:outline-2 focus-visible:outline-brand-600"
                         :aria-label="`Lihat spesifikasi lengkap ${p.name}`"
@@ -187,19 +137,23 @@
                         <span
                           v-for="s in keySpecs(p.specification, 3)"
                           :key="s.key"
-                          class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition-colors hover:border-brand-300 hover:text-brand-800"
+                          class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 transition-colors hover:border-brand-300 hover:text-brand-800 text-[10px] font-medium text-stone-600"
                         >
                           <span class="sr-only">{{ s.label }}: </span>{{ s.value }}
                         </span>
-                        <span class="text-[10px] font-semibold text-brand-700 underline-offset-2 hover:underline">…semua</span>
+                        <span class="ml-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-brand-700 underline-offset-2 hover:underline">
+                          <Eye class="h-3 w-3" aria-hidden="true" />
+                          Lihat spesifikasi
+                        </span>
                       </button>
                       <button
                         v-else
                         type="button"
-                        class="mt-2 rounded-full text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
+                        class="mt-2 flex items-center gap-1 rounded-full text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
                         @click="startEdit(p)"
                       >
-                        + Tambah spek
+                        <Plus class="h-3 w-3" aria-hidden="true" />
+                        Tambah spek
                       </button>
                     </div>
                   </div>
@@ -228,21 +182,25 @@
     </Card>
 
     <AdminProductSpecModal :product="specProduct" @close="specProduct = null" @edit="editFromSpec" />
+    <AdminProductFormModal :open="formOpen" :editing="editing" @close="formOpen = false" @saved="onProductSaved" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { formatIDR, statusVariant } from '~/utils/format'
-import { keySpecs } from '~/utils/product'
+import { keySpecs, hasSpecData } from '~/utils/product'
+import { Eye, Plus } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
-// Modal spesifikasi: baris memuat chip preview; detail lengkap muncul sebagai popup
-// (menggantikan <details> ekspansi yang membuat baris melebar tak terkontrol).
+/* Dua popup: (1) spec sheet "Lihat spesifikasi" — baris memuat chip preview + label,
+ * (2) form tambah/ubah katalog — menggantikan form inline yang mendorong daftar turun. */
 const specProduct = ref<ProductOut | null>(null)
+const formOpen = ref(false)
+const editing = ref<ProductOut | null>(null)
 const items = ref<ProductOut[]>([])
 const loading = ref(true)
 const q = ref('')
@@ -250,9 +208,6 @@ const category = ref('')
 // Default "Semua status" — OWNER menandai INACTIVE lewat tabel ini juga, jadi
 // tidak boleh "ACTIVE" yang menyembunyikan katalognya sendiri.
 const status = ref('')
-const showForm = ref(false)
-const saving = ref(false)
-const editing = ref<ProductOut | null>(null)
 const page = ref(1)
 // Muat sedikit demi sedikit per halaman (bukan setengah katalog sekaligus).
 const pageSize = 10
@@ -260,19 +215,6 @@ const pageSize = 10
 function isNewCategory(i: number) {
   return i === 0 || items.value[i - 1]!.category !== items.value[i]!.category
 }
-// Input kosong memakai tanda `''` (v-model.number) — dinormalisasi ke null
-// supaya "kosong" tidak berarti 5 atau 0 palsu saat dikirim ke server.
-function toIntOrNull(v: unknown): number | null {
-  if (v === '' || v == null) return null
-  const n = Number(v)
-  return Number.isFinite(n) ? Math.trunc(n) : null
-}
-const form = reactive({
-  name: '', category: '', price: 0, status: 'ACTIVE',
-  low_stock_threshold: '' as number | '', initial_stock: '' as number | '',
-  image_url: '' as string
-})
-const uploading = ref(false)
 
 // --- Hapus massal ---
 // Pilihan bertahan lintas halaman (Set id, bukan index baris) supaya owner
@@ -299,30 +241,6 @@ function toggleSelectAll() {
   selected.value = next
 }
 function clearSelection() { selected.value = new Set() }
-
-// Spesifikasi diedit sebagai baris key-value (bukan JSON mentah).
-const specRows = ref<Array<{ key: string, value: string }>>([])
-const specSuggestions = ['brand', 'prosesor', 'chipset', 'gpu', 'ram_gb', 'storage_gb', 'layar', 'kamera', 'baterai_mah', 'os', 'berat_kg', 'koneksi', 'fitur']
-
-function specFromRows(): Record<string, unknown> {
-  const spec: Record<string, unknown> = {}
-  for (const row of specRows.value) {
-    const key = row.key.trim()
-    const raw = row.value.trim()
-    if (!key || !raw) continue
-    const asNum = Number(raw)
-    spec[key] = Number.isFinite(asNum) && String(asNum) === raw ? asNum : raw
-  }
-  for (const key of ['ram_gb', 'storage_gb']) {
-    if (key in spec && (typeof spec[key] !== 'number' || !Number.isInteger(spec[key]) || Number(spec[key]) <= 0)) {
-      throw new Error(`${key} harus angka bulat positif dalam GB`)
-    }
-  }
-  return spec
-}
-function rowsFromSpec(spec: Record<string, unknown>) {
-  specRows.value = Object.entries(spec || {}).map(([key, value]) => ({ key, value: value == null ? '' : String(value) }))
-}
 
 /**
  * Sinkronkan `items` dari hasil mutasi — TANPA `load()` ulang.
@@ -386,88 +304,24 @@ async function collapseIfEmpty() {
   }
 }
 
-function resetForm() {
-  editing.value = null; showForm.value = false
-  form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'
-  form.low_stock_threshold = ''; form.initial_stock = ''
-  form.image_url = ''
-  specRows.value = []
+/* --- Popup tambah/ubah katalog --- */
+function openCreate() {
+  specProduct.value = null
+  editing.value = null
+  formOpen.value = true
 }
 function startEdit(p: ProductOut) {
-  editing.value = p; showForm.value = true
-  form.name = p.name; form.category = p.category; form.price = p.price; form.status = p.status
-  form.low_stock_threshold = p.low_stock_threshold ?? ''
-  form.image_url = p.image_url || ''
-  rowsFromSpec(p.specification)
-}
-
-/** Dari footer modal "Ubah spesifikasi" → tutup popup, buka form edit terisi. */
-function editFromSpec(p: ProductOut) {
   specProduct.value = null
+  editing.value = p
+  formOpen.value = true
+}
+/** Dari footer popup "Ubah spesifikasi" → tutup popup spec sheet, buka form edit terisi. */
+function editFromSpec(p: ProductOut) {
   startEdit(p)
 }
-async function onFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  uploading.value = true
-  try {
-    const fd = new FormData()
-    fd.append('file', file)
-    const res = await request<{ image_url: string }>('/uploads/images', { method: 'POST', body: fd })
-    form.image_url = res.image_url
-    toast.success('Gambar produk diunggah.')
-  }
-  catch (e: unknown) { toast.fromError(e, 'Gagal mengunggah gambar') }
-  finally { uploading.value = false }
-}
-async function onSave() {
-  // Validasi klien dulu — harga kosong/0 tidak boleh menunggu 422 dari server.
-  const price = Number(form.price)
-  if (!form.name.trim() || !form.category.trim()) {
-    toast.error('Nama dan kategori wajib diisi.')
-    return
-  }
-  if (!Number.isFinite(price) || price <= 0) {
-    toast.error('Harga harus angka lebih dari 0.')
-    return
-  }
-  const threshold = toIntOrNull(form.low_stock_threshold)
-  if (threshold != null && threshold < 0) {
-    toast.error('Ambang stok kritis tidak boleh negatif.')
-    return
-  }
-  saving.value = true
-  try {
-    const spec = specFromRows()
-    const editingId = editing.value?.id
-    if (editingId) {
-      const payload = {
-        name: form.name, category: form.category, price, status: form.status,
-        low_stock_threshold: threshold,
-        image_url: form.image_url.trim() || null, specification: spec
-      }
-      const res = await request<ProductOut>(`/products/${editingId}`, { method: 'PATCH', body: payload })
-      applyProduct(res, editing.value)
-    }
-    else {
-      // `initial_stock` hanya untuk jalur create; perubahan stok produk yang
-      // sudah ada memakai halaman Inventori (adjustment).
-      const payload = {
-        name: form.name, category: form.category, price, status: form.status,
-        low_stock_threshold: threshold,
-        initial_stock: toIntOrNull(form.initial_stock) ?? 0,
-        image_url: form.image_url.trim() || null, specification: spec
-      }
-      const res = await request<ProductOut>('/products', { method: 'POST', body: payload })
-      applyProduct(res, null)
-    }
-    toast.success(editingId ? `Produk "${form.name}" diperbarui.` : `Produk "${form.name}" dibuat.`)
-    resetForm()
-  }
-  catch (e: unknown) { toast.fromError(e, 'Gagal menyimpan produk') }
-  finally { saving.value = false }
+/** Popup form tersimpan → sinkronkan daftar TANPA `load()` ulang (lihat applyProduct). */
+function onProductSaved(res: ProductOut, previous: ProductOut | null) {
+  applyProduct(res, previous)
 }
 async function toggleStatus(p: ProductOut) {
   try {

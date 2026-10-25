@@ -112,3 +112,12 @@ export function keySpecs(spec: Record<string, unknown> | null | undefined, limit
   }
   return out
 }
+
+/**
+ * Ada data spek apa pun (tidak terbatas grup unggulan) → tombol "Lihat spesifikasi"
+ * tetap tampil. Tanpa ini produk yang hanya punya mis. `fitur` jadi tampak seperti
+ * fitur lihat-spesifikasinya hilang padahal datanya ada.
+ */
+export function hasSpecData(spec: Record<string, unknown> | null | undefined): boolean {
+  return Object.values(spec || {}).some(v => v !== null && v !== undefined && v !== '')
+}
