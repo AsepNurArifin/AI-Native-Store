@@ -113,10 +113,31 @@
                 <span :class="p.is_low_stock ? 'font-semibold text-amber-700' : ''">{{ p.current_stock }}</span>
                 <span v-if="p.order_count" class="ml-1 font-medium text-rose-600">· dipakai {{ p.order_count }} order</span>
               </p>
-              <details class="mt-1.5">
-                <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
-                <ProductSpecifications class="mt-2" :specification="p.specification" />
-              </details>
+              <!-- Chip spek unggulan: preview langsung di kartu, klik → modal spec sheet -->
+              <button
+                v-if="keySpecs(p.specification, 3).length"
+                type="button"
+                class="mt-1.5 flex max-w-full flex-wrap items-center gap-1.5 rounded text-left focus-visible:outline-2 focus-visible:outline-brand-600"
+                :aria-label="`Lihat spesifikasi lengkap ${p.name}`"
+                @click="specProduct = p"
+              >
+                <span
+                  v-for="s in keySpecs(p.specification, 3)"
+                  :key="s.key"
+                  class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition-colors hover:border-brand-300 hover:text-brand-800"
+                >
+                  <span class="sr-only">{{ s.label }}: </span>{{ s.value }}
+                </span>
+                <span class="text-[10px] font-semibold text-brand-700 underline-offset-2 hover:underline">…semua</span>
+              </button>
+              <button
+                v-else
+                type="button"
+                class="mt-1.5 rounded text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
+                @click="startEdit(p)"
+              >
+                + Tambah spek
+              </button>
               <div class="mt-2.5 flex gap-2">
                 <Button size="sm" variant="outline" class="flex-1" @click="startEdit(p)">Ubah</Button>
                 <Button size="sm" variant="ghost" class="flex-1" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
@@ -155,10 +176,31 @@
                     <div class="min-w-0">
                       {{ p.name }}
                       <span v-if="p.order_count" class="ml-1 text-xs font-medium text-rose-600">{{ p.order_count }} order</span>
-                      <details class="mt-2 max-w-sm font-normal">
-                        <summary class="cursor-pointer rounded text-xs text-brand-700 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-600 active:text-brand-900">Lihat spesifikasi</summary>
-                        <ProductSpecifications class="mt-2" :specification="p.specification" />
-                      </details>
+                      <!-- Chip spek unggulan: preview 3 chip + pintasan "…semua" → modal -->
+                      <button
+                        v-if="keySpecs(p.specification, 3).length"
+                        type="button"
+                        class="mt-2 flex max-w-sm flex-wrap items-center gap-1.5 font-normal focus-visible:outline-2 focus-visible:outline-brand-600"
+                        :aria-label="`Lihat spesifikasi lengkap ${p.name}`"
+                        @click="specProduct = p"
+                      >
+                        <span
+                          v-for="s in keySpecs(p.specification, 3)"
+                          :key="s.key"
+                          class="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition-colors hover:border-brand-300 hover:text-brand-800"
+                        >
+                          <span class="sr-only">{{ s.label }}: </span>{{ s.value }}
+                        </span>
+                        <span class="text-[10px] font-semibold text-brand-700 underline-offset-2 hover:underline">…semua</span>
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        class="mt-2 rounded-full text-xs text-stone-400 underline-offset-2 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
+                        @click="startEdit(p)"
+                      >
+                        + Tambah spek
+                      </button>
                     </div>
                   </div>
                 </td>
@@ -184,17 +226,23 @@
         <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
+
+    <AdminProductSpecModal :product="specProduct" @close="specProduct = null" @edit="editFromSpec" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { formatIDR, statusVariant } from '~/utils/format'
+import { keySpecs } from '~/utils/product'
 import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
+// Modal spesifikasi: baris memuat chip preview; detail lengkap muncul sebagai popup
+// (menggantikan <details> ekspansi yang membuat baris melebar tak terkontrol).
+const specProduct = ref<ProductOut | null>(null)
 const items = ref<ProductOut[]>([])
 const loading = ref(true)
 const q = ref('')
@@ -351,6 +399,12 @@ function startEdit(p: ProductOut) {
   form.low_stock_threshold = p.low_stock_threshold ?? ''
   form.image_url = p.image_url || ''
   rowsFromSpec(p.specification)
+}
+
+/** Dari footer modal "Ubah spesifikasi" → tutup popup, buka form edit terisi. */
+function editFromSpec(p: ProductOut) {
+  specProduct.value = null
+  startEdit(p)
 }
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
