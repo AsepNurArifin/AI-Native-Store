@@ -3,19 +3,21 @@
     <h1 class="text-2xl font-bold">Pesanan</h1>
     <Card>
       <CardContent>
-        <div class="mb-3 flex flex-wrap gap-2">
-          <select v-model="fStatus" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+        <!-- Form: Enter di kolom pencarian langsung menyaring. -->
+        <form class="mb-3 flex flex-wrap gap-2" @submit.prevent="page = 1; load()">
+          <Input v-model="fQ" placeholder="Cari ID order / nama pelanggan…" class="max-w-56" />
+          <select v-model="fStatus" aria-label="Filter status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua status</option>
             <option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option>
           </select>
-          <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fChannel" aria-label="Filter channel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option>
           </select>
-          <select v-model="fPayment" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fPayment" aria-label="Filter pembayaran" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua pembayaran</option><option value="UNPAID">Belum dibayar</option><option value="PAID">Sudah dibayar</option>
           </select>
-          <Button size="sm" variant="secondary" @click="page = 1; load()">Terapkan filter</Button>
-        </div>
+          <Button type="submit" size="sm" variant="secondary">Terapkan filter</Button>
+        </form>
         <!-- Mobile: kartu per pesanan (tabel tidak muat di <640px) -->
         <div v-if="loading" class="py-4 text-center text-sm text-stone-500 sm:hidden">
           Memuat daftar pesanan…
@@ -29,7 +31,7 @@
               <span class="font-mono text-xs font-bold text-stone-800">#{{ o.id.slice(0, 8) }}…</span>
               <div class="flex gap-1">
                 <Badge :variant="statusVariant(o.status)">{{ o.status }}</Badge>
-                <Badge v-if="o.status === 'CONFIRMED'" :variant="statusVariant(o.payment_status)">{{ o.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}</Badge>
+                <Badge :variant="statusVariant(o.payment_status)">{{ o.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}</Badge>
               </div>
             </div>
             <div class="mt-1.5 flex items-baseline justify-between gap-2 text-sm">
@@ -40,7 +42,8 @@
               <NuxtLink :to="`/admin/orders/${o.id}`" class="flex-1"><Button size="sm" variant="outline" class="w-full">Detail</Button></NuxtLink>
               <template v-if="o.status === 'CONFIRMED'">
                 <Button v-if="o.payment_status !== 'PAID'" size="sm" variant="secondary" class="flex-1" @click="markPaid(o)">Tandai Lunas</Button>
-                <Button size="sm" variant="secondary" class="flex-1" @click="complete(o)">Complete</Button>
+                <!-- Complete tanpa bayar pasti ditolak 409 NOT_PAID — sembunyikan. -->
+                <Button v-if="o.payment_status === 'PAID'" size="sm" variant="secondary" class="flex-1" @click="complete(o)">Complete</Button>
                 <Button size="sm" variant="ghostDanger" class="flex-1" @click="cancel(o)">Cancel</Button>
               </template>
             </div>
@@ -66,17 +69,16 @@
                 <td class="pr-2">{{ o.channel_origin }}</td>
                 <td class="pr-2"><Badge :variant="statusVariant(o.status)">{{ o.status }}</Badge></td>
                 <td class="pr-2">
-                  <Badge v-if="o.status === 'CONFIRMED'" :variant="statusVariant(o.payment_status)">
+                  <Badge :variant="statusVariant(o.payment_status)">
                     {{ o.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}
                   </Badge>
-                  <span v-else class="text-xs text-stone-400">—</span>
                 </td>
                 <td class="pr-2">{{ formatIDR(o.total_amount) }}</td>
                 <td class="pr-2 text-xs">{{ formatWIB(o.created_at) }}</td>
                 <td class="flex gap-1">
                   <NuxtLink :to="`/admin/orders/${o.id}`"><Button size="sm" variant="outline">Detail</Button></NuxtLink>
                   <Button v-if="o.status === 'CONFIRMED' && o.payment_status !== 'PAID'" size="sm" variant="secondary" @click="markPaid(o)">Lunas</Button>
-                  <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="secondary" @click="complete(o)">Complete</Button>
+                  <Button v-if="o.status === 'CONFIRMED' && o.payment_status === 'PAID'" size="sm" variant="secondary" @click="complete(o)">Complete</Button>
                   <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="ghostDanger" @click="cancel(o)">Cancel</Button>
                 </td>
               </tr>
@@ -93,15 +95,17 @@
 import { formatIDR, formatWIB, statusVariant } from '~/utils/format'
 import type { OrderOut } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
 const items = ref<OrderOut[]>([])
-const loading = ref(false)
+// Mulai true: empty-state "Belum ada pesanan" tidak berkedip sebelum fetch pertama.
+const loading = ref(true)
 const fStatus = ref('')
 const fChannel = ref('')
 const fPayment = ref('')
+const fQ = ref('')
 const page = ref(1)
 const pageSize = 10
 
@@ -110,6 +114,7 @@ async function load() {
   try {
     items.value = await request<OrderOut[]>('/orders', {
       query: {
+        q: fQ.value || undefined,
         status: fStatus.value || undefined,
         channel: fChannel.value || undefined,
         payment_status: fPayment.value || undefined,
@@ -141,6 +146,13 @@ function applyOrder(res: OrderOut) {
   if (idx >= 0) items.value[idx] = res
 }
 async function markPaid(o: OrderOut) {
+  // Aksi finansial: konfirmasi dulu (sama seperti di halaman detail).
+  const ok = await confirmAction.ask({
+    title: `Tandai lunas order #${o.id.slice(0, 8)}…?`,
+    message: 'Sudah menerima pembayaran (QRIS/transfer/tunai)? Order berstatus PAID masuk pendapatan analitik dan siap di-Complete.',
+    confirmLabel: 'Tandai Lunas'
+  })
+  if (!ok) return
   try {
     applyOrder(await request<OrderOut>(`/orders/${o.id}/pay`, { method: 'POST' }))
     toast.success(`Order #${o.id.slice(0, 8)}… ditandai lunas.`)

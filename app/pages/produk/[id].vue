@@ -4,7 +4,13 @@ import type { ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
 import { effectivePrice, hasPromo, keySpecs } from '~/utils/product'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({
+  layout: 'default',
+  // Key per-URL penuh: klik produk lain di "Mungkin kamu juga suka" HARUS
+  // meremount halaman — sebelumnya instance dipakai ulang sehingga konten
+  // produk lama tetap tampil di URL baru.
+  key: route => route.fullPath
+})
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -24,11 +30,14 @@ const { data: related } = await useAsyncData(`produk-related-${id.value}`, async
   return list.filter(p => p.id !== id.value).slice(0, 4)
 }, { default: () => [] as ProductOut[] })
 
-// Gagal memuat = notifikasi pop-up; kartu "Produk tidak bisa dimuat" di bawah
-// tetap ada karena memuat tombol muat ulang.
+// 404 = produk memang tidak ada/nonaktif; >= 500 = gangguan katalog.
+const isNotFound = computed(() => (error.value?.statusCode ?? 0) === 404)
+
+// Gagal memuat = notifikasi pop-up; kartu di bawah tetap ada karena memuat
+// tombol muat ulang. 404 tidak di-toast — panelnya sudah menjelaskan.
 const toast = useToast()
 watch(error, (err) => {
-  if (err) toast.error('Produk tidak bisa dimuat. Koneksi ke database toko sedang terganggu.')
+  if (err && err.statusCode !== 404) toast.error('Produk tidak bisa dimuat. Koneksi ke database toko sedang terganggu.')
 })
 
 const promo = computed(() => product.value ? hasPromo(product.value) : false)
@@ -109,7 +118,7 @@ useHead(() => ({
     </nav>
 
     <!-- Error: server/DB lagi bermasalah — bukan berarti produk hilang -->
-    <div v-if="error" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center" role="alert">
+    <div v-if="error && !isNotFound" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center" role="alert">
       <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak bisa dimuat</h1>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya sudah hilang. Coba muat ulang beberapa saat lagi.</p>
       <div class="mt-5 flex justify-center gap-2">
@@ -129,7 +138,7 @@ useHead(() => ({
 
     <div v-else class="grid gap-6 lg:grid-cols-2">
       <div class="relative">
-        <ProductImage :image-url="product.image_url" :name="product.name" :category="product.category" size="detail" />
+        <ProductImage :image-url="product.image_url" :name="product.name" :category="product.category" size="detail" eager />
         <span v-if="promo" class="absolute left-3 top-3 rounded-md bg-promo-700 px-2.5 py-1 text-xs font-bold text-white">
           -{{ Math.round(product.discount_percentage || 0) }}%
         </span>

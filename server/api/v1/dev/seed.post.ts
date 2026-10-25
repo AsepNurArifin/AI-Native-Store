@@ -6,7 +6,8 @@ import { ensureSeeded } from '../../../utils/business'
  * Contoh: curl -X POST https://host/api/v1/dev/seed
  */
 export default defineEventHandler(async () => {
-  const debug = String(useRuntimeConfig().debug ?? process.env.DEBUG ?? 'true') === 'true'
+  // Fail-closed: tanpa DEBUG eksplisit endpoint dev TIDAK terbuka.
+  const debug = String(useRuntimeConfig().debug ?? process.env.DEBUG ?? 'false') === 'true'
   if (!debug) {
     throw createError({ statusCode: 404, message: 'Not found', data: { detail: 'Not found' } })
   }

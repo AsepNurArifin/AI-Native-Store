@@ -13,9 +13,10 @@ export default defineEventHandler(async (event) => {
   if (!body?.name || !body?.category || body?.price == null) {
     throw createError({ statusCode: 422, message: 'name, category, price wajib', data: { detail: { code: 'VALIDATION', message: 'name, category, price wajib' } } })
   }
-  // Number('abc') = NaN yang lolos cek < 0 — tolak non-numerik & negatif.
-  if (!Number.isFinite(Number(body.price)) || Number(body.price) < 0) {
-    throw createError({ statusCode: 422, message: 'Harga tidak valid', data: { detail: { code: 'VALIDATION', message: 'Harga tidak valid' } } })
+  // Number('') === 0 dan Number('abc') = NaN — keduanya harus ditolak.
+  // Harga Rp0 tidak sah untuk produk retail (menyembunyikan salah input).
+  if (!Number.isFinite(Number(body.price)) || Number(body.price) <= 0) {
+    throw createError({ statusCode: 422, message: 'Harga tidak valid: harus angka lebih dari 0', data: { detail: { code: 'VALIDATION', message: 'Harga tidak valid: harus angka lebih dari 0' } } })
   }
   if (String(body.name).trim().length > 200 || String(body.category).trim().length > 50) {
     const msg = 'name maks 200 / category maks 50 karakter'

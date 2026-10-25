@@ -3,12 +3,14 @@
     <h1 class="text-2xl font-bold">Percakapan</h1>
     <Card>
       <CardContent>
-        <div class="mb-3 flex gap-2">
-          <select v-model="fChannel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+        <!-- Form: tekan Enter langsung mencari. -->
+        <form class="mb-3 flex gap-2" @submit.prevent="page = 1; load()">
+          <Input v-model="fQ" placeholder="Cari ID percakapan / pelanggan…" class="max-w-64" aria-label="Cari percakapan" />
+          <select v-model="fChannel" aria-label="Filter channel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option><option>WHATSAPP</option>
           </select>
-          <Button size="sm" variant="secondary" @click="page = 1; load()">Muat</Button>
-        </div>
+          <Button type="submit" size="sm" variant="secondary">Cari</Button>
+        </form>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -43,12 +45,13 @@
 import { formatWIB, statusVariant } from '~/utils/format'
 import type { ConversationOut } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const items = ref<ConversationOut[]>([])
 const loading = ref(false)
 const fChannel = ref('')
+const fQ = ref('')
 const page = ref(1)
 const pageSize = 10
 
@@ -56,7 +59,7 @@ async function load() {
   loading.value = true
   try {
     items.value = await request<ConversationOut[]>('/conversations', {
-      query: { channel: fChannel.value || undefined, page: page.value, page_size: pageSize }
+      query: { q: fQ.value || undefined, channel: fChannel.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat percakapan') }

@@ -5,7 +5,7 @@ const props = withDefaults(defineProps<{
   modelValue?: string
   placeholder?: string
   autofocus?: boolean
-}>(), { modelValue: '', placeholder: 'Cari HP, laptop, aksesoris…', autofocus: false })
+}>(), { modelValue: '', placeholder: 'Cari iPhone, Samsung Galaxy, aksesoris…', autofocus: false })
 
 const emit = defineEmits<{ (e: 'update:modelValue' | 'submit', v: string): void }>()
 

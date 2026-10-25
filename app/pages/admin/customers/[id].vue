@@ -31,7 +31,7 @@
 import { formatIDR, formatWIB, statusVariant } from '~/utils/format'
 import type { CustomerDetail } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const route = useRoute()
 const { request } = useApi()
 const toast = useToast()

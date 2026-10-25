@@ -50,7 +50,7 @@
 import { formatWIB, statusVariant } from '~/utils/format'
 import type { ConversationDetail } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const route = useRoute()
 const { request } = useApi()
 const toast = useToast()

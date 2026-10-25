@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { conversationMessages, conversations, idempotencyKeys } from '../database/schema'
 import { createOrderFromSummary, ensureCustomer, ensureSeeded } from './business'
 import { getSummary, popForConversation, type OrderSummary } from './summary'
@@ -57,6 +57,9 @@ export async function sendTelegramMessage(chatId: string, text: string, buttons?
   try {
     await fetch(`${base}/bot${token}/sendMessage`, {
       method: 'POST',
+      // Abort 10 detik: Telegram lambat/hang tidak boleh menahan lambda sampai
+      // runtime timeout (jalur webhook).
+      signal: AbortSignal.timeout(10_000),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
@@ -75,11 +78,11 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
   await ensureSeeded(db)
   const parsed = parseTelegramUpdate(payload)
   if (!parsed || parsed.kind === 'ignore') return { status: 'ignored' }
-  // Dedup update di DB (tahan restart & multi-instance) + bersihkan key lama.
+  // Dedup update di DB (tahan restart & multi-instance). Pembersihan key lama
+  // pindah ke cleanupIdempotencyKeys() (business.ts, dipanggil jalur baca).
   const dedupKey = `tg:upd:${String(parsed.messageId ?? '').slice(0, 20) || `${parsed.chatId}:${String(parsed.text ?? '').slice(0, 30)}`.slice(0, 50)}`
   const fresh = await db.insert(idempotencyKeys).values({ key: dedupKey, orderId: null as never }).onConflictDoNothing().returning()
   if (!fresh.length) return { status: 'duplicate' }
-  await db.execute(sql`DELETE FROM idempotency_keys WHERE created_at < now() - interval '24 hours'`)
 
   const customer = await ensureCustomer(db, 'TELEGRAM', parsed.chatId!, parsed.name || 'Telegram User', null)
   const open = await db.select().from(conversations).where(eq(conversations.customerId, customer.id as never))

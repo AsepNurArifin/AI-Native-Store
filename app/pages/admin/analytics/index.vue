@@ -8,7 +8,7 @@
         </CardHeader>
         <CardContent>
           <form class="space-y-2" @submit.prevent="ask()">
-            <textarea v-model="question" rows="2" placeholder="Produk apa yang paling laris bulan ini?" class="w-full rounded-md border border-stone-300 p-2 text-sm" />
+            <textarea v-model="question" rows="2" aria-label="Pertanyaan untuk analis" placeholder="Produk apa yang paling laris bulan ini?" class="w-full rounded-md border border-stone-300 p-2 text-sm" />
             <Button type="submit" size="sm" :loading="asking">Tanya</Button>
           </form>
           <div v-if="answer" class="mt-3 rounded bg-stone-50 p-3 text-sm">
@@ -27,8 +27,8 @@
         </CardHeader>
         <CardContent>
           <form class="mb-2 flex flex-wrap gap-2" @submit.prevent="loadSales()">
-            <Input v-model="from" type="date" class="w-40" />
-            <Input v-model="to" type="date" class="w-40" />
+            <Input v-model="from" type="date" aria-label="Tanggal dari" class="w-40" />
+            <Input v-model="to" type="date" aria-label="Tanggal sampai" class="w-40" />
             <Button type="submit" size="sm" variant="secondary">Muat</Button>
           </form>
           <p v-if="salesLoading" class="text-sm text-stone-500">Memuat…</p>
@@ -146,7 +146,7 @@
 import type { AnalystResponse, SalesAnalytics, InventoryAnalytics, ChannelAnalytics } from '~/utils/api-types'
 import { formatIDR, formatWIB } from '~/utils/format'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const question = ref('')
@@ -176,26 +176,36 @@ function revenueBar(revenue: number): string {
   return Math.max(4, Math.round(100 * revenue / max)) + '%'
 }
 const riskCount = computed(() => inv.value?.data.filter(r => r.stockout_risk).length ?? 0)
-function channelLabel(channel: string): string {
-  return channel === 'TELEGRAM' ? 'Telegram' : channel === 'WEB' ? 'Web Chat' : channel
-}
+// Channel di luar dua itu (mis. WHATSAPP rencana pengembangan) tetap tampil
+// manusiawi lewat fallback title-case.
+const CHANNEL_LABELS: Record<string, string> = { TELEGRAM: 'Telegram', WEB: 'Web Chat', WHATSAPP: 'WhatsApp' }
+const channelLabel = (channel: string): string => (CHANNEL_LABELS[channel] ?? channel.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))
 
 async function ask() {
   if (asking.value) return
   if (!question.value.trim()) { toast.warning('Tulis pertanyaan dulu.'); return }
   asking.value = true
   try {
+    // Rentang yang sudah dipilih dashboard dikirim sebagai konteks, supaya
+    // pertanyaan "bulan ini" merujuk periode yang owner sedang lihat.
+    const r = rangeIso()
+    const context = r.from_date && r.to_date ? `\n\n(Konteks periode aktif dashboard: ${r.from_date} s/d ${r.to_date})` : ''
     answer.value = await request<AnalystResponse>('/chat/analyst/ask', {
-      method: 'POST', body: { question: question.value }
+      method: 'POST', body: { question: question.value.trim() + context }
     })
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menjawab pertanyaan') }
   finally { asking.value = false }
 }
+/**
+ * Kirim tanggal MENTAH (date-only, "YYYY-MM-DD") — server mengartikan
+ * `to_date` sebagai AKHIR hari tsb (inklusif). Dahulu dijadikan ISO tengah
+ * malam: rentang "1–31 Jan" kehilangan pesanan tanggal 31.
+ */
 function rangeIso() {
   return {
-    from_date: from.value ? new Date(from.value).toISOString() : undefined,
-    to_date: to.value ? new Date(to.value).toISOString() : undefined
+    from_date: from.value || undefined,
+    to_date: to.value || undefined
   }
 }
 async function loadSales() {
@@ -224,4 +234,13 @@ async function loadChannels() {
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat distribusi channel') }
   finally { channelsLoading.value = false }
 }
+// Kartu tidak perlu diisi manual tiap kali masuk: default = 30 hari terakhir.
+onMounted(() => {
+  const today = new Date()
+  const ago = new Date(Date.now() - 30 * 864e5)
+  to.value = today.toISOString().slice(0, 10)
+  from.value = ago.toISOString().slice(0, 10)
+  loadSales()
+  loadInv()
+})
 </script>

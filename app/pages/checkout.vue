@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, MessageCircle, Minus, Plus, ShoppingCart, Truck } from '@lucide/vue'
 import type { ConfirmOrderResponse, FulfillmentInfo, ProductOut } from '~/utils/api-types'
+import type { NormalizedApiError } from '~/composables/useApi'
 import { formatIDR, formatWIB } from '~/utils/format'
 import { effectivePrice, hasPromo } from '~/utils/product'
 import { quoteLine } from '#shared/utils/pricing'
@@ -9,7 +10,12 @@ import { quoteLine } from '#shared/utils/pricing'
  * Checkout langsung (tanpa chat/AI): 1 produk + qty -> data pemesan ->
  * pilih ambil di toko / diantar -> buat pesanan -> bayar via QRIS.
  */
-definePageMeta({ layout: 'default' })
+definePageMeta({
+  layout: 'default',
+  // Key per-URL penuh: ganti ?item=A ke ?item=B harus meremount halaman —
+  // sebelumnya produk/qty/idempotency key lama tetap terpakai.
+  key: route => route.fullPath
+})
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -18,13 +24,24 @@ const { request } = useApi()
 const toast = useToast()
 
 const id = computed(() => String(route.query.item || ''))
+// ?qty=99 dari URL jangan langsung jadi qty — dicek ulang terhadap stok saat
+// produk termuat (watch di bawah).
 const qty = ref(Math.max(1, Number(route.query.qty || 1) || 1))
 
-const { data: product } = await useAsyncData(`checkout-${id.value}`, async () => {
+// Error TIDAK lagi ditelan (catch -> null menyamarkan gangguan DB sebagai
+// "Produk tidak ditemukan"): 4xx = produk tidak ada, 5xx/network = gagal muat.
+const { data: product, error: productError, refresh: refreshProduct } = await useAsyncData(`checkout-${id.value}`, async () => {
   if (!id.value) return null as ProductOut | null
-  try { return await request<ProductOut>(`/catalog/${id.value}`, { auth: false }) }
-  catch { return null as ProductOut | null }
+  return await request<ProductOut>(`/catalog/${id.value}`, { auth: false })
 }, { default: () => null as ProductOut | null })
+
+// useAsyncData mengetik error sebagai NuxtError, tetapi yang dilempar di sini
+// NormalizedApiError (punya `status`) — dibaca longgar lewat cast `unknown`.
+const errorStatus = computed(() => {
+  const e = productError.value as unknown as { statusCode?: number, status?: number } | null
+  return e?.status ?? e?.statusCode ?? 0
+})
+const loadFailed = computed(() => !product.value && !!productError.value && (errorStatus.value === 0 || errorStatus.value >= 500))
 
 useSeoMeta({
   title: 'Checkout SHAF STORE: Pesan Langsung & Bayar QRIS',
@@ -34,7 +51,10 @@ useSeoMeta({
   ogType: 'website',
   ogUrl: `${siteUrl}/checkout`,
   ogImage: `${siteUrl}/og-image.png`,
-  twitterCard: 'summary_large_image'
+  twitterCard: 'summary_large_image',
+  // Halaman funnel transaksional (?item=<uuid> unik per klik) tak bernilai
+  // indeks — robots.txt tidak bisa menyaring ini karena ada dinamis.
+  robots: 'noindex, follow'
 })
 useHead({ link: [{ rel: 'canonical', href: `${siteUrl}/checkout` }] })
 
@@ -57,24 +77,63 @@ const dlvNotes = ref('')
 const submitting = ref(false)
 const placed = ref<ConfirmOrderResponse | null>(null)
 const placedInfo = ref<FulfillmentInfo | null>(null)
-const idemKey = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+// Idempotency key bertahan di sessionStorage per (item, qty): reload di
+// tengah-tengah submit yang gagal jaringan tidak menciptakan order dobel —
+// retry dengan key sama dijawab replay server, bukan order kedua.
+// Membuat_order_baru → ganti qty/item (URL berubah) atau chat toko.
+const idemKey = (() => {
+  const fallback = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  const storeKey = `checkout_idem_${id.value}_q${qty.value}`
+  try {
+    const existing = sessionStorage.getItem(storeKey)
+    if (existing) return existing
+    sessionStorage.setItem(storeKey, fallback)
+  }
+  catch { /* mode privat tanpa storage: key in-memory tetap berfungsi */ }
+  return fallback
+})()
 
 /**
- * Batas pembayaran order yang baru dibuat (migrasi 0004). Nilai ini duplikat dari
- * ORDER_TTL_MINUTES server karena endpoint POST /orders tidak mengembalikan
- * expires_at — hanya dipakai untuk teks informatif, TIDAK menentukan expire
- * (itu murni keputusan server lewat order_summaries/orders.expires_at).
+ * Batas pembayaran: dihitung dari `expires_at` yang dikembalikan server
+ * (sumber tunggal). Fallback konstanta hanya dipakai bila field belum ada.
  */
-const PAY_WINDOW_MINUTES = 120
+const PAY_WINDOW_FALLBACK_MINUTES = 120
 const placedAt = ref<number | null>(null)
-const payDeadline = computed(() =>
-  placedAt.value ? formatWIB(new Date(placedAt.value + PAY_WINDOW_MINUTES * 60_000).toISOString()) : '-')
+const payDeadline = computed(() => {
+  if (placed.value?.expires_at) return formatWIB(placed.value.expires_at)
+  return placedAt.value ? formatWIB(new Date(placedAt.value + PAY_WINDOW_FALLBACK_MINUTES * 60_000).toISOString()) : '-'
+})
 
 function decQty() { qty.value = Math.max(1, qty.value - 1) }
 function incQty() { qty.value = Math.min(maxQty.value, qty.value + 1) }
 
+/** Qty dari URL di-clamp ke stok yang benar-benar tersedia. */
+watch(product, (p) => {
+  if (!p) return
+  if (qty.value > maxQty.value) qty.value = maxQty.value
+}, { immediate: true })
+
+// Validasi inline (bukan hanya toast): di-set saat percobaan submit pertama.
+const triedSubmit = ref(false)
+const nameError = computed(() => (triedSubmit.value && !custName.value.trim()) ? 'Nama wajib diisi.' : '')
+const contactError = computed(() => {
+  if (!triedSubmit.value) return ''
+  const t = custContact.value.trim()
+  if (!t) return 'Kontak wajib diisi.'
+  if (!contactLooksReasonable(t)) return 'Isi nomor HP (min. 8 angka) atau username Telegram @pemilik.'
+  return ''
+})
+/** Kontak diterima server apa adanya; klien hanya mencegah isian yang jelas salah. */
+function contactLooksReasonable(v: string): boolean {
+  if (v.startsWith('@')) return v.length >= 4 // username Telegram
+  return v.replace(/\D/g, '').length >= 8 // nomor HP (dengan/beberapa kode area)
+}
+
 async function submit() {
   if (submitting.value || !product.value) return
+  triedSubmit.value = true
   if (!custName.value.trim() || !custContact.value.trim()) {
     toast.warning('Isi nama & kontak dulu sebelum membuat pesanan.')
     return
@@ -109,8 +168,26 @@ async function submit() {
   }
   catch (e: unknown) {
     toast.fromError(e, 'Gagal membuat pesanan')
+    // 409 stok/harga berarti data yang tampil sudah basi — muat ulang produk
+    // supaya stepper qty, stok, dan harga menunjuk angka terbaru.
+    const code = (e as NormalizedApiError)?.code || ''
+    if (code === 'INSUFFICIENT_STOCK' || code === 'PRICE_CHANGED' || code === 'PRODUCT_INACTIVE') {
+      await refreshProduct()
+    }
   }
   finally { submitting.value = false }
+}
+
+/** Salin ID pesanan penuh (halaman sukses menyuruh menyimpan; kini 1 klik). */
+const orderIdCopied = ref(false)
+async function copyOrderId() {
+  if (!placed.value) return
+  try {
+    await navigator.clipboard.writeText(placed.value.order_id)
+    orderIdCopied.value = true
+    toast.success('ID pesanan disalin.')
+  }
+  catch { toast.error('Tidak bisa menyalin — catat ID pesanan secara manual.') }
 }
 </script>
 
@@ -126,8 +203,18 @@ async function submit() {
       </p>
     </div>
 
+    <!-- Gagal muat katalog (server/DB gangguan) — beda dari "tidak ditemukan" -->
+    <div v-if="loadFailed && !placed" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center" role="alert">
+      <h2 class="font-display text-xl font-bold text-stone-900">Katalog gagal dimuat</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya hilang. Coba muat ulang beberapa saat lagi.</p>
+      <div class="mt-5 flex justify-center gap-2">
+        <Button variant="ai" @click="refreshProduct()">Muat Ulang</Button>
+        <Button to="/#katalog" variant="outline">Lihat katalog</Button>
+      </div>
+    </div>
+
     <!-- Produk tidak ditemukan -->
-    <div v-if="!product && !placed" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
+    <div v-else-if="!product && !placed" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
       <h2 class="font-display text-xl font-bold text-stone-900">Produk tidak ditemukan</h2>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Pilih produk dari katalog dulu, atau tanya lewat chat.</p>
       <div class="mt-5 flex justify-center gap-2">
@@ -148,6 +235,12 @@ async function submit() {
           <p class="text-xs font-medium text-amber-700">
             Menunggu pembayaran — stok ditahan sampai {{ payDeadline }}. Belum dibayar dalam batas itu, pesanan otomatis dibatalkan dan stok dikembalikan.
           </p>
+          <p class="text-xs">ID pesanan: <code class="font-mono [overflow-wrap:anywhere]">{{ placed.order_id }}</code></p>
+          <p><button
+            type="button"
+            class="rounded text-xs font-semibold text-brand-700 underline hover:text-brand-800"
+            @click="copyOrderId"
+          >{{ orderIdCopied ? '✓ Disalin' : 'Salin ID pesanan' }}</button></p>
           <template v-if="placedInfo?.method === 'PICKUP'">
             <p><span class="font-semibold">Ambil di toko.</span> Tunjukkan ID pesanan ini ke kasir saat pengambilan.</p>
           </template>
@@ -167,7 +260,7 @@ async function submit() {
         </div>
       </div>
 
-      <QrisPanel :amount="placed.total" :reference="placed.order_id" />
+      <LazyQrisPanel :amount="placed.total" :reference="placed.order_id" />
 
       <div class="flex flex-col gap-2 sm:flex-row">
         <Button to="/#katalog" variant="outline" class="flex-1 justify-center">Lihat katalog lagi</Button>
@@ -237,9 +330,13 @@ async function submit() {
       <!-- Data pemesan -->
       <div class="rounded-2xl border border-stone-200 bg-white p-4 space-y-2">
         <p class="text-xs font-semibold text-stone-700">Data Pemesan</p>
-        <div class="grid gap-2 sm:grid-cols-2">
-          <Input v-model="custName" placeholder="Nama lengkap" class="h-9 text-xs" />
-          <Input v-model="custContact" placeholder="No. HP / Telegram" class="h-9 text-xs" />
+        <div class="space-y-1.5">
+          <div class="grid gap-2 sm:grid-cols-2">
+            <Input v-model="custName" placeholder="Nama lengkap" aria-label="Nama lengkap" :aria-invalid="!!nameError" class="h-9 text-xs" />
+            <Input v-model="custContact" placeholder="No. HP / Telegram" aria-label="No. HP atau username Telegram" :aria-invalid="!!contactError" class="h-9 text-xs" />
+          </div>
+          <p v-if="nameError" class="text-[11px] font-medium text-rose-700">{{ nameError }}</p>
+          <p v-else-if="contactError" class="text-[11px] font-medium text-rose-700">{{ contactError }}</p>
         </div>
       </div>
 
@@ -259,11 +356,11 @@ async function submit() {
         <div v-if="method === 'DELIVERY'" class="space-y-2 rounded-xl bg-stone-50/80 p-3 ring-1 ring-stone-200/80">
           <p class="text-xs font-semibold text-stone-700">Kirim ke mana?</p>
           <div class="grid gap-2 sm:grid-cols-2">
-            <Input v-model="dlvRecipient" placeholder="Nama penerima" class="h-9 text-xs" />
-            <Input v-model="dlvPhone" placeholder="No. HP penerima" class="h-9 text-xs" />
+            <Input v-model="dlvRecipient" placeholder="Nama penerima" aria-label="Nama penerima" class="h-9 text-xs" />
+            <Input v-model="dlvPhone" placeholder="No. HP penerima" aria-label="Nomor HP penerima" class="h-9 text-xs" />
           </div>
-          <Textarea v-model="dlvAddress" placeholder="Alamat lengkap (jalan, nomor, kota, kode pos)" rows="2" class="text-xs" />
-          <Input v-model="dlvNotes" placeholder="Catatan kurir (opsional)" class="h-9 text-xs" />
+          <Textarea v-model="dlvAddress" placeholder="Alamat lengkap (jalan, nomor, kota, kode pos)" aria-label="Alamat lengkap" rows="2" class="text-xs" />
+          <Input v-model="dlvNotes" placeholder="Catatan kurir (opsional)" aria-label="Catatan kurir opsional" class="h-9 text-xs" />
         </div>
       </div>
 

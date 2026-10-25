@@ -19,7 +19,6 @@ export function hasPromo(p: Pick<ProductOut, 'discount_percentage'>): boolean {
 export function categoryAccent(category: string): string {
   const c = category.toLowerCase()
   if (c.includes('hp') || c.includes('smartphone')) return 'bg-brand-100 text-brand-700'
-  if (c.includes('laptop') || c.includes('komputer') || c.includes('gaming')) return 'bg-amber-100 text-amber-800'
   if (c.includes('tablet') || c.includes('wearable')) return 'bg-emerald-100 text-emerald-700'
   if (c.includes('audio')) return 'bg-stone-200 text-stone-700'
   return 'bg-stone-100 text-stone-600'

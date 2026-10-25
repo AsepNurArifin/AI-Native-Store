@@ -86,7 +86,7 @@ async function load() {
   loading.value = true
   try {
     items.value = await request<AIActionOut[]>('/ai-actions', {
-      query: { status_: fStatus.value || undefined, page: page.value, page_size: pageSize }
+      query: { status: fStatus.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat antrean draft') }

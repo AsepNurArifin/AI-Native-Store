@@ -53,7 +53,11 @@ export default defineEventHandler(async (event) => {
   const orderBy = sort === 'termurah' ? [asc(effectivePrice)]
     : sort === 'termahal' ? [desc(effectivePrice)]
     : sort === 'terbaru' ? [desc(products.createdAt)]
-    : []
+    // Tanpa sort eksplisit URUTAN HARUS DETERMINISTIK — sebelumnya `[]`
+    // membiarkan urutan arbitrer Postgres, sehingga "Deal of the Day" dan
+    // etalase beranda bisa berganti isi sendiri antar request.
+    : promoOnly ? [desc(sql`coalesce(${promoPct}, 0)`), asc(products.name)]
+    : [asc(products.category), asc(products.name)]
 
   const rows = await query.orderBy(...orderBy).limit(limit)
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)

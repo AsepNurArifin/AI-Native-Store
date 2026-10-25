@@ -15,6 +15,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        /* Dua tingkat aksi berbahaya (aturan konsisten di seluruh panel admin):
+         * - `destructive` : aksi berbahaya UTAMA di halaman detail (Reject action,
+         *   Cancel order di halaman detail) — merah solid.
+         * - `ghostDanger` : aksi berbahaya sekunder di baris tabel/toolbar
+         *   (hapus produk, cancel order di daftar) — merah ghost agar tidak
+         *   menyaingi aksi utama baris. */
         default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',
@@ -25,7 +31,6 @@ const buttonVariants = cva(
         ghostDanger: 'text-rose-700 hover:bg-rose-50 hover:text-rose-800',
         link: 'text-primary underline-offset-4 hover:underline',
         ai: 'bg-promo-400 text-stone-950 font-black shadow-md hover:bg-promo-500 hover:text-black',
-        bby: 'bg-promo-400 text-stone-950 font-black shadow-md hover:bg-promo-500 hover:text-black',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

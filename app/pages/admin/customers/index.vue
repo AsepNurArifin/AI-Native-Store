@@ -4,6 +4,11 @@
     <p class="text-sm text-stone-500">Identitas per-channel (tidak disatukan lintas channel).</p>
     <Card>
       <CardContent>
+        <!-- Form: tekan Enter langsung mencari. -->
+        <form class="mb-3 flex gap-2" @submit.prevent="page = 1; load()">
+          <Input v-model="fQ" placeholder="Cari nama / kontak / identifier…" class="max-w-72" aria-label="Cari pelanggan" />
+          <Button type="submit" size="sm" variant="secondary">Cari</Button>
+        </form>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
@@ -37,18 +42,21 @@
 <script setup lang="ts">
 import type { CustomerOut } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const items = ref<CustomerOut[]>([])
 const loading = ref(false)
+const fQ = ref('')
 const page = ref(1)
 const pageSize = 10
 
 async function load() {
   loading.value = true
   try {
-    items.value = await request<CustomerOut[]>('/customers', { query: { page: page.value, page_size: pageSize } })
+    items.value = await request<CustomerOut[]>('/customers', {
+      query: { q: fQ.value || undefined, page: page.value, page_size: pageSize }
+    })
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat pelanggan') }
   finally { loading.value = false }

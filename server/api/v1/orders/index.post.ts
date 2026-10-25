@@ -1,9 +1,13 @@
 import { createOrderFromSummary, ensureSeeded } from '../../../utils/business'
 import { OrderError, toOrderHttpCode, isUuid } from '../../../utils/errors'
 import { webIdentity } from '../../../utils/identity'
+import { clientIp, rateLimit } from '../../../utils/ratelimit'
 
 /** Batas kolom idempotency_keys.key = VARCHAR(64). */
 const MAX_KEY_LEN = 64
+/** Anti-spam: order UNPAID menahan stok sampai TTL — dibatasi 10/15 menit per IP. */
+const MAX_ORDERS = 10
+const ORDER_WINDOW_MS = 15 * 60_000
 
 /**
  * Checkout langsung (tanpa chat/AI): items -> order -> QRIS.
@@ -12,6 +16,10 @@ const MAX_KEY_LEN = 64
 export default defineEventHandler(async (event) => {
   const db = getDb()
   await ensureSeeded(db)
+  if (!rateLimit(`orders:${clientIp(event)}`, MAX_ORDERS, ORDER_WINDOW_MS)) {
+    setResponseHeader(event, 'Retry-After', Math.ceil(ORDER_WINDOW_MS / 1000))
+    throw createError({ statusCode: 429, message: 'Terlalu banyak pesanan dari koneksi ini. Coba lagi beberapa menit lagi.', data: { detail: { code: 'RATE_LIMITED', message: 'Terlalu banyak pesanan dari koneksi ini. Coba lagi beberapa menit lagi.' } } })
+  }
 
   const body = await readBody<{
     items?: Array<{ product_id?: string, quantity?: number }>
@@ -59,6 +67,8 @@ export default defineEventHandler(async (event) => {
     })
     return {
       order_id: String(order.id), status: order.status, total: Number(order.totalAmount),
+      // Sejak kini deadline bayar dihitung dari server, bukan duplikasi konstanta client.
+      expires_at: order.expiresAt ? new Date(order.expiresAt as unknown as Date).toISOString() : null,
       items: items.map(it => ({ product_id: it.product_id, quantity: it.quantity })),
       replayed
     }

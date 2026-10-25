@@ -11,20 +11,23 @@
       </CardHeader>
       <CardContent>
         <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
-          <div><label class="mb-1 block text-sm">Nama</label><Input v-model="form.name" placeholder="Laptop A" /></div>
-          <div><label class="mb-1 block text-sm">Kategori</label><Input v-model="form.category" placeholder="laptop" /></div>
-          <div><label class="mb-1 block text-sm">Harga (Rp)</label><Input v-model.number="form.price" type="number" placeholder="9500000" /></div>
-          <div><label class="mb-1 block text-sm">Status</label>
-            <select v-model="form.status" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <div><label class="mb-1 block text-sm">Nama</label><Input v-model="form.name" placeholder="iPhone 15 Pro 128GB" /></div>
+          <div><label class="mb-1 block text-sm">Kategori</label><Input v-model="form.category" placeholder="Smartphone" /></div>
+          <div><label class="mb-1 block text-sm" for="product-price">Harga (Rp)</label><Input id="product-price" v-model.number="form.price" type="number" min="1" placeholder="9500000" /></div>
+          <div><label class="mb-1 block text-sm" for="product-status">Status</label>
+            <select id="product-status" v-model="form.status" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option>ACTIVE</option><option>INACTIVE</option>
             </select>
           </div>
+          <div><label class="mb-1 block text-sm" for="product-threshold">Ambang stok kritis</label><Input id="product-threshold" v-model.number="form.low_stock_threshold" type="number" min="0" placeholder="default 5" /></div>
+          <div v-if="!editing"><label class="mb-1 block text-sm" for="product-initial-stock">Stok awal</label><Input id="product-initial-stock" v-model.number="form.initial_stock" type="number" min="0" placeholder="0" /></div>
           <div class="md:col-span-2">
-            <label class="mb-1 block text-sm">Gambar produk (JPG/PNG/WebP/GIF, maks 2 MB)</label>
+            <label class="mb-1 block text-sm" for="product-image">Gambar produk (JPG/PNG/WebP/GIF, maks 2 MB)</label>
             <div class="flex flex-wrap items-start gap-3">
               <img v-if="form.image_url" :src="form.image_url" alt="Pratinjau gambar produk" class="h-20 w-20 rounded-xl border object-cover" >
               <div class="space-y-1">
                 <input
+                  id="product-image"
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   class="block w-full text-xs text-stone-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-stone-700 hover:file:bg-stone-200"
@@ -60,25 +63,27 @@
 
     <Card>
       <CardContent>
-        <div class="mb-3 flex flex-wrap gap-2">
+        <!-- Form supaya menekan Enter di kolom pencarian langsung menyaring. -->
+        <form class="mb-3 flex flex-wrap gap-2" @submit.prevent="page = 1; load()">
           <Input v-model="q" placeholder="Nama / spesifikasi…" class="max-w-56" />
           <Input v-model="category" placeholder="Kategori…" class="max-w-44" />
-          <select v-model="status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="status" aria-label="Filter status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+            <option value="">Semua status</option>
             <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
           </select>
-          <Button size="sm" variant="secondary" @click="page = 1; load()">Cari</Button>
+          <Button type="submit" size="sm" variant="secondary">Cari</Button>
           <label class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
             <input type="checkbox" class="size-4 accent-brand-700" :checked="allSelected" @change="toggleSelectAll">
             Pilih semua di halaman ini
           </label>
-        </div>
+        </form>
         <!-- Baris aksi massal: Muncul hanya ada yang dicentang. -->
         <div
           v-if="selected.size"
           class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
         >
           <span class="text-sm font-medium text-stone-700">{{ selected.size }} produk dipilih</span>
-          <Badge v-if="selectedOrderCount > 0" variant="warning">{{ selectedOrderCount }} baris order ikut terhapus</Badge>
+          <Badge v-if="selectedOrderCount > 0" variant="warning">{{ selectedOrderCount }}+ baris order terdampak (perkiraan)</Badge>
           <Button size="sm" variant="outline" class="ml-auto" @click="clearSelection">Batalkan pilihan</Button>
           <Button size="sm" variant="ghostDanger" :loading="bulkLoading" @click="bulkRemove()">Hapus terpilih</Button>
         </div>
@@ -186,7 +191,7 @@
 import { formatIDR, statusVariant } from '~/utils/format'
 import type { ProductOut } from '~/utils/api-types'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
@@ -194,7 +199,9 @@ const items = ref<ProductOut[]>([])
 const loading = ref(true)
 const q = ref('')
 const category = ref('')
-const status = ref('ACTIVE')
+// Default "Semua status" — OWNER menandai INACTIVE lewat tabel ini juga, jadi
+// tidak boleh "ACTIVE" yang menyembunyikan katalognya sendiri.
+const status = ref('')
 const showForm = ref(false)
 const saving = ref(false)
 const editing = ref<ProductOut | null>(null)
@@ -205,7 +212,18 @@ const pageSize = 10
 function isNewCategory(i: number) {
   return i === 0 || items.value[i - 1]!.category !== items.value[i]!.category
 }
-const form = reactive({ name: '', category: '', price: 0, status: 'ACTIVE', image_url: '' as string })
+// Input kosong memakai tanda `''` (v-model.number) — dinormalisasi ke null
+// supaya "kosong" tidak berarti 5 atau 0 palsu saat dikirim ke server.
+function toIntOrNull(v: unknown): number | null {
+  if (v === '' || v == null) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.trunc(n) : null
+}
+const form = reactive({
+  name: '', category: '', price: 0, status: 'ACTIVE',
+  low_stock_threshold: '' as number | '', initial_stock: '' as number | '',
+  image_url: '' as string
+})
 const uploading = ref(false)
 
 // --- Hapus massal ---
@@ -300,7 +318,7 @@ async function load() {
   loading.value = true
   try {
     items.value = await request<ProductOut[]>('/products', {
-      query: { q: q.value || undefined, category: category.value || undefined, status: status.value, page: page.value, page_size: pageSize }
+      query: { q: q.value || undefined, category: category.value || undefined, status: status.value || undefined, page: page.value, page_size: pageSize }
     })
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal memuat produk') }
@@ -308,14 +326,29 @@ async function load() {
 }
 onMounted(load)
 
+/**
+ * Setelah hapus massal, halaman yang sedang dibuka bisa jadi kosong (data
+ * tersusut) sementara pager masih menunjuk halaman tinggi — mundur satu
+ * halaman supaya owner tidak menghadapi daftar kosong palsu.
+ */
+async function collapseIfEmpty() {
+  if (page.value > 1 && items.value.length === 0) {
+    page.value -= 1
+    await load()
+  }
+}
+
 function resetForm() {
   editing.value = null; showForm.value = false
-  form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'; form.image_url = ''
+  form.name = ''; form.category = ''; form.price = 0; form.status = 'ACTIVE'
+  form.low_stock_threshold = ''; form.initial_stock = ''
+  form.image_url = ''
   specRows.value = []
 }
 function startEdit(p: ProductOut) {
   editing.value = p; showForm.value = true
   form.name = p.name; form.category = p.category; form.price = p.price; form.status = p.status
+  form.low_stock_threshold = p.low_stock_threshold ?? ''
   form.image_url = p.image_url || ''
   rowsFromSpec(p.specification)
 }
@@ -336,16 +369,43 @@ async function onFileChange(e: Event) {
   finally { uploading.value = false }
 }
 async function onSave() {
+  // Validasi klien dulu — harga kosong/0 tidak boleh menunggu 422 dari server.
+  const price = Number(form.price)
+  if (!form.name.trim() || !form.category.trim()) {
+    toast.error('Nama dan kategori wajib diisi.')
+    return
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    toast.error('Harga harus angka lebih dari 0.')
+    return
+  }
+  const threshold = toIntOrNull(form.low_stock_threshold)
+  if (threshold != null && threshold < 0) {
+    toast.error('Ambang stok kritis tidak boleh negatif.')
+    return
+  }
   saving.value = true
   try {
     const spec = specFromRows()
-    const payload = { ...form, image_url: form.image_url.trim() || null, specification: spec }
     const editingId = editing.value?.id
     if (editingId) {
+      const payload = {
+        name: form.name, category: form.category, price, status: form.status,
+        low_stock_threshold: threshold,
+        image_url: form.image_url.trim() || null, specification: spec
+      }
       const res = await request<ProductOut>(`/products/${editingId}`, { method: 'PATCH', body: payload })
       applyProduct(res, editing.value)
     }
     else {
+      // `initial_stock` hanya untuk jalur create; perubahan stok produk yang
+      // sudah ada memakai halaman Inventori (adjustment).
+      const payload = {
+        name: form.name, category: form.category, price, status: form.status,
+        low_stock_threshold: threshold,
+        initial_stock: toIntOrNull(form.initial_stock) ?? 0,
+        image_url: form.image_url.trim() || null, specification: spec
+      }
       const res = await request<ProductOut>('/products', { method: 'POST', body: payload })
       applyProduct(res, null)
     }
@@ -363,8 +423,7 @@ async function toggleStatus(p: ProductOut) {
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal ubah status') }
 }
-async function remove(p: ProductOut) {
-  const used = p.order_count ?? 0
+async function remove(p: ProductOut) {  const used = p.order_count ?? 0
   if (used > 0) {
     // Dua jalur: nonaktifkan (aman,_history utuh) atau hapus paksa untuk
     // data seed yang memang tidak lagi dipakai.
@@ -395,6 +454,7 @@ async function remove(p: ProductOut) {
     await request(`/products/${p.id}`, { method: 'DELETE' })
     toast.success(`"${p.name}" dihapus.`)
     dropProducts([p.id])
+    await collapseIfEmpty()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal hapus produk') }
 }
@@ -424,6 +484,7 @@ async function forceDelete(ids: string[], label: string) {
     toast.success(parts.join(' '))
     dropProducts(ids)
     clearSelection()
+    await collapseIfEmpty()
   }
   catch (e: unknown) { toast.fromError(e, 'Gagal menghapus produk') }
 }
@@ -431,12 +492,12 @@ async function forceDelete(ids: string[], label: string) {
 async function bulkRemove() {
   if (bulkLoading.value || !selected.value.size) return
   const n = selected.value.size
-  const used = selectedOrderCount.value
+  // Angka order di badge hanya perkiraan dari produk yang sedang tampil
+  // (pilihan lintas halaman mungkin membawa produk terpakai lain) — supaya
+  // teks konfirmasi tetap jujur, dampak persisnya dilaporkan toast balasan.
   const ok = await confirmAction.ask({
     title: `Hapus ${n} produk?`,
-    message: used > 0
-      ? `${n} produk, ${used} baris order ikut terhapus. Total order yang tersisa dihitung ulang, dan order yang jadi tanpa item ditandai CANCELLED. Rekomendasi chat ikut terhapus.`
-      : `${n} produk dihapus permanen, termasuk riwayat stok dan promosinya. Rekomendasi chat yang menunjuk produk ini ikut terhapus.`,
+    message: 'Hapus paksa: produk dihapus permanen beserta riwayat stok dan promosinya. Bila ada produk terpilih yang pernah dipakai order, baris ordernya ikut terhapus dan total order tersisa dihitung ulang; order yang jadi tanpa item ditandai CANCELLED. Jumlah persisnya dilaporkan setelah aksi.',
     confirmLabel: `Hapus ${n} produk`,
     tone: 'danger'
   })

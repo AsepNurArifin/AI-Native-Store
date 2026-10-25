@@ -11,6 +11,9 @@
         </p>
       </div>
       <div class="flex items-center gap-2">
+        <Button size="sm" variant="outline" aria-label="Muat ulang data dashboard" :loading="kpiLoading" @click="loadDashboard">
+          <RefreshCw class="h-4 w-4" />
+        </Button>
         <NuxtLink to="/admin/products">
           <Button size="sm" variant="ai">
             + Tambah Produk
@@ -25,6 +28,12 @@
     </div>
 
     <!-- 4 KPI Stat Metric Cards -->
+    <div
+      v-if="forbidden"
+      class="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4 text-sm text-amber-800"
+    >
+      Akun kamu bukan Owner — panel operasional (stok, pesanan, promosi, analitik) membutuhkan peran Owner.
+    </div>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <!-- Card 1: API & Server Health -->
       <Card class="relative overflow-hidden">
@@ -37,13 +46,21 @@
           </div>
           <div class="mt-2 flex items-baseline gap-2">
             <span class="font-display text-2xl font-bold text-stone-900">
-              {{ health?.status === 'ok' ? 'Online' : 'Memeriksa' }}
+              {{ health?.status === 'ok' ? 'Online' : healthFailed ? 'Gagal' : 'Memeriksa' }}
             </span>
             <Badge :variant="health?.status === 'ok' ? 'success' : 'danger'" :dot="true">
               {{ health?.status || '...' }}
             </Badge>
           </div>
           <p class="mt-1 truncate text-[11px] text-stone-500">API: {{ apiBase }}</p>
+          <button
+            v-if="healthFailed"
+            type="button"
+            class="mt-1 text-[11px] font-medium text-amber-700 underline hover:text-amber-800"
+            @click="checkBackend"
+          >
+            Periksa ulang koneksi
+          </button>
         </CardContent>
       </Card>
 
@@ -57,7 +74,8 @@
             </div>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <span class="font-display text-2xl font-bold text-stone-900">
+            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
+            <span v-else class="font-display text-2xl font-bold text-stone-900">
               {{ low.length }}
             </span>
             <span class="text-xs font-medium text-stone-500">item butuh restok</span>
@@ -78,10 +96,12 @@
             </div>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <span class="font-display text-2xl font-bold text-stone-900">
+            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
+            <span v-else class="font-display text-2xl font-bold text-stone-900">
               {{ orders.length }}
             </span>
-            <span class="text-xs font-medium text-stone-500">order tercatat</span>
+            <!-- Jujur: yang di-fetch hanya 5 terbaru, bukan total semua order. -->
+            <span class="text-xs font-medium text-stone-500">5 order terakhir</span>
           </div>
           <NuxtLink to="/admin/orders" class="mt-1 inline-block text-[11px] font-medium text-brand-700 hover:underline">
             Lihat semua transaksi
@@ -99,8 +119,9 @@
             </div>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <span class="font-display text-2xl font-bold text-stone-900">
-              {{ pendingActions }}
+            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
+            <span v-else class="font-display text-2xl font-bold text-stone-900">
+              {{ pendingActionsLabel }}
             </span>
             <span class="text-xs font-medium text-stone-500">draft menunggu keputusan</span>
           </div>
@@ -165,6 +186,9 @@
               </div>
             </div>
           </div>
+          <div v-else-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
+            Ringkasan stok membutuhkan peran Owner.
+          </div>
           <div v-else-if="lowFailed" class="py-6 text-center text-xs text-stone-500">
             Ringkasan stok tidak termuat. Lihat notifikasi di pojok kanan atas.
           </div>
@@ -197,7 +221,7 @@
                 <div class="flex items-center gap-2">
                   <span class="font-mono text-xs font-bold text-stone-800">#{{ o.id.slice(0, 8) }}</span>
                   <span
-                    class="rounded-md px-1.5 py-0.2 text-xs font-bold uppercase"
+                    class="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase"
                     :class="o.channel_origin === 'TELEGRAM' ? 'bg-emerald-100 text-emerald-800 ' : 'bg-stone-200 text-stone-700 '"
                   >
                     {{ o.channel_origin }}
@@ -212,6 +236,9 @@
               </div>
             </div>
           </div>
+          <div v-else-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
+            Daftar pesanan membutuhkan peran Owner.
+          </div>
           <div v-else-if="ordersFailed" class="py-6 text-center text-xs text-stone-500">
             Pesanan terbaru tidak termuat. Lihat notifikasi di pojok kanan atas.
           </div>
@@ -225,37 +252,61 @@
 </template>
 
 <script setup lang="ts">
-import { Activity, ListChecks, ShoppingCart, TriangleAlert } from '@lucide/vue'
+import { Activity, ListChecks, RefreshCw, ShoppingCart, TriangleAlert } from '@lucide/vue'
 import { formatIDR, statusVariant } from '~/utils/format'
 import type { AIActionOut, OrderOut, StockSummaryItem } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const auth = useAuthStore()
+const route = useRoute()
 const { request } = useApi()
 const toast = useToast()
 const apiBase = useRuntimeConfig().public.apiBase as string
 const health = ref<{ status: string } | null>(null)
+const healthFailed = ref(false)
 const low = ref<StockSummaryItem[]>([])
 const lowFailed = ref(false)
 const orders = ref<OrderOut[]>([])
 const ordersFailed = ref(false)
 const pendingActions = ref(0)
+// Non-Owner: endpoint dashboard membutuhkan Owner, jadi jangan membuang request 403.
+const ownerOnly = computed(() => auth.isOwner)
+// Antrean HITL dihitung dari halaman berukuran 100 — bila penuh, tampilkan "100+".
+const kpiLoading = ref(true)
+const pendingActionsLabel = computed(() => (pendingActions.value < 100 ? String(pendingActions.value) : '100+'))
+const forbidden = computed(() => route.query.forbidden === '1')
 
-onMounted(async () => {
+async function checkBackend() {
+  healthFailed.value = false
+  try {
+    health.value = await request<{ status: string }>('/health', { auth: false })
+  }
+  catch (e: unknown) {
+    healthFailed.value = true
+    toast.fromError(e, 'Backend tidak terjangkau')
+  }
+}
+
+async function loadDashboard() {
+  kpiLoading.value = true
   // Semua kartu KPI di-fetch paralel (bukan berurutan/waterfall).
+  // Request khusus Owner dilewatkan bila yang membuka bukan Owner.
   const [h, s, o, d] = await Promise.allSettled([
     request<{ status: string }>('/health', { auth: false }),
-    request<StockSummaryItem[]>('/inventory/summary'),
-    request<OrderOut[]>('/orders', { query: { page: 1, page_size: 5 } }),
-    request<AIActionOut[]>('/ai-actions', { query: { status: 'DRAFT', page: 1, page_size: 100 } })
+    ownerOnly.value ? request<StockSummaryItem[]>('/inventory/summary') : Promise.reject(new Error('khusus Owner')),
+    ownerOnly.value ? request<OrderOut[]>('/orders', { query: { page: 1, page_size: 5 } }) : Promise.reject(new Error('khusus Owner')),
+    ownerOnly.value ? request<AIActionOut[]>('/ai-actions', { query: { status: 'DRAFT', page: 1, page_size: 100 } }) : Promise.reject(new Error('khusus Owner'))
   ])
-  if (h.status === 'fulfilled') health.value = h.value
-  else toast.fromError(h.reason, 'Backend tidak terjangkau')
+  if (h.status === 'fulfilled') { health.value = h.value; healthFailed.value = false }
+  else { healthFailed.value = true; toast.fromError(h.reason, 'Backend tidak terjangkau') }
   if (s.status === 'fulfilled') low.value = s.value.filter(i => i.is_low_stock)
-  else { lowFailed.value = true; toast.fromError(s.reason, 'Gagal memuat ringkasan stok') }
+  else if (ownerOnly.value) { lowFailed.value = true; toast.fromError(s.reason, 'Gagal memuat ringkasan stok') }
   if (o.status === 'fulfilled') orders.value = o.value
-  else { ordersFailed.value = true; toast.fromError(o.reason, 'Gagal memuat pesanan') }
-  pendingActions.value = d.status === 'fulfilled' ? d.value.length : 0
-})
+  else if (ownerOnly.value) { ordersFailed.value = true; toast.fromError(o.reason, 'Gagal memuat pesanan') }
+  if (d.status === 'fulfilled') pendingActions.value = d.value.length
+  kpiLoading.value = false
+}
+
+onMounted(loadDashboard)
 </script>
 

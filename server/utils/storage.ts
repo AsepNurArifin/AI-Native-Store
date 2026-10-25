@@ -35,6 +35,8 @@ export async function uploadProductImage(mime: string, data: Uint8Array): Promis
   const path = `${randomUUID()}.${ext}`
   const res = await fetch(`${url}/storage/v1/object/${BUCKET}/${path}`, {
     method: 'POST',
+    // Abort 15 detik: upload Supabase hang tidak boleh menggantung request.
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Bearer ${key}`,
       'Content-Type': mime,

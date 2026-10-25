@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   if (body.specification !== undefined) patch.specification = body.specification
   if (body.image_url !== undefined) patch.imageUrl = (typeof body.image_url === 'string' && (body.image_url as string).trim() ? (body.image_url as string).trim().slice(0, 500) : null) as never
   if (body.price !== undefined) {
-    if (!Number.isFinite(Number(body.price)) || Number(body.price) < 0) throw createError({ statusCode: 422, message: 'Harga tidak valid', data: { detail: { code: 'VALIDATION', message: 'Harga tidak valid' } } })
+    if (!Number.isFinite(Number(body.price)) || Number(body.price) <= 0) throw createError({ statusCode: 422, message: 'Harga tidak valid: harus angka lebih dari 0', data: { detail: { code: 'VALIDATION', message: 'Harga tidak valid: harus angka lebih dari 0' } } })
     patch.price = String(body.price)
   }
   if (body.status !== undefined) {

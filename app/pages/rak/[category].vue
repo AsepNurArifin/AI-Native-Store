@@ -113,7 +113,8 @@ watch(fetchError, (err) => {
       </div>
     </div>
 
-    <div v-if="fetchError" class="flex justify-center">
+    <div v-if="fetchError" class="space-y-3 text-center">
+      <p class="text-sm text-stone-600">Rak ini gagal dimuat — mungkin koneksi ke server sedang bermasalah, bukan raknya kosong.</p>
       <Button size="sm" variant="outline" @click="() => refresh()">Coba lagi muat rak</Button>
     </div>
 
@@ -122,9 +123,11 @@ watch(fetchError, (err) => {
     </div>
 
     <div v-else-if="!products?.length" class="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-8 text-center">
-      <h2 class="font-display font-bold text-stone-800">Rak ini sedang kosong</h2>
+      <h2 class="font-display font-bold text-stone-800">{{ q || promoOnly ? 'Tidak ada yang cocok dengan filter' : 'Rak ini sedang kosong' }}</h2>
       <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-stone-600">
-        Tidak ada produk yang cocok dengan filter. Coba ubah kata kunci, atau tanya langsung di chat.
+        {{ q || promoOnly
+          ? 'Belum ada produk yang memenuhi kata kunci / filter "Promo saja" ini. Coba ubah pilihan atau tanya langsung di chat.'
+          : 'Belum ada produk di rak ini saat ini. Tanya lewat chat — mungkin stoknya baru saja habis.' }}
       </p>
       <Button to="/chat" variant="ai" class="mt-5">Tanya lewat chat</Button>
     </div>

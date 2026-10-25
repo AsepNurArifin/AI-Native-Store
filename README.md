@@ -1,10 +1,136 @@
-# AI-Native Store Management System
+# SHAF STORE — Sistem Manajemen Toko AI-Native
 
-Capstone project — sistem manajemen toko **AI-native** dengan *conversational commerce*:
-pelanggan memesan lewat **Web Chat Widget** dan **Bot Telegram**, sementara Owner mengelola
+Sistem manajemen toko **AI-native** untuk **SHAF STORE**, retailer produk **Apple**
+(tanpa MacBook/laptop) dan **Samsung Galaxy seri flagship**. Pelanggan bisa memesan
+lewat **chat AI di web**, **Bot Telegram**, atau **checkout langsung**; Owner mengelola
 toko dengan bantuan tiga AI agent (Sales, Business Analyst, Action Assistant).
 
+Proyek **capstone** yang disiapkan untuk dipakai operasional toko.
+
+> Dokumen ini terdiri dari dua bagian: **Bagian A** = profil & proses bisnis SHAF STORE,
+> **Bagian B** = sistem & engineering. Bagian A adalah rujukan faktual untuk penyusunan BMC.
+
 ---
+
+# Bagian A — Bisnis SHAF STORE
+
+## A.1 Tentang SHAF STORE
+
+SHAF STORE adalah toko retail yang **hanya menjual produk Apple dan Samsung Galaxy
+flagship**, beserta aksesori pendukungnya. Positioning: *spesialis iPhone, iPad &
+Samsung Galaxy flagship* — bukan toko elektronik umum.
+
+Toko beroperasi lewat dua kanal yang saling terhubung:
+
+| Kanal | Keterangan |
+|---|---|
+| **Toko fisik** | Pembelian langsung, bayar tunai/transfer/QRIS, ambil barang di tempat. |
+| **Online** | Web (`shafs-store.vercel.app`) dan **Bot Telegram** — konsultasi sekaligus pemesanan. |
+
+**Lokasi & jam operasional:** _[alamat lengkap, kota, dan jam buka menyusul — mohon dikirim]_
+
+## A.2 Produk yang Kami Jual
+
+| Kelompok | Isi |
+|---|---|
+| **Apple** | iPhone, iPad, Apple Watch, AirPods, aksesori Apple |
+| **Samsung Galaxy flagship** | seri **S**, seri **Z** (foldable), seri **Tab S**, **Galaxy Watch**, **Galaxy Buds** |
+| **Aksesori pendukung** | casing (Spigen), charger & powerbank (Anker), kabel (UGREEN), screen protector — khusus untuk perangkat Apple/Samsung |
+
+**Tidak kami jual:**
+
+- laptop dan **MacBook** (semua merek)
+- Samsung seri **A / M / F** (non-flagship)
+- merek lain (Xiaomi, Sony, JBL, dan seterusnya)
+- aksesori yang tidak spesifik untuk Apple/Samsung — MicroSD, SSD, kabel HDMI, flashdisk
+
+## A.3 Cara Berbelanja
+
+Tiga jalur:
+
+1. **Chat AI di web** — tanya rekomendasi, bandingkan spesifikasi, cek stok dan harga.
+   Untuk membeli, pelanggan diarahkan ke `/checkout`.
+2. **Bot Telegram** — percakapan penuh sampai *Order Summary*, lalu konfirmasi pesanan
+   langsung dari chat.
+3. **Checkout langsung (`/checkout`)** — pilih produk, tentukan cara menerima barang,
+   bayar. **Tanpa daftar akun.**
+
+Semua jalur berujung pada **konfirmasi eksplisit** — tidak ada pesanan yang tercipta
+tanpa persetujuan pelanggan. Total yang dibayar selalu persis seperti yang tampil saat
+konfirmasi.
+
+## A.4 Pembayaran
+
+| Metode | Keterangan |
+|---|---|
+| **QRIS** | Pembayaran non-tunai. |
+| **Transfer bank** | Transfer ke rekening toko. |
+| **Tunai** | Saat mengambil barang di toko fisik. |
+
+**Alur pembayaran di sistem:** pesanan dibuat → **stok ditahan** untuk pelanggan tersebut →
+pelanggan membayar → kasir mengonfirmasi (**Tandai Lunas**) → pesanan selesai.
+
+Pesanan yang **belum dibayar** otomatis dibatalkan setelah batas waktu (default 120 menit),
+dan stok kembali tersedia untuk pembeli lain.
+
+> **Catatan implementasi:** QRIS di aplikasi ini masih **simulasi** (payload EMV contoh,
+> tanpa payment gateway) — pembayaran dikonfirmasi manual oleh kasir. Sambungan ke
+> payment gateway adalah rencana pengembangan.
+
+## A.5 Pengiriman & Pengambilan
+
+| Cara | Keterangan |
+|---|---|
+| **Ambil di toko** | Siap diambil **kurang dari 1 jam**. Tunjukkan ID pesanan ke kasir. |
+| **Kurir instan** | GoSend/Grab/dst, **dalam kota saja**. **Ongkir ditanggung pembeli.** |
+
+## A.6 Harga
+
+**Harga pas** — harga yang tertera sudah final dan sama untuk semua pembeli.
+Tidak ada tawar-menawar, dan tidak ada harga grosir/reseller terpisah.
+
+Harga dan promosi **dikunci saat konfirmasi pesanan**. Bila berubah di tengah proses
+konfirmasi, pesanan ditolak dengan tagihan Rp0 — pelanggan tidak pernah ditagih lebih
+dari yang ia lihat.
+
+## A.7 Garansi, Keaslian & Barang Second
+
+SHAF STORE menjual **barang baru (tersegel)** dan **barang second pilihan**. Status
+garansi **berbeda-beda per produk** dan **wajib dicantumkan di tiap produk** —
+selalu tanyakan sebelum membeli.
+
+| Status garansi | Arti |
+|---|---|
+| **Garansi Resmi Indonesia** | Produk resmi distributor (iBox / Samsung Electronics Indonesia). Klaim ke service center resmi. |
+| **Garansi Off** | Unit tanpa garansi (umumnya internasional). Dijual lebih murah, **tanpa** hak klaim. |
+| **Garansi bertanggal** | Ada garansi sampai bulan/tahun tertentu (contoh: "garansi s/d Maret 2026"). Umum pada unit second atau sisa masa garansi. |
+
+**Barang second/pre-owned** dijual dengan **grade kondisi yang jelas** dan mendapat
+**garansi toko**.
+
+> **Koreksi klaim lama:** halaman depan sebelumnya mengklaim *"Semua produk tersegel
+> original & bergaransi resmi toko."* Klaim itu tidak akurat untuk model bisnis ini
+> dan perlu diperbaiki.
+
+## A.8 Purna Jual
+
+Klaim garansi mengikuti status garansi pada tiap produk:
+
+- **Garansi Resmi Indonesia** → service center resmi merek terkait.
+- **Garansi bertanggal / garansi toko** → hubungi SHAF STORE selama masa garansi masih berlaku.
+- **Garansi Off** → tidak ada hak klaim.
+
+**Belum ditentukan** (mohon masukan sebelum dipakai untuk BMC): kebijakan retur/tukar,
+refund, dan batas waktu komplain.
+
+## A.9 Status Proyek
+
+Proyek **capstone** yang dirancang untuk **dipakai operasional toko**. Sebagian integrasi
+masih menyusul: payment gateway (QRIS masih simulasi) dan kanal WhatsApp.
+
+---
+
+# Bagian B — Sistem & Engineering
 
 ## 1. Ringkasan Arsitektur
 
@@ -142,6 +268,7 @@ psql "$DATABASE_URL" -f server/database/migrations/0001_init.sql            # ta
 psql "$DATABASE_URL" -f server/database/migrations/0002_product_image_url.sql
 psql "$DATABASE_URL" -f server/database/migrations/0003_order_summaries.sql  # order_summaries (store ringkasan, TTL)
 psql "$DATABASE_URL" -f server/database/migrations/0004_order_payment_state.sql  # payment_status/paid_at/expires_at
+psql "$DATABASE_URL" -f server/database/migrations/0005_performance_indexes.sql  # index performa list admin & cleanup idempotency
 ```
 
 > **Tidak pakai `psql` (Windows tanpa client)?** Migrasi juga bisa dijalankan dari Node
@@ -157,8 +284,8 @@ luar migrations).
 ### 5.3 Seed
 
 Seed otomatis berjalan saat startup **jika tabel `users` kosong** dan
-`SEED_ON_STARTUP=true` → 1 akun Owner demo + katalog demo **12 SKU** elektronik
-(HP, Laptop, Tablet, Aksesoris) beserta stok awal. Tidak ada data historis,
+`SEED_ON_STARTUP=true` → 1 akun Owner demo + katalog demo **12 SKU**
+(Smartphone, Audio, Tablet, Wearable, Aksesori) beserta stok awal. Tidak ada data historis,
 order, pelanggan, atau promo buatan seed — semuanya terbentuk dari pemakaian nyata.
 Seed tidak mengganti data toko yang sudah terisi.
 
@@ -318,6 +445,12 @@ curl http://localhost:3000/api/v1/catalog/search?sort=termurah
 >   memakai renderer kustom (`safeUrl`) yang menolak `javascript:` / `data:` /
 >   `vbscript:` — termasuk yang disamarkan dengan tab/newline. Escape-HTML saja
 >   **tidak** menutup ini.
+> - **Rate limit bersifat deterrent in-memory** (`server/utils/ratelimit.ts`):
+>   per-instance, tidak lintas instance serverless. Jangan membalik ke pattern
+>   "tabel DB 422 untuk semua endpoint mutasi publik" tanpa mengganti storage.
+> - **Halaman admin Owner-only lewat middleware** `['auth', 'owner']` di semua
+>   halaman kecuali Dashboard (`/admin` = landing aman untuk role lain; kartu
+>   Owner-only di sana bersifat conditional `auth.isOwner`, bukan 403 toast).
 
 Checklist smoke alur kritis: login Owner → katalog publik → chat start → message
 (LLM) → order summary → confirm (price lock, idempotent replay saat retry) →
@@ -348,7 +481,29 @@ approve (EXECUTED) / reject. Plus: adjustment `quantity: -5` → 422 (bukan 500)
 | Audit | `GET /audit/logs` | Owner (JWT) |
 | Upload gambar | `POST /uploads/images` | Owner (JWT) |
 | Webhook Telegram | `POST /webhooks/telegram` | secret token |
-| Dev | `POST /dev/mock-tg`, `POST /dev/seed` | hanya saat `DEBUG=true` |
+| Dev | `POST /dev/mock-tg`, `POST /dev/seed` | hanya saat `DEBUG=true` (**fail-closed**: default `false`) |
+
+**Pencarian `q`** — endpoint daftar panel mendukung parameter pencarian:
+
+| Endpoint | `q` mencocokkan |
+|---|---|
+| `GET /orders?q=` | potongan ID order ATAU nama/kontak/identifier pelanggan |
+| `GET /customers?q=` | nama, kontak, ATAU identifier pelanggan |
+| `GET /conversations?q=` | potongan ID percakapan ATAU identitas pelanggannya |
+
+Filter dieksekusi di SQL (ILIKE + subquery), bukan diff di JS.
+
+**Rate limit (anti-spam, in-memory per instance):**
+
+| Endpoint | Batas | Kunci |
+|---|---|---|
+| `POST /auth/login` | 5×/15 mnt | IP + email |
+| `POST /orders` | 10×/15 mnt | IP |
+| `POST /chat/start` | 10×/15 mnt | IP |
+| `POST /chat/:id/messages` | 20×/5 mnt | conversation id |
+| `POST /webhooks/telegram` | sliding window (lihat §10) | chat id |
+
+Lewat batas → `429` + header `Retry-After`.
 
 **Konfirmasi order** — dua jalur resmi:
 
@@ -377,9 +532,18 @@ konfirmasi (web / telegram)
          └─ POST /orders/:id/complete  -> COMPLETED  (butuh sudah PAID)
 ```
 
-- **Expire lazy, bukan cron.** `expireStaleOrders()` dipanggil di awal `GET /orders`
-  dan `GET /inventory/summary`. Aman di serverless (Vercel) tanpa Vercel Cron, dan
-  idempoten. Order yang sudah dibayar tidak pernah disentuh.
+- **Expire lazy, bukan cron.** `expireStaleOrders()` dipanggil di awal `GET /orders`,
+  `GET /orders/:id`, dan `GET /inventory/summary`. Aman di serverless (Vercel) tanpa
+  Vercel Cron, dan idempoten. Order yang sudah dibayar tidak pernah disentuh.
+- **Harga admin wajib > 0.** `POST /products` dan `PATCH /products/:id` menolak
+  harga `0`, negatif, atau non-numerik (`422`) — harga kosong tidak pernah
+  tersimpan sebagai Rp0.
+- **`POST /orders` mengembalikan `expires_at`** (ISO) — batas bayar di UI dihitung
+  dari server, bukan konstanta duplikat di client.
+- **Analitik hanya menghitung `PAID`** (ekte bersama WHERE
+  `payment_status='PAID' AND status IN ('CONFIRMED','COMPLETED')`) — dihitung di
+  database. `to_date` berformat date-only (`YYYY-MM-DD`) diartikan AKHIR hari itu
+  (inklusif), jadi rentang "1–31 Jan" mencakup tanggal 31.
 - **Complete tanpa bayar ditolak** `409 NOT_PAID` — tidak ada jalan pintas
   mark-as-complete supaya analitik tidak menghitung revenue palsu.
 - **Analitik hanya menghitung `PAID`** (`isCountableOrder`). Order UNPAID yang

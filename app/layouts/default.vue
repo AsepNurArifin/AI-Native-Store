@@ -6,7 +6,7 @@ const base = (config.public.apiBase as string) || '/api/v1'
 const route = useRoute()
 
 const searchText = ref(typeof route.query.q === 'string' ? route.query.q : '')
-const quickSearches = ['MacBook M3', 'iPhone 15', 'Gaming Laptop', 'Monitor 180Hz', 'AirPods', 'SSD 1TB']
+const quickSearches = ['iPhone 15 Pro', 'Galaxy S24 Ultra', 'iPad Air', 'Apple Watch', 'AirPods Pro', 'Galaxy Z Flip']
 
 const { data: categories } = await useAsyncData('layout-categories', async () => {
   try {
@@ -72,7 +72,7 @@ function goSearch(q: string) {
 
           <!-- Large Best Buy Integrated Search Input -->
           <div class="hidden min-w-0 flex-1 md:block">
-            <SearchBar v-model="searchText" placeholder="Cari laptop, iPhone, SSD, spesifikasi…" @submit="goSearch" />
+            <SearchBar v-model="searchText" placeholder="Cari iPhone, iPad, Galaxy flagship…" @submit="goSearch" />
             <div class="mt-1 flex items-center gap-2 text-[11px] text-brand-100">
               <span class="font-bold text-promo-400">Pencarian Populer:</span>
               <div class="flex flex-wrap gap-2">
@@ -118,7 +118,7 @@ function goSearch(q: string) {
 
       <!-- Mobile Search Input Bar -->
       <div class="bg-brand-800 md:hidden px-4 py-2.5 border-t border-brand-600">
-        <SearchBar v-model="searchText" placeholder="Cari HP, laptop, aksesoris…" @submit="goSearch" />
+        <SearchBar v-model="searchText" placeholder="Cari iPhone, Samsung Galaxy, aksesoris…" @submit="goSearch" />
       </div>
 
       <!-- Tier 3: Sub-Navigation Category Bar (#003899) -->
@@ -192,8 +192,8 @@ function goSearch(q: string) {
       </div>
 
       <div class="mx-auto mt-10 max-w-7xl border-t border-stone-800 pt-6 px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-500">
-        <p>© 2026 SHAF STORE Electronics. Inspired by Best Buy Storefront Standards.</p>
-        <p class="text-[11px] text-stone-400">Official Best Buy Design System Integration</p>
+        <p>© 2026 SHAF STORE — toko gadget resmi &amp; transparan harga.</p>
+        <p class="text-[11px] text-stone-400">Layanan pelanggan 09.00–21.00 WIB, setiap hari</p>
       </div>
     </footer>
   </div>

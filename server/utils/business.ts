@@ -26,6 +26,34 @@ export async function currentStock(db: DbLike, productId: string): Promise<numbe
   return (await stocksFor(db, [productId])).get(productId) ?? 0
 }
 
+// Cache stok jangka pendek untuk kebutuhan TAMPILAN katalog (beranda/rak/detail
+// admin). `stocksFor` = agregasi SELURUH riwayat inventory_transactions lewat
+// view v_product_stock — mahal, dan dipanggil di endpoint publik paling hot.
+// Stok untuk display boleh stale ~3 detik; jalur yang MENGUBAH stok (checkout)
+// tetap memakai `stocksFor` segar di dalam transaksi dengan lock FOR UPDATE
+// (anti oversell tidak berubah).
+const _stockCache = new Map<string, { at: number, stock: number }>()
+const STOCK_TTL_MS = 3000
+
+export async function stocksForCached(db: DbLike, ids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const now = Date.now()
+  const miss: string[] = []
+  for (const id of ids) {
+    const c = _stockCache.get(id)
+    if (c && now - c.at < STOCK_TTL_MS) out.set(id, c.stock)
+    else miss.push(id)
+  }
+  if (miss.length) {
+    for (const [pid, s] of await stocksFor(db, miss)) {
+      if (_stockCache.size > 4096) _stockCache.clear()
+      _stockCache.set(pid, { at: now, stock: s })
+      out.set(pid, s)
+    }
+  }
+  return out
+}
+
 export async function recordTx(db: DbLike, input: {
   productId: string, type: string, movement: 'IN' | 'OUT', referenceType?: string, quantity: number, referenceId?: string | null, actorId?: string | null
 }) {
@@ -40,11 +68,14 @@ export async function recordTx(db: DbLike, input: {
 export async function stockSummary(db: DbLike, lowDefault: number) {
   const all = await db.select().from(products)
   const stocks = await stocksFor(db, all.map(p => String(p.id)))
+  // `status` ikut — halaman inventori butuh untuk menyaring produk
+  // nonaktif dari dropdown penyesuaian stok (endpoint adjustment menolaknya).
   return all.map((p) => {
     const stock = stocks.get(String(p.id)) ?? 0
     const thr = (p.lowStockThreshold as number | null) ?? lowDefault
     return {
       product_id: String(p.id), name: p.name, category: p.category, price: num(p.price),
+      status: p.status,
       current_stock: stock, low_stock_threshold: p.lowStockThreshold ?? null, is_low_stock: stock <= thr,
       image_url: (p.imageUrl as string | null) ?? null
     }
@@ -116,13 +147,11 @@ export function effectiveStatus(promo: { status: string, startDate: Date | strin
 }
 
 export async function refreshPromotionExpiry(db: DbLike) {
-  const actives = await db.select().from(promotions).where(eq(promotions.status, 'ACTIVE'))
-  const now = new Date()
-  for (const p of actives) {
-    if (new Date(p.endDate as unknown as string) < now) {
-      await db.update(promotions).set({ status: 'EXPIRED' }).where(eq(promotions.id, p.id))
-    }
-  }
+  // Satu statement (sebelumnya loop UPDATE satu-per-satu — N round trip di
+  // GET /promotions saat promo kedaluwarsa menumpuk). Saringan end_date <
+  // now() di sisi DB, memakai filter yang sama dengan effectiveStatus().
+  await db.update(promotions).set({ status: 'EXPIRED' })
+    .where(and(eq(promotions.status, 'ACTIVE'), lt(promotions.endDate, new Date())))
 }
 
 export async function checkOverlap(db: DbLike, productId: string, start: Date, end: Date, excludeId?: string): Promise<boolean> {
@@ -250,15 +279,23 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
 
     let total = 0
     const snapshot: Record<string, { promotion_id: string, discount_percentage: number, price_before: number, discount_per_unit: number }> = {}
+    // Data dibatch SEKALI di depan loop (sebelumnya 3 query per item di dalam
+    // transaksi sambil memegang kunci FOR UPDATE — order 10 item ≈ 30 round
+    // trip; sekarang 3 query total). Validasi & urutan error per item tetap
+    // identik: PRODUCT_NOT_FOUND -> PRODUCT_INACTIVE -> INSUFFICIENT_STOCK.
+    const productIds = items.map(i => i.product_id)
+    const prowRows = await tx.select().from(products).where(inArray(products.id, productIds as never))
+    const prowMap = new Map(prowRows.map(p => [String(p.id), p]))
+    const stockMap = await stocksFor(tx, productIds)
+    const promoMap = await activePromosFor(tx, productIds)
     for (const item of items) {
-      const prow = await tx.select().from(products).where(eq(products.id, item.product_id as never)).limit(1)
-      const p = prow[0]
+      const p = prowMap.get(item.product_id)
       if (!p) throw new OrderError('PRODUCT_NOT_FOUND', `Produk ${item.product_id} tidak ditemukan.`)
       if (p.status !== 'ACTIVE') throw new OrderError('PRODUCT_INACTIVE', `${p.name} tidak aktif.`)
-      const stock = (await stocksFor(tx, [String(p.id)])).get(String(p.id)) ?? 0
+      const stock = stockMap.get(item.product_id) ?? 0
       if (stock < item.quantity) throw new OrderError('INSUFFICIENT_STOCK', `Stok ${p.name} hanya tersisa ${stock}.`, { product_id: String(p.id), available: stock })
 
-      const promo = await activePromotionFor(tx, String(p.id))
+      const promo = promoMap.get(item.product_id) ?? null
       const discountPct = promo ? num(promo.discountPercentage) : 0
       const q = quoteLine(num(p.price), discountPct, item.quantity)
       if (promo) {
@@ -372,6 +409,26 @@ export async function cancelOrderTx(
   return { cancelled: true, order: o, restocked: items.length }
 }
 
+// Pembersihan idempotency key kedaluwarsa — pindahan dari webhook Telegram
+// (dulu DELETE full-scan TANPA index dijalankan per pesan masuk; tabel juga
+// tumbuh tanpa batas karena key `chat:`/web checkout tak pernah dibersihkan).
+// Sekarang: dipanggil dari jalur baca via expireStaleOrders(), throttle 1x
+// per menit per instance, dan index ix_idem_created (migrasi 0005) membuat
+// DELETE-nya murah. Retensi 24 jam — TTL efektif key hanya 30 menit
+// (idempotencyTtlMinutes), jadi 24 jam sangat konservatif.
+let _lastIdemCleanup = 0
+export async function cleanupIdempotencyKeys(db: DbLike) {
+  const now = Date.now()
+  if (now - _lastIdemCleanup < 60_000) return
+  _lastIdemCleanup = now
+  try {
+    await db.execute(sql`DELETE FROM idempotency_keys WHERE created_at < now() - interval '24 hours'`)
+  }
+  catch {
+    // Tabel/index belum siap -> coba lagi di siklus berikutnya.
+  }
+}
+
 /**
  * Lazy expiry: batalkan order UNPAID yang lewat deadline dan kembalikan stok.
  *
@@ -380,6 +437,9 @@ export async function cancelOrderTx(
  * Order yang sudah dibayar (PAID) tidak pernah disentuh.
  */
 export async function expireStaleOrders(db: DbLike): Promise<number> {
+  // Sekalian housekeeping idempotency_keys (throttled 1x/menit, lihat di atas) —
+  // dulu jalan per-pesan-webhook dengan full scan.
+  await cleanupIdempotencyKeys(db)
   const now = new Date()
   const stale = await db.select({ id: orders.id }).from(orders).where(
     and(eq(orders.paymentStatus, 'UNPAID'), eq(orders.status, 'CONFIRMED'), lt(orders.expiresAt, now))
@@ -454,20 +514,20 @@ export async function ensureSeeded(db: DbLike) {
   })
   if (!owner.length) return
   const ownerId = String(firstRow(owner, 'insert owner seed').id)
-  // Katalog demo 12 SKU
+  // Katalog demo 12 SKU — hanya Apple (tanpa MacBook) & Samsung Galaxy flagship.
   const demo: Array<{ name: string, category: string, price: number, spec: Record<string, unknown>, stock: number }> = [
-    { name: 'iPhone 15 Pro 128GB', category: 'HP', price: 18999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 128 }, stock: 12 },
-    { name: 'Samsung Galaxy S24 256GB', category: 'HP', price: 13999000, spec: { brand: 'Samsung', ram_gb: 8, storage_gb: 256 }, stock: 15 },
-    { name: 'Xiaomi Redmi Note 13 8/256', category: 'HP', price: 2799000, spec: { brand: 'Xiaomi', ram_gb: 8, storage_gb: 256 }, stock: 30 },
-    { name: 'MacBook Air M3 8/256', category: 'Laptop', price: 18999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 256, processor: 'M3' }, stock: 8 },
-    { name: 'Lenovo IdeaPad Slim 3 Ryzen 5', category: 'Laptop', price: 8499000, spec: { brand: 'Lenovo', ram_gb: 16, storage_gb: 512, processor: 'Ryzen 5' }, stock: 10 },
-    { name: 'ASUS ROG Strix G16 RTX 4060', category: 'Laptop', price: 24999000, spec: { brand: 'ASUS', ram_gb: 16, storage_gb: 1024, processor: 'i7', gpu: 'RTX 4060' }, stock: 5 },
-    { name: 'AirPods Pro 2', category: 'Aksesoris', price: 3499000, spec: { brand: 'Apple' }, stock: 25 },
-    { name: 'Logitech MX Master 3S', category: 'Aksesoris', price: 1699000, spec: { brand: 'Logitech' }, stock: 20 },
-    { name: 'Samsung SSD 1TB EVO', category: 'Aksesoris', price: 1499000, spec: { brand: 'Samsung', storage_gb: 1024 }, stock: 18 },
+    { name: 'iPhone 15 Pro 128GB', category: 'Smartphone', price: 18999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 128 }, stock: 12 },
+    { name: 'iPhone 15 128GB', category: 'Smartphone', price: 12999000, spec: { brand: 'Apple', ram_gb: 6, storage_gb: 128 }, stock: 15 },
+    { name: 'Samsung Galaxy S24 Ultra 256GB', category: 'Smartphone', price: 21999000, spec: { brand: 'Samsung', ram_gb: 12, storage_gb: 256 }, stock: 8 },
+    { name: 'Samsung Galaxy S24 256GB', category: 'Smartphone', price: 13999000, spec: { brand: 'Samsung', ram_gb: 8, storage_gb: 256 }, stock: 15 },
+    { name: 'Samsung Galaxy Z Flip 5 256GB', category: 'Smartphone', price: 15999000, spec: { brand: 'Samsung', ram_gb: 8, storage_gb: 256 }, stock: 6 },
+    { name: 'AirPods Pro 2 USB-C', category: 'Audio', price: 3499000, spec: { brand: 'Apple' }, stock: 25 },
+    { name: 'AirPods 3 Lightning', category: 'Audio', price: 2199000, spec: { brand: 'Apple' }, stock: 20 },
     { name: 'iPad Air M2 128GB', category: 'Tablet', price: 10999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 128 }, stock: 9 },
-    { name: 'Xiaomi Pad 6 8/256', category: 'Tablet', price: 4999000, spec: { brand: 'Xiaomi', ram_gb: 8, storage_gb: 256 }, stock: 14 },
-    { name: 'Anker PowerBank 20000mAh', category: 'Aksesoris', price: 699000, spec: { brand: 'Anker' }, stock: 40 }
+    { name: 'Samsung Galaxy Tab S9 128GB', category: 'Tablet', price: 11499000, spec: { brand: 'Samsung', ram_gb: 8, storage_gb: 128 }, stock: 7 },
+    { name: 'Apple Watch SE 2 44mm', category: 'Wearable', price: 3999000, spec: { brand: 'Apple' }, stock: 10 },
+    { name: 'Samsung Galaxy Watch 6 44mm', category: 'Wearable', price: 4299000, spec: { brand: 'Samsung' }, stock: 8 },
+    { name: 'Casing Spigen iPhone 15 Pro', category: 'Aksesori', price: 249000, spec: { brand: 'Spigen' }, stock: 40 }
   ]
   for (const d of demo) {
     const pins = await db.insert(products).values({

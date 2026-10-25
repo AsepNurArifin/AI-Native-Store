@@ -33,6 +33,7 @@
             <button
               class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer"
               title="Keluar"
+              aria-label="Keluar dari akun admin"
               @click="auth.logout()"
             >
               <LogOut class="h-4 w-4" />
@@ -100,6 +101,7 @@
             <button
               class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer"
               title="Keluar"
+              aria-label="Keluar dari akun admin"
               @click="auth.logout()"
             >
               <LogOut class="h-4 w-4" />

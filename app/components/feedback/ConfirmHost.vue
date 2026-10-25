@@ -12,6 +12,7 @@
       :aria-label="state.title"
       tabindex="-1"
       @keydown.esc.stop="cancel"
+      @keydown="trapFocus"
     >
       <div class="flex items-start gap-3">
         <span
@@ -90,6 +91,28 @@ watch(state, async (s) => {
   if (input instanceof HTMLInputElement) input.focus()
   else dialogRef.value?.focus()
 })
+
+/**
+ * Focus trap modal (a11y): Tab tidak boleh meloloskan fokus ke halaman di
+ * belakang dialog — dikurung bolak-balik di dalam dialog.
+ */
+function trapFocus(e: KeyboardEvent) {
+  if (!state.value) return
+  if (e.key === 'Escape') { e.preventDefault(); cancel(); return }
+  if (e.key !== 'Tab' || !dialogRef.value) return
+  const focusables = dialogRef.value.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
+  )
+  if (!focusables.length) return
+  const first = focusables[0] as HTMLElement
+  const last = focusables[focusables.length - 1] as HTMLElement
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault(); last.focus()
+  }
+  else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault(); first.focus()
+  }
+}
 
 function accept() {
   resolveConfirm(state.value?.mode === 'askText' ? inputValue.value : true)

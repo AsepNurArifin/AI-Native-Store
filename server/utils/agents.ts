@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import {
   conversationMessages, conversations as convTable,
   orderItems, orders, products
@@ -11,22 +11,47 @@ import { firstRow } from './errors'
 import { quoteLine, quoteTotal } from '../../shared/utils/pricing'
 
 /**
- * Order yang dihitung analitik.
+ * Order yang dihitung analitik (diterjemahkan ke clause WHERE di bawah):
+ * paymentStatus='PAID' DAN status CONFIRMED/COMPLETED.
  *
  * PERBAIKAN (migrasi 0004): dulu `CONFIRMED || COMPLETED`, sehingga order yang
  * BELUM dibayar ikut terhitung sebagai pendapatan — padahal QRIS hanya simulasi
- * dan tidak ada payment gateway. Sekarang wajib paymentStatus='PAID' (dan belum
- * CANCELLED). Order UNPAID yang lewat TTL di-cancel oleh expireStaleOrders() yang
+ * dan tidak ada payment gateway. Sekarang wajib paymentStatus='PAID'. Order
+ * UNPAID yang lewat TTL di-cancel oleh expireStaleOrders() yang
  * dipanggil endpoint baca, jadi tidak pernah dihitung revenue.
  */
-const isCountableOrder = (o: { status: string, paymentStatus?: string | null }) =>
-  (o.paymentStatus ?? 'UNPAID') === 'PAID' && (o.status === 'CONFIRMED' || o.status === 'COMPLETED')
 
 /** Key minggu ISO = tanggal Senin minggu tersebut (YYYY-MM-DD). */
 function weekKey(d: Date): string {
   const mon = new Date(d)
   mon.setUTCDate(mon.getUTCDate() - ((mon.getUTCDay() + 6) % 7))
   return mon.toISOString().slice(0, 10)
+}
+
+/**
+ * Rentang analitik.
+ *
+ * `to_date` berformat date-only ("2026-01-31") diartikan AKHIR hari itu
+ * (inklusif) — sebelumnya rentang "1–31 Jan" berhenti di 30 Jan karena
+ * tengah malam tgl 31 dipakai sebagai batas eksklusif. String datetime penuh
+ * tetap dipakai apa adanya (default: "sekarang").
+ */
+function analyticsRange(args: { from_date?: unknown, to_date?: unknown }) {
+  const from = args.from_date ? new Date(String(args.from_date)) : new Date(Date.now() - 30 * 864e5)
+  let to = args.to_date ? new Date(String(args.to_date)) : new Date()
+  if (args.to_date && String(args.to_date).trim().length === 10) to = new Date(to.getTime() + 864e5 - 1)
+  return { from, to }
+}
+
+/** Filter SQL order yang dihitung analitik: rentang + countable, dieksekusi
+ *  di database (bukan SELECT semua order lalu disaring di JS). */
+function countableOrderWhere(from: Date, to: Date) {
+  return and(
+    gte(orders.createdAt, from as never),
+    lte(orders.createdAt, to as never),
+    eq(orders.paymentStatus, 'PAID'),
+    inArray(orders.status, ['CONFIRMED', 'COMPLETED'] as never)
+  )
 }
 
 // ---------- Tool executor (10 tools, tanpa mutasi berat) ----------
@@ -118,15 +143,12 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     return { summary, warnings: errs.slice(0, 5) }
   }
   if (name === 'analyze_sales') {
-    const from = args.from_date ? new Date(String(args.from_date)) : new Date(Date.now() - 30 * 864e5)
-    const to = args.to_date ? new Date(String(args.to_date)) : new Date()
+    const { from, to } = analyticsRange(args)
     const groupBy = String(args.group_by || 'product')
     const top = Number(args.top || 10)
-    const allOrders = await db.select().from(orders)
-    const inRange = allOrders.filter(o => {
-      const c = new Date(o.createdAt as unknown as string)
-      return c >= from && c < to && isCountableOrder(o)
-    })
+    // Filter rentang + countable di SQL (sebelumnya full-table scan lalu
+    // .filter() di JS — lambat saat orders besar).
+    const inRange = await db.select().from(orders).where(countableOrderWhere(from, to))
     // PERBAIKAN N+1: sebelumnya 1 query order_items per order + 1 query products
     // per item (O(orders x items)). Sekarang batch: semua item dalam 1 query,
     // semua nama produk dalam 1 query.
@@ -205,13 +227,9 @@ export async function toolCall(db: ReturnType<typeof getDb>, name: string, args:
     return { threshold_days: threshold, data: out }
   }
   if (name === 'channel_distribution') {
-    const from = args.from_date ? new Date(String(args.from_date)) : new Date(Date.now() - 30 * 864e5)
-    const to = args.to_date ? new Date(String(args.to_date)) : new Date()
-    const allOrders = await db.select().from(orders)
-    const inRange = allOrders.filter(o => {
-      const c = new Date(o.createdAt as unknown as string)
-      return c >= from && c < to && isCountableOrder(o)
-    })
+    const { from, to } = analyticsRange(args)
+    // Filter rentang + countable di SQL, sama seperti analyze_sales.
+    const inRange = await db.select().from(orders).where(countableOrderWhere(from, to))
     const by = new Map<string, number>()
     for (const o of inRange) by.set(o.channelOrigin, (by.get(o.channelOrigin) || 0) + 1)
     const total = inRange.length
@@ -240,12 +258,20 @@ function extractBudget(text: string): number | null {
   return n > 0 ? n : null
 }
 
+/**
+ * Deteksi kategori dari teks bebas. Nilai yang dikembalikan HARUS sama dengan
+ * nilai kolom `products.category` (dicocokkan persis, case-insensitive).
+ * Shaf Store hanya menjual Apple (iPhone/iPad/Apple Watch/AirPods, TANPA
+ * MacBook) dan Samsung Galaxy seri flagship (S, Z, Tab S, Watch) — jadi
+ * permintaan laptop/brand lain tidak dipetakan ke kategori mana pun.
+ */
 function detectCategory(text: string): string | null {
   const t = text.toLowerCase()
-  if (/laptop|notebook|macbook|rog|ideapad|thinkpad/.test(t)) return 'Laptop'
-  if (/hp|handphone|iphone|samsung|xiaomi|redmi|smartphone|android/.test(t)) return 'HP'
-  if (/tablet|ipad|pad/.test(t)) return 'Tablet'
-  if (/aksesori|aksesoris|mouse|keyboard|ssd|powerbank|airpods|charger|headset|tws/.test(t)) return 'Aksesoris'
+  if (/ipad|tab s|tablet|galaxy tab/.test(t)) return 'Tablet'
+  if (/apple watch|galaxy watch|smartwatch|jam tangan pintar|wearable/.test(t)) return 'Wearable'
+  if (/airpods|galaxy buds|earbuds|tws|headset|headphone|audio/.test(t)) return 'Audio'
+  if (/iphone|galaxy s|galaxy z|samsung|handphone|smartphone|\bhp\b|ponsel/.test(t)) return 'Smartphone'
+  if (/aksesori|aksesoris|casing|charger|kabel|powerbank|screen protector|tempered/.test(t)) return 'Aksesori'
   return null
 }
 
@@ -348,7 +374,7 @@ export async function salesHandleMessage(db: ReturnType<typeof getDb>, conversat
       if (res.summary) summary = res.summary
     }
     if (productsOut.length === 0) {
-      replyText = 'Maaf, saya tidak menemukan produk yang cocok. Bisa sebutkan gadget dan budgetnya? Contoh: "Laptop untuk desain budget 15 juta".'
+      replyText = 'Maaf, saya tidak menemukan produk yang cocok. Bisa sebutkan produk dan budgetnya? Contoh: "iPhone 15 Pro budget 15 juta" atau "Samsung Galaxy S24 Ultra ada stok?".'
     }
     else {
       const lines = productsOut.map(p => `- **${p.name}** — Rp${num(p.price).toLocaleString('id-ID')} (stok: ${p.current_stock})`)

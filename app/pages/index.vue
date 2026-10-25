@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Gamepad2, Headphones, Laptop, MessageCircle, Smartphone, Tablet, Watch, Package,
+  Headphones, MessageCircle, Smartphone, Tablet, Watch, Package,
   Truck, ShieldCheck, Flame, Clock, Zap, CheckCircle2, QrCode, ArrowRight, AlertTriangle
 } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
@@ -16,16 +16,16 @@ const ogImage = `${siteUrl}/og-image.png`
 const route = useRoute()
 
 useSeoMeta({
-  title: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
-  description: 'Katalog HP, laptop, tablet & aksesoris dengan harga jelas. Chat untuk cek stok; checkout langsung tanpa daftar akun.',
-  ogTitle: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
-  ogDescription: 'Katalog gadget dengan harga jelas; checkout langsung tanpa daftar akun.',
+  title: 'SHAF STORE: Spesialis iPhone, iPad & Samsung Galaxy Flagship',
+  description: 'Katalog iPhone, iPad, Apple Watch, AirPods & Samsung Galaxy seri flagship dengan harga jelas. Chat untuk cek stok; checkout langsung tanpa daftar akun.',
+  ogTitle: 'SHAF STORE: Spesialis iPhone, iPad & Samsung Galaxy Flagship',
+  ogDescription: 'Katalog Apple & Samsung Galaxy flagship dengan harga jelas; checkout langsung tanpa daftar akun.',
   ogType: 'website',
   ogUrl: siteUrl,
   ogImage,
   ogLocale: 'id_ID',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
+  twitterTitle: 'SHAF STORE: Spesialis iPhone, iPad & Samsung Galaxy Flagship',
   twitterImage: ogImage
 })
 useHead({ link: [{ rel: 'canonical', href: siteUrl }] })
@@ -35,7 +35,7 @@ const activeCategory = ref('')
 const selectedBrand = ref('')
 const sort = ref('')
 
-const popularBrands = ['Apple', 'Samsung', 'ASUS', 'Lenovo', 'MSI', 'Xiaomi', 'Sony', 'Logitech']
+const popularBrands = ['Apple', 'Samsung']
 
 // Kategori dipakai bareng layout (key 'layout-categories') — tanpa request kedua.
 const { data: layoutCategories } = useNuxtData<string[]>('layout-categories')
@@ -81,8 +81,8 @@ watch(catalogError, (err) => {
 })
 
 const categoryIcons: Record<string, object> = {
-  HP: Smartphone, Smartphone: Smartphone, Laptop: Laptop, Tablet: Tablet,
-  Wearable: Watch, Audio: Headphones, Aksesori: Headphones, Komputer: Laptop, Gaming: Gamepad2
+  HP: Smartphone, Smartphone: Smartphone, Tablet: Tablet,
+  Wearable: Watch, Audio: Headphones, Aksesori: Headphones
 }
 function catIcon(name: string) {
   for (const [k, v] of Object.entries(categoryIcons)) if (name.toLowerCase().includes(k.toLowerCase())) return v
@@ -124,7 +124,7 @@ useHead({
     type: 'application/ld+json',
     innerHTML: JSON.stringify({
       '@context': 'https://schema.org', '@type': 'Store', name: 'SHAF STORE',
-      description: 'Toko elektronik HP, laptop, tablet & aksesoris.',
+      description: 'Toko spesialis Apple & Samsung Galaxy flagship.',
       url: siteUrl, image: ogImage, inLanguage: 'id',
       potentialAction: {
         '@type': 'SearchAction',
@@ -145,13 +145,13 @@ useHead({
         <div class="space-y-4">
           <div class="inline-flex items-center gap-2 rounded-full bg-brand-50 border border-brand-200 px-3.5 py-1 text-xs font-black text-brand-700">
             <Zap class="h-3.5 w-3.5 fill-brand-700" />
-            Official Best Buy Storefront Integration
+            Toko gadget resmi SHAF STORE
           </div>
           <h1 class="font-display text-3xl font-black tracking-tight text-stone-900 sm:text-5xl sm:leading-[1.1]">
-            Gadget Resmi &amp; Elektronik, <span class="text-brand-700">Harga Jelas Transparan.</span>
+            Gadget Resmi &amp; Berkualitas, <span class="text-brand-700">Harga Jelas Transparan.</span>
           </h1>
           <p class="max-w-lg text-base leading-relaxed text-stone-600 font-medium">
-            Temukan laptop, HP, &amp; aksesoris dari brand resmi. Cek ketersediaan stok live toko atau konsultasi spesifikasi langsung via Chat.
+            Temukan iPhone, iPad, Apple Watch, AirPods &amp; Samsung Galaxy seri flagship. Cek ketersediaan stok live toko atau konsultasi spesifikasi langsung via Chat.
           </p>
           <div class="flex flex-col gap-3 pt-2 sm:flex-row">
             <!-- Best Buy Yellow Tag Button -->
@@ -188,7 +188,7 @@ useHead({
           </div>
 
           <NuxtLink :to="`/produk/${heroPromo.id}`" class="group mt-4 flex items-center gap-4">
-            <ProductImage :image-url="heroPromo.image_url" :name="heroPromo.name" :category="heroPromo.category" size="thumb" class="h-24 w-24 shrink-0 !rounded-2xl border border-brand-500 bg-white" />
+            <ProductImage :image-url="heroPromo.image_url" :name="heroPromo.name" :category="heroPromo.category" size="thumb" eager class="h-24 w-24 shrink-0 !rounded-2xl border border-brand-500 bg-white" />
             <div class="min-w-0 flex-1">
               <span class="inline-block rounded bg-promo-400 px-2 py-0.5 text-[10px] font-black uppercase text-stone-950 shadow-xs">
                 HEMAT {{ Math.round(heroPromo.discount_percentage || 0) }}%
@@ -245,7 +245,7 @@ useHead({
     <section aria-label="Kategori">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="font-display text-lg font-black tracking-tight text-stone-900">Shop by Category</h2>
-        <span class="text-xs font-bold text-stone-500">Pilih kategori elektronik</span>
+        <span class="text-xs font-bold text-stone-500">Pilih kategori produk</span>
       </div>
       <div class="grid grid-cols-4 gap-2.5 sm:grid-cols-7">
         <NuxtLink
@@ -418,7 +418,7 @@ useHead({
         <ol class="mt-5 space-y-4 text-sm leading-relaxed">
           <li class="flex gap-4">
             <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xs font-bold text-white">1</span>
-            <p class="text-stone-700"><span class="font-bold text-stone-900">Pilih produk di katalog atau ceritakan budgetmu di Chat.</span> Contoh: “Laptop Asus budget 9 juta”.</p>
+            <p class="text-stone-700"><span class="font-bold text-stone-900">Pilih produk di katalog atau ceritakan budgetmu di Chat.</span> Contoh: “iPhone 15 Pro budget 15 juta”.</p>
           </li>
           <li class="flex gap-4">
             <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xs font-bold text-white">2</span>

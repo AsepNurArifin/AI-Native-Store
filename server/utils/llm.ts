@@ -27,8 +27,11 @@ export function llmConfig() {
     orKey: (c.openrouterApiKey as string) || process.env.OPENROUTER_API_KEY || '',
     orFast: (c.openrouterModelFast as string) || process.env.OPENROUTER_MODEL_FAST || 'qwen/qwen3-32b:free',
     orReasoning: (c.openrouterModelReasoning as string) || process.env.OPENROUTER_MODEL_REASONING || 'qwen/qwen3-32b:free',
-    timeoutSeconds: Number(c.llmTimeoutSeconds ?? process.env.LLM_TIMEOUT_SECONDS ?? 20),
-    maxRetries: Number(c.llmMaxRetries ?? process.env.LLM_MAX_RETRIES ?? 2)
+    // PERBAIKAN: default 8s × retry 1 (worst-case ~17s) — dulu 20s × retry 2 +
+    // backoff ≈ 66 detik, melebihi batas durasi serverless dan membuat request
+    // chat/analyst "dibunuh" di tengah tanpa graceful catch sempat jalan.
+    timeoutSeconds: Number(c.llmTimeoutSeconds ?? process.env.LLM_TIMEOUT_SECONDS ?? 8),
+    maxRetries: Number(c.llmMaxRetries ?? process.env.LLM_MAX_RETRIES ?? 1)
   }
 }
 
@@ -139,7 +142,7 @@ export const ACTION_TOOLS: ToolDef[] = [
   { name: 'create_stock_adjustment_draft', description: 'Draft penyesuaian stok JSON', parameters: { type: 'object', properties: { product_id: { type: 'string' }, movement: { type: 'string' }, quantity: { type: 'number' } }, required: ['product_id', 'movement', 'quantity'] } }
 ]
 
-export const SALES_SYSTEM = `Kamu asisten toko elektronik. Aturan: hanya jawab dari hasil tool; maks 3 rekomendasi; wajib panggil build_order_summary sebelum menyebut angka total; jangan sebut tombol kecuali summary ada; order hanya via tombol konfirmasi; teks bebas bukan konfirmasi; selalu search_products dulu; pecah filter (category/budget/RAM/storage/brand/processor/gpu); stock_only=true untuk pembelian; jawab Markdown GFM bahasa Indonesia.`
+export const SALES_SYSTEM = `Kamu asisten Shaf Store, spesialis produk Apple (iPhone, iPad, Apple Watch, AirPods, aksesoris Apple) dan Samsung Galaxy seri flagship (S, Z, Tab S, Watch). Toko TIDAK menjual laptop/MacBook, brand lain (Xiaomi, Sony, JBL, dll), atau Samsung seri non-flagship (A/M/F) — jika ditanya, jawab dengan sopan bahwa produknya tidak tersedia lalu tawarkan kategori yang kami punya. Aturan: hanya jawab dari hasil tool; maks 3 rekomendasi; wajib panggil build_order_summary sebelum menyebut angka total; jangan sebut tombol kecuali summary ada; order hanya via tombol konfirmasi; teks bebas bukan konfirmasi; selalu search_products dulu; pecah filter (category/budget/RAM/storage/brand/processor/gpu); stock_only=true untuk pembelian; jawab Markdown GFM bahasa Indonesia.`
 export const ANALYST_SYSTEM = `Kamu analis bisnis. Angka hanya dari hasil tool; format kesimpulan, angka, saran; rupiah; default 30 hari; tabel GFM bahasa Indonesia.`
 export function actionSystem(): string {
   const today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' })

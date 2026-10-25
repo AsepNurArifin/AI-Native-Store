@@ -11,7 +11,9 @@ export default defineEventHandler(async (event) => {
   const page = Math.max(1, Number(q.page || 1))
   const pageSize = Math.min(100, Number(q.page_size || 50))
   // Filter + paginasi di SQL (bukan full-table scan lalu filter di JS).
-  const statusFilter = q.status || q.status_
+  // `status_` adalah alias legacy yang tidak didokumentasikan README — dihapus
+  // agar param API tunggal & konsisten (`status`).
+  const statusFilter = q.status
   const rows = await db.select().from(aiActions)
     .where(statusFilter ? eq(aiActions.status, String(statusFilter)) : undefined)
     .orderBy(desc(aiActions.createdAt))

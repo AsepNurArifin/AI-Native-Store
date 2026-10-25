@@ -15,6 +15,9 @@
           <span>Dashboard</span>
         </NuxtLink>
 
+        <!-- Modul Owner-only: semua API di belakangnya menuntut role OWNER,
+             jadi menyembunyikan linknya mencegah klik-403 yang sia-sia. -->
+        <template v-if="auth.isOwner">
         <NuxtLink
           to="/admin/products"
           active-class="bg-sidebar-accent text-white font-semibold"
@@ -50,6 +53,7 @@
           <Ticket class="h-4 w-4 shrink-0" />
           <span>Promosi &amp; Kupon</span>
         </NuxtLink>
+        </template>
       </nav>
     </div>
 
@@ -58,6 +62,7 @@
         Pelanggan &amp; AI
       </p>
       <nav class="space-y-1">
+        <template v-if="auth.isOwner">
         <NuxtLink
           to="/admin/conversations"
           active-class="bg-sidebar-accent text-white font-semibold"
@@ -84,7 +89,7 @@
           <ChartColumn class="h-4 w-4 shrink-0" />
           <span>Analitik &amp; Metrik</span>
         </NuxtLink>
-
+        </template>
         <template v-if="auth.isOwner">
           <NuxtLink
             to="/admin/actions"
@@ -95,7 +100,7 @@
               <ListChecks class="h-4 w-4 shrink-0" />
               <span>Aksi AI</span>
             </span>
-            <span class="rounded-full bg-white/15 px-1.5 py-0.2 text-xs font-bold text-white">HITL</span>
+            <span class="rounded-full bg-white/15 px-1.5 py-0.5 text-xs font-bold text-white">HITL</span>
           </NuxtLink>
 
           <NuxtLink

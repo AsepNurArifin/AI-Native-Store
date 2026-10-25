@@ -17,6 +17,7 @@
         v-if="messages.length"
         class="shrink-0 rounded-lg p-1.5 text-xs text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors"
         title="Reset percakapan"
+        aria-label="Reset percakapan"
         @click="resetChat"
       >
         <RefreshCw class="h-4 w-4" />
@@ -32,7 +33,7 @@
         </div>
         <h4 class="font-display font-semibold text-stone-800">Mulai tanya stok</h4>
         <p class="mt-1 max-w-xs text-xs text-stone-500">
-          Ceritakan gadget yang kamu cari, misalnya: <i>“Laptop untuk desain grafis budget 15 juta”</i> atau <i>“iPhone 15 Pro ada stok?”</i>
+          Ceritakan produk yang kamu cari, misalnya: <i>“iPhone 15 Pro budget 15 juta”</i> atau <i>“Samsung Galaxy S24 ada stok?”</i>
         </p>
       </div>
 
@@ -50,7 +51,7 @@
             class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-xs"
             :class="m.role === 'me' ? 'rounded-br-xs bg-stone-900 text-white ' : 'rounded-bl-xs border border-stone-200/80 bg-stone-50 text-stone-800 '" 
           >
-            <MarkdownText v-if="m.role === 'ai'" :text="m.text" />
+            <LazyMarkdownText v-if="m.role === 'ai'" :text="m.text" />
             <p v-else class="whitespace-pre-wrap">{{ m.text }}</p>
           </div>
         </div>
@@ -105,6 +106,7 @@
         <Input
           v-model="draft"
           placeholder="Tanya produk, stok, atau spesifikasi di sini…"
+          aria-label="Pertanyaan untuk asisten toko"
           class="h-11 flex-1 bg-white"
         />
         <Button type="submit" variant="ai" size="lg" :loading="sending" class="shrink-0">
@@ -147,21 +149,36 @@ function scrollDown() {
   requestAnimationFrame(() => { scrollBox.value?.scrollTo({ top: 99999, behavior: 'smooth' }) })
 }
 
+// localStorage melempar di Safari private mode — SEMUA akses dibungkus guard
+// agar chat tetap jalan (hanya tidak bertahan antar kunjungan).
+function readLS(key: string): string | null {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+function writeLS(key: string, value: string) {
+  try { localStorage.setItem(key, value) } catch { /* tanpa storage: lanjut tanpa persist */ }
+}
+function removeLS(key: string) {
+  try { localStorage.removeItem(key) } catch { /* abaikan */ }
+}
+
+// Prompt yang dikirim saat widget masih sibuk dimasukkan antre — bukan dibuang diam-diam.
+const pendingQueue = ref<string[]>([])
+
 function resetChat() {
-  localStorage.removeItem(CONV_KEY)
+  removeLS(CONV_KEY)
   conversationId.value = null
   messages.value = []
 }
 
 /** Mulai sesi guest. customer_ref lazy "Tamu|guest". */
 async function start(): Promise<string> {
-  const saved = localStorage.getItem(CONV_KEY)
+  const saved = readLS(CONV_KEY)
   if (saved) { conversationId.value = saved; return saved }
   const res = await $fetch<{ conversation_id: string }>(`${base}/chat/start`, {
     method: 'POST', body: { channel: 'WEB', customer_ref: 'Tamu|guest' }
   })
   conversationId.value = res.conversation_id
-  localStorage.setItem(CONV_KEY, res.conversation_id)
+  writeLS(CONV_KEY, res.conversation_id)
   return res.conversation_id
 }
 
@@ -172,8 +189,14 @@ async function ensureSession(): Promise<string> {
 
 async function send(customText?: string) {
   const text = (customText || draft.value).trim()
-  if (!text || sending.value) return
-  if (!customText) draft.value = ''
+  if (!text) return
+  if (sending.value) {
+    // Widget sibuk — prompt dimasukkan antre, bukan dibuang diam-diam.
+    pendingQueue.value.push(text)
+    return
+  }
+  if (customText) { /* dikirim dari chip / auto-send */ }
+  else draft.value = ''
   messages.value.push({ role: 'me', text })
   scrollDown()
   sending.value = true
@@ -189,7 +212,7 @@ async function send(customText?: string) {
       // Sesi hilang di backend (restart) -> buat sesi baru sekali lalu ulangi
       const f = e as { status?: number, statusCode?: number }
       if ((f?.status === 404 || f?.statusCode === 404)) {
-        localStorage.removeItem(CONV_KEY)
+        removeLS(CONV_KEY)
         conversationId.value = null
         const fresh = await start()
         reply = await $fetch<ChatReply>(`${base}/chat/${fresh}/messages`, {
@@ -202,15 +225,22 @@ async function send(customText?: string) {
   }
   catch (e: unknown) {
     // Notifikasi pop-up, bukan teks di dalam widget: pesan error dari server
-    // bisa panjang dan tidak boleh menggeser kotak pesan.
+    // bisa panjang dan tidak boleh menggeser kotak pesan. Teks diketik
+    // dikembalikan ke draft supaya tak perlu menulis ulang.
+    if (!customText) draft.value = text
     toast.fromError(e, 'Gagal mengirim pesan')
   }
-  finally { sending.value = false; scrollDown() }
+  finally {
+    sending.value = false
+    scrollDown()
+    // Drain antrean prompt yang menunggu saat widget sibuk.
+    const next = pendingQueue.value.shift()
+    if (next) void send(next)
+  }
 }
 
 onMounted(() => {
-  try { conversationId.value = localStorage.getItem(CONV_KEY) }
-  catch { conversationId.value = null }
+  conversationId.value = readLS(CONV_KEY)
 })
 
 defineExpose({

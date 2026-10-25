@@ -133,7 +133,9 @@
             Masuk ke Dashboard
           </Button>
 
-          <div class="mt-6 border border-dashed border-stone-300 bg-white/60 px-4 py-3">
+          <!-- Kredensial demo HANYA di development — tidak pernah dibundel
+               ke produksi (import.meta.dev dieliminasi tree-shaking saat build). -->
+          <div v-if="isDev" class="mt-6 border border-dashed border-stone-300 bg-white/60 px-4 py-3">
             <p class="text-xs font-medium text-stone-600">Akun demo seed untuk presentasi:</p>
             <p class="mt-0.5 text-xs text-stone-500">owner@store.demo · password seed backend</p>
             <Button
@@ -175,6 +177,8 @@ const password = ref('')
 const loading = ref(false)
 const showPass = ref(false)
 const restoring = ref(false)
+/** Kredensial demo hanya untuk mode dev (guard produksi fail-closed). */
+const isDev = import.meta.dev
 
 // Validasi pola "touched": dicek saat blur, dihitung ulang otomatis saat diketik.
 const emailTouched = ref(false)

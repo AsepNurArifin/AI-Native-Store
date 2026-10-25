@@ -79,6 +79,7 @@ export interface StockSummaryItem {
   name: string
   category: string
   price: number
+  status: string
   current_stock: number
   low_stock_threshold: number | null
   is_low_stock: boolean
@@ -177,6 +178,8 @@ export interface ConfirmOrderResponse {
   order_id: string
   status: string
   total: number
+  /** Batas bayar (ISO) dari server — sumber tunggal, bukan konvensi client. */
+  expires_at: string | null
   items: Array<Record<string, unknown>>
   replayed: boolean
 }

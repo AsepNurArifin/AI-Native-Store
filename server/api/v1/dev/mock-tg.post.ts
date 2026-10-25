@@ -2,7 +2,8 @@ import { ensureSeeded } from '../../../utils/business'
 import { handleTelegramWebhook } from '../../../utils/telegram'
 
 export default defineEventHandler(async (event) => {
-  const debug = String(useRuntimeConfig().debug ?? process.env.DEBUG ?? 'true') === 'true'
+  // Fail-closed: tanpa DEBUG eksplisit endpoint dev TIDAK terbuka.
+  const debug = String(useRuntimeConfig().debug ?? process.env.DEBUG ?? 'false') === 'true'
   if (!debug) {
     throw createError({ statusCode: 404, message: 'Not found', data: { detail: 'Not found' } })
   }

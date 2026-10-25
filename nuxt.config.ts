@@ -35,14 +35,14 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'id' },
-      title: 'SHAF STORE: Toko Elektronik HP, Laptop & Aksesoris',
+      title: 'SHAF STORE: Spesialis iPhone, iPad & Samsung Galaxy Flagship',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
           name: 'description',
           content:
-            'Toko elektronik yang buka lewat chat: sebut gadget dan budgetnya, kami cek stok, spesifikasi, dan harga dari katalog. Tanpa daftar akun.'
+            'Toko spesialis Apple (iPhone, iPad, Apple Watch, AirPods) dan Samsung Galaxy seri flagship (S, Z, Tab S, Watch). Sebut kebutuhan dan budgetnya lewat chat, kami cek stok, spesifikasi, dan harga. Tanpa daftar akun.'
         },
         { property: 'og:site_name', content: 'SHAF STORE' },
         { property: 'og:locale', content: 'id_ID' },
@@ -50,7 +50,7 @@ export default defineNuxtConfig({
         { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'Papan nama SHAF STORE: toko elektronik yang buka lewat chat' },
+        { property: 'og:image:alt', content: 'Papan nama SHAF STORE: spesialis iPhone & Samsung Galaxy flagship yang buka lewat chat' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'robots', content: 'index, follow, max-image-preview:large' },
         { name: 'theme-color', content: '#177b2c' }
@@ -119,8 +119,8 @@ export default defineNuxtConfig({
     llmModelSales: process.env.LLM_MODEL_SALES || '',
     llmModelAnalyst: process.env.LLM_MODEL_ANALYST || '',
     llmModelAction: process.env.LLM_MODEL_ACTION || '',
-    llmTimeoutSeconds: process.env.LLM_TIMEOUT_SECONDS || '20',
-    llmMaxRetries: process.env.LLM_MAX_RETRIES || '2',
+    llmTimeoutSeconds: process.env.LLM_TIMEOUT_SECONDS || '8',
+    llmMaxRetries: process.env.LLM_MAX_RETRIES || '1',
     telegramProvider: process.env.TELEGRAM_PROVIDER || 'mock',
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',

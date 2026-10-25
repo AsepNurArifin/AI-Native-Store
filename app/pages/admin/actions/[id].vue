@@ -54,12 +54,10 @@
           </li>
         </ul>
 
-        <div v-if="action.validation_failures" class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">
+        <div v-if="validationFailuresList.length" class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">
           <p class="mb-1 font-semibold">Validasi gagal:</p>
           <ul class="list-inside list-disc">
-            <li v-for="(failure, field) in action.validation_failures" :key="String(field)">
-              <span class="font-mono text-xs">{{ field }}</span>: {{ failure }}
-            </li>
+            <li v-for="(failure, i) in validationFailuresList" :key="i">{{ failure }}</li>
           </ul>
         </div>
         <p v-if="action.result_target_id" class="mb-3 text-sm">
@@ -104,6 +102,14 @@ const actionTitle = computed(() => {
 const isPromotion = computed(() => action.value?.action_type === 'CREATE_PROMOTION')
 const isAdjustStock = computed(() => action.value?.action_type === 'ADJUST_STOCK')
 const isExecuted = computed(() => action.value?.status === 'EXECUTED')
+// Server menyimpan `validation_failures` sebagai `{ failures: [...] }`.
+// Diambil ke daftar string biasa agar template tidak tunduk pada bentuk JSON.
+const validationFailuresList = computed<string[]>(() => {
+  const vf = action.value?.validation_failures as Record<string, unknown> | null | undefined
+  if (!vf) return []
+  if (Array.isArray(vf.failures)) return vf.failures.map(String)
+  return Object.entries(vf).flatMap(([k, v]) => (Array.isArray(v) ? v.map(String) : [`${k}: ${String(v)}`]))
+})
 // helper akses payload dengan aman (payload: Record<string, unknown>)
 const promoPayload = computed(() => (action.value?.payload ?? {}) as {
   product_id?: string; discount_percentage?: number; start_date?: string; end_date?: string
@@ -142,9 +148,26 @@ async function approve() {
   if (busy.value) return
   busy.value = true
   try {
-    const res = await request<{ status: string }>(`/ai-actions/${route.params.id}/approve`, { method: 'POST' })
-    if (action.value) action.value = { ...action.value, status: res.status }
-    toast.success(`Aksi disetujui. Hasil: ${res.status}`)
+    // Balasan approve membawa status final + hasil validasi/eksekusi — semua
+    // dimerge ke state agar owner langsung melihatnya TANPA reload manual.
+    const res = await request<{ status: string, result_target_id?: string | null, validation_failures?: { failures: string[] } | null }>(
+      `/ai-actions/${route.params.id}/approve`, { method: 'POST' }
+    )
+    if (action.value) {
+      action.value = {
+        ...action.value,
+        status: res.status,
+        result_target_id: res.result_target_id ?? action.value.result_target_id,
+        validation_failures: res.validation_failures ?? action.value.validation_failures
+      }
+    }
+    // Validasi gagal BUKAN keberhasilan — bukan toast sukses.
+    if (res.status === 'APPROVED_VALIDATION_FAILED') {
+      toast.warning(`Aksi disetujui tapi validasi gagal (${validationFailuresList.value.join(', ')}). Perbaiki di halaman terkait, lalu buat draft baru.`)
+    }
+    else {
+      toast.success(`Aksi disetujui dan dieksekusi.`)
+    }
     // Hanya stock adjustment yang mengubah data produk (stok) — muat ulang
     // produk saja, bukan seluruh detail aksi.
     if (isAdjustStock.value) await loadProduct()
