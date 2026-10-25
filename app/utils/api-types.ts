@@ -248,6 +248,21 @@ export interface AuditLogOut {
   timestamp: string
 }
 
+/** Peta nama untuk UUID yang muncul di sebuah halaman log (pengayaan server). */
+export interface AuditNames {
+  products: Record<string, string>
+  users: Record<string, { name: string, role: string }>
+  customers: Record<string, { name: string | null, identifier: string }>
+  promotions: Record<string, { discount_percentage: string, product_id: string, product_name: string | null }>
+  ai_actions: Record<string, { action_type: string }>
+}
+
+/** Bentuk balasan `GET /audit/logs` — log mentah + peta namanya saja. */
+export interface AuditLogsResponse {
+  names: AuditNames
+  items: AuditLogOut[]
+}
+
 export interface ApiError {
   code: string
   message: string
