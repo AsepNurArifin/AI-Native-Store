@@ -17,16 +17,50 @@ const sort = ref('')
 const promoOnly = ref(false)
 
 const { getCachedData } = useCache()
+// Ukuran batch "Muat lebih banyak" di rak (lebih kecil dari beranda).
+const PAGE_SIZE = 8
+
+const rakKey = computed(() => `rak:${category.value}:${qDebounced.value}:${sort.value}:${promoOnly.value}`)
+
 // Tanpa try/catch: error diteruskan ke `fetchError` (bukan "rak kosong" palsu).
 // Key reaktif per kategori+filter: ganti kategori/filter = key baru = refetch
-// otomatis; balik ke rak yang sama = tampil instan dari cache.
-const { data: products, pending, error: fetchError, refresh } = await useAsyncData(
-  computed(() => `rak:${category.value}:${qDebounced.value}:${sort.value}:${promoOnly.value}`),
+// otomatis; balik ke rak yang sama = tampil instan dari cache. Batch pertama
+// saja (limit 8); sisanya dimuat via tombol "Muat lebih banyak".
+const { data: firstPage, pending, error: fetchError, refresh } = await useAsyncData(
+  rakKey,
   () => $fetch<ProductOut[]>(`${base}/catalog/search`, {
-    query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: 60 }
+    query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: PAGE_SIZE, offset: 0 }
   }),
   { default: () => [] as ProductOut[], getCachedData }
 )
+
+// Akumulasi produk yang sudah dimuat (batch pertama + "Muat lebih banyak").
+const products = ref<ProductOut[]>([])
+const loadingMore = ref(false)
+const hasMore = ref(false)
+
+watch(firstPage, (v) => {
+  products.value = v ?? []
+  hasMore.value = (v?.length ?? 0) === PAGE_SIZE
+}, { immediate: true })
+
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value || pending.value) return
+  const keyAtStart = rakKey.value
+  loadingMore.value = true
+  try {
+    const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+      query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: PAGE_SIZE, offset: products.value.length }
+    })
+    if (keyAtStart !== rakKey.value) return
+    products.value = [...products.value, ...(next ?? [])]
+    hasMore.value = (next?.length ?? 0) === PAGE_SIZE
+  } catch {
+    toast.error('Gagal memuat produk berikutnya. Coba lagi.')
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 // Debounce ketikan -> key baru -> refetch otomatis.
 let debounce: ReturnType<typeof setTimeout> | null = null
@@ -134,6 +168,19 @@ watch(fetchError, (err) => {
 
     <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <ProductCard v-for="p in products" :key="p.id" :product="p" />
+    </div>
+
+    <!-- Muat lebih banyak (8 per batch) -->
+    <div v-if="products?.length && !pending" class="mt-6 flex justify-center">
+      <Button
+        v-if="hasMore"
+        variant="outline"
+        :disabled="loadingMore"
+        class="px-6"
+        @click="loadMore()"
+      >
+        {{ loadingMore ? 'Memuat…' : 'Muat lebih banyak' }}
+      </Button>
     </div>
   </div>
 </template>

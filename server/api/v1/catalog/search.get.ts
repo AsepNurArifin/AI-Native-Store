@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   const promoOnly = String(q.promo_only || '') === 'true'
   const stockOnly = String(q.stock_only || '') === 'true'
   const limit = Math.min(Math.max(Number(q.limit || 24), 1), 100)
+const offset = Math.max(Number(q.offset || 0), 0)
 
   const conds = [eq(products.status, 'ACTIVE')]
   if (category) conds.push(sql`lower(${products.category}) = ${category.toLowerCase()}`)
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
     : promoOnly ? [desc(sql`coalesce(${promoPct}, 0)`), asc(products.name)]
     : [asc(products.category), asc(products.name)]
 
-  const rows = await query.orderBy(...orderBy).limit(limit)
+  const rows = await query.orderBy(...orderBy).limit(limit).offset(offset)
   const lowDefault = Number(useRuntimeConfig().lowStockDefault ?? 5)
   return await catalogList(db, rows, lowDefault)
 })

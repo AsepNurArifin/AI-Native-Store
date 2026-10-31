@@ -42,22 +42,28 @@ const { data: layoutCategories } = useNuxtData<string[]>('layout-categories')
 const categories = computed(() => layoutCategories.value ?? [])
 
 const { getCachedData } = useCache()
-// promos + catalog PARALEL + cache lintas navigasi. Key reaktif per kombinasi
-// filter: ganti filter = key baru = refetch otomatis (tanpa watch manual),
-// balik ke filter yang sama = tampil instan dari cache.
+// Ukuran batch "Muat lebih banyak" di beranda.
+const PAGE_SIZE = 16
+
+// Key reaktif katalog (dipakai untuk guard stale saat loadMore).
+const catalogKey = computed(() => `mkt-catalog:${searchQuery.value}:${activeCategory.value}:${selectedBrand.value}:${sort.value}`)
+
+// promos + batch pertama katalog PARALEL + cache lintas navigasi. Key reaktif
+// per kombinasi filter: ganti filter = key baru = refetch otomatis (tanpa
+// watch manual), balik ke filter yang sama = tampil instan dari cache.
 // TIDAK ada try/catch yang menelan error jadi `[]`. Kalau API/DB sedang gangguan,
 // `useAsyncData` menyimpan errornya di `catalogError` dan kita tampilkan sebagai
 // "katalog tidak bisa dimuat" — bukan sebagai "Produk Tidak Ditemukan".
 // Bug sebelumnya: 500 dari /catalog/search diubah jadi array kosong, sehingga
 // outage DB (EMAXCONNSESSION) terlihat seperti toko yang produknya kosong.
 const [{ data: promos }, {
-  data: catalog, pending: catalogPending, error: catalogError, refresh: refreshCatalog
+  data: firstPage, pending: catalogPending, error: catalogError, refresh: refreshCatalog
 }] = await Promise.all([
   useAsyncData('mkt-promos', async () => {
     return await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } })
   }, { default: () => [] as ProductOut[], getCachedData }),
   useAsyncData(
-    computed(() => `mkt-catalog:${searchQuery.value}:${activeCategory.value}:${selectedBrand.value}:${sort.value}`),
+    catalogKey,
     async () => {
       const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
       return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
@@ -65,13 +71,52 @@ const [{ data: promos }, {
           q: combinedQ || undefined,
           category: activeCategory.value || undefined,
           sort: sort.value || undefined,
-          limit: 24
+          limit: PAGE_SIZE,
+          offset: 0
         }
       })
     },
     { default: () => [] as ProductOut[], getCachedData }
   )
 ])
+
+// Akumulasi produk yang sudah dimuat (batch pertama + "Muat lebih banyak").
+const catalog = ref<ProductOut[]>([])
+const loadingMore = ref(false)
+const hasMore = ref(false)
+
+// Batch pertama (SSR/cached) -> reset akumulasi + hasMore.
+watch(firstPage, (v) => {
+  catalog.value = v ?? []
+  hasMore.value = (v?.length ?? 0) === PAGE_SIZE
+}, { immediate: true })
+
+// Muat batch berikutnya (client-side). Guard stale: kalau filter berubah saat
+// request in-flight, hasil dibuang (tidak merusak daftar yang baru).
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value || catalogPending.value) return
+  const keyAtStart = catalogKey.value
+  loadingMore.value = true
+  try {
+    const combinedQ = [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ')
+    const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+      query: {
+        q: combinedQ || undefined,
+        category: activeCategory.value || undefined,
+        sort: sort.value || undefined,
+        limit: PAGE_SIZE,
+        offset: catalog.value.length
+      }
+    })
+    if (keyAtStart !== catalogKey.value) return // filter berubah -> buang
+    catalog.value = [...catalog.value, ...(next ?? [])]
+    hasMore.value = (next?.length ?? 0) === PAGE_SIZE
+  } catch {
+    toast.error('Gagal memuat produk berikutnya. Coba lagi.')
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 const toast = useToast()
 // Katalog gagal dimuat = notifikasi pop-up. Kartu error di template tetap
@@ -293,7 +338,7 @@ useHead({
             {{ searchQuery ? `Hasil Pencarian “${searchQuery}”` : selectedBrand ? `Katalog Brand ${selectedBrand}` : 'Semua Katalog Produk' }}
           </h2>
           <p class="mt-0.5 text-sm text-stone-600 font-medium">
-            {{ searchQuery ? `${catalog?.length || 0} produk ditemukan.` : 'Pilih kategori atau gunakan filter di atas.' }}
+            {{ searchQuery ? `${catalog?.length || 0} produk ditampilkan.` : 'Pilih kategori atau gunakan filter di atas.' }}
           </p>
         </div>
 
@@ -362,6 +407,19 @@ useHead({
       <!-- Product Grid -->
       <div v-else class="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
         <ProductCard v-for="p in catalog" :key="p.id" :product="p" />
+      </div>
+
+      <!-- Muat lebih banyak (16 per batch) -->
+      <div v-if="catalog?.length && !catalogPending" class="mt-6 flex justify-center">
+        <Button
+          v-if="hasMore"
+          variant="outline"
+          :disabled="loadingMore"
+          class="px-6"
+          @click="loadMore()"
+        >
+          {{ loadingMore ? 'Memuat…' : 'Muat lebih banyak' }}
+        </Button>
       </div>
     </section>
 
