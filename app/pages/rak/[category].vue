@@ -17,8 +17,8 @@ const sort = ref('')
 const promoOnly = ref(false)
 
 const { getCachedData } = useCache()
-// Ukuran batch "Muat lebih banyak" di rak (lebih kecil dari beranda).
-const PAGE_SIZE = 8
+// Ukuran batch "Muat lebih banyak" di rak (sama dengan beranda).
+const PAGE_SIZE = 16
 
 const rakKey = computed(() => `rak:${category.value}:${qDebounced.value}:${sort.value}:${promoOnly.value}`)
 
@@ -170,7 +170,7 @@ watch(fetchError, (err) => {
       <ProductCard v-for="p in products" :key="p.id" :product="p" />
     </div>
 
-    <!-- Muat lebih banyak (8 per batch) -->
+    <!-- Muat lebih banyak (16 per batch) -->
     <div v-if="products?.length && !pending" class="mt-6 flex justify-center">
       <Button
         v-if="hasMore"

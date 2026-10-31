@@ -24,11 +24,48 @@ const { data: product, error, refresh: refreshProduct } = await useAsyncData(`pr
   return await $fetch<ProductOut>(`${base}/catalog/${id.value}`)
 }, { default: () => null as ProductOut | null })
 
-const { data: related } = await useAsyncData(`produk-related-${id.value}`, async () => {
-  if (!product.value) return [] as ProductOut[]
-  const list = await $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { category: product.value.category, limit: 9 } })
-  return list.filter(p => p.id !== id.value).slice(0, 4)
-}, { default: () => [] as ProductOut[] })
+// "Mungkin kamu juga suka": batch 8 + tombol "Muat lebih banyak".
+const RELATED_PAGE_SIZE = 8
+const relatedKey = computed(() => `produk-related-${id.value}`)
+
+const { data: firstRelated } = await useAsyncData(
+  relatedKey,
+  async () => {
+    if (!product.value) return [] as ProductOut[]
+    return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+      query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: 0, exclude: id.value }
+    })
+  },
+  { default: () => [] as ProductOut[] }
+)
+
+// Akumulasi related yang sudah dimuat.
+const related = ref<ProductOut[]>([])
+const loadingMoreRelated = ref(false)
+const hasMoreRelated = ref(false)
+
+watch(firstRelated, (v) => {
+  related.value = v ?? []
+  hasMoreRelated.value = (v?.length ?? 0) === RELATED_PAGE_SIZE
+}, { immediate: true })
+
+async function loadMoreRelated() {
+  if (loadingMoreRelated.value || !hasMoreRelated.value || !product.value) return
+  const keyAtStart = relatedKey.value
+  loadingMoreRelated.value = true
+  try {
+    const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
+      query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: related.value.length, exclude: id.value }
+    })
+    if (keyAtStart !== relatedKey.value) return
+    related.value = [...related.value, ...(next ?? [])]
+    hasMoreRelated.value = (next?.length ?? 0) === RELATED_PAGE_SIZE
+  } catch {
+    toast.error('Gagal memuat produk berikutnya. Coba lagi.')
+  } finally {
+    loadingMoreRelated.value = false
+  }
+}
 
 // 404 = produk memang tidak ada/nonaktif; >= 500 = gangguan katalog.
 const isNotFound = computed(() => (error.value?.statusCode ?? 0) === 404)
@@ -199,6 +236,17 @@ useHead(() => ({
       <h2 class="font-display text-lg font-bold text-stone-900">Mungkin kamu juga suka</h2>
       <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <ProductCard v-for="p in related" :key="p.id" :product="p" />
+      </div>
+      <div class="mt-4 flex justify-center">
+        <Button
+          v-if="hasMoreRelated"
+          variant="outline"
+          :disabled="loadingMoreRelated"
+          class="px-6"
+          @click="loadMoreRelated()"
+        >
+          {{ loadingMoreRelated ? 'Memuat…' : 'Muat lebih banyak' }}
+        </Button>
       </div>
     </section>
   </div>

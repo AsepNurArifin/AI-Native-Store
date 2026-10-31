@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, exists, ilike, or, sql } from 'drizzle-orm'
 import { inventoryTransactions, products, promotions } from '../../../database/schema'
 import { catalogList } from '../../../utils/business'
+import { isUuid } from '../../../utils/errors'
 
 /**
  * Pencarian katalog publik (marketplace): q opsional, category opsional,
@@ -15,11 +16,15 @@ export default defineEventHandler(async (event) => {
   const sort = String(q.sort || '')
   const promoOnly = String(q.promo_only || '') === 'true'
   const stockOnly = String(q.stock_only || '') === 'true'
-  const limit = Math.min(Math.max(Number(q.limit || 24), 1), 100)
-const offset = Math.max(Number(q.offset || 0), 0)
+    const limit = Math.min(Math.max(Number(q.limit || 24), 1), 100)
+  const offset = Math.max(Number(q.offset || 0), 0)
+  const exclude = String(q.exclude || '').trim()
 
   const conds = [eq(products.status, 'ACTIVE')]
   if (category) conds.push(sql`lower(${products.category}) = ${category.toLowerCase()}`)
+  // Exclude produk tertentu (mis. produk yang sedang dilihat di detail) dari
+  // hasil — dipakai paginasi "Mungkin kamu juga suka" agar offset konsisten.
+  if (exclude && isUuid(exclude)) conds.push(sql`${products.id} <> ${exclude}::uuid`)
   if (keyword) {
     // Escape wildcard LIKE supaya sama persis dengan substring match lama
     const like = `%${keyword.replace(/[\\%_]/g, '\\$&')}%`
