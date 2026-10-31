@@ -8,6 +8,17 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  // WAJIB false: payload extraction meng-bake /produk/{id}/_payload.json?_b=<buildId>
+  // sebagai artefak statis saat build. Deployment 28 Okt (SEBELUM gambar produk
+  // di-reupload 30 Okt) membekukan snapshot data image_url: null, dan swr: 60
+  // TIDAK meng-regenerasi file itu (X-Vercel-Cache: HIT, Age ~2,8 hari tanpa
+  // berubah) — akibatnya SEMUA gambar di /produk/[id] dirender placeholder.
+  // Dengan false, data di-embed inline di HTML yang di-regenerate ISR/Vercel,
+  // sehingga edit admin (gambar/harga/stok) selalu langsung terkirim ke user.
+  experimental: {
+    payloadExtraction: false
+  },
+
   // Tailwind CSS v4 — plugin Vite resmi (sebelumnya disediakan @nuxt/ui).
   vite: {
     plugins: [tailwindcss()]
@@ -28,8 +39,10 @@ export default defineNuxtConfig({
     // rute yang bervariasi via query (/api/v1/catalog/search?..., '/?q=...')
     // — response query A bocor ke query B (bug 24-vs-18, katalog kosong).
     // JANGAN juga untuk /orders, /chat, /checkout, /admin, /auth — bisa oversell.
-    '/rak/**': { swr: 60 },
-    '/produk/**': { swr: 60 }
+    '/rak/**': { swr: 60 }
+    // /produk/** SENGAJA tidak di-cache: detail produk harus langsung
+    // menampilkan hasil edit admin (gambar/harga/stok). SSR fresh per request;
+    // jalurnya ringan (1 select + stok cached 3 dtk + promo batch).
   },
 
   app: {
