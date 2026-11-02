@@ -179,3 +179,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+.storefront-shell {
+  --store-header-height: 128px;
+}
+
+@media (min-width: 768px) {
+  .storefront-shell {
+    --store-header-height: 96px;
+  }
+}
+
+.storefront-anchor {
+  scroll-margin-top: calc(var(--store-header-height) + 16px);
+}
+
+.storefront-shell :is(a, button):focus-visible {
+  outline: 2px solid var(--color-brand-700);
+  outline-offset: 2px;
+}
+
+.storefront-shell .storefront-dark :is(a, button):focus-visible {
+  outline-color: var(--color-promo-400);
+}

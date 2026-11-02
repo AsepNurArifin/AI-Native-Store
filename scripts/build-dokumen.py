@@ -6,8 +6,9 @@ Pemakaian:
     python scripts/build-dokumen.py
 
 Hasil:
-    docs/export/Dokumen-Shaf-Store.pdf      +  .docx
-    docs/export/Naskah-Konten.pdf           +  .docx
+    docs/export/Dokumen-Shaf-Store.pdf        +  .docx
+    docs/export/Naskah-Konten.pdf             +  .docx
+    docs/export/Laporan-Progres-Lanjutan.pdf  +  .docx
 
 Dependensi:  python -m pip install python-docx xhtml2pdf
 """
@@ -28,6 +29,7 @@ EXPORT = DOCS / "export"
 SUMBER = [
     DOCS / "Dokumen-Shaf-Store.md",
     DOCS / "Naskah-Konten.md",
+    DOCS / "Laporan-Progres-Lanjutan.md",
 ]
 
 # ---------------------------------------------------------------- parser

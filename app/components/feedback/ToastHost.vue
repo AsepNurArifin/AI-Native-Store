@@ -1,6 +1,6 @@
 <template>
   <div
-    class="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex justify-center px-3 pb-3 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:justify-end sm:px-0 sm:pb-0"
+    class="pointer-events-none fixed inset-x-0 bottom-0 z-[120] flex justify-center px-3 pb-3 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:justify-end sm:px-0 sm:pb-0"
     role="region"
     aria-label="Notifikasi"
   >

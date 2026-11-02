@@ -4,6 +4,12 @@
       <h1 class="text-2xl font-bold">Promosi</h1>
       <Button size="sm" @click="toggleForm">{{ showForm ? (editing ? 'Batal' : 'Tutup') : '+ Promosi' }}</Button>
     </div>
+    <div v-if="!loading && productsError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+      <p class="font-semibold">Daftar produk belum bisa dimuat.</p>
+      <p v-if="productsError !== 'Daftar produk belum bisa dimuat.'" class="mt-1 [overflow-wrap:anywhere]">{{ productsError }}</p>
+      <Button type="button" variant="outline" class="mt-3" @click="load()">Coba lagi</Button>
+    </div>
+    <p v-else-if="!loading && !products.length" class="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">Belum ada produk aktif untuk dipromosikan.</p>
     <Card v-if="showForm">
       <CardHeader>
         <CardTitle>{{ editing ? `Ubah promosi — ${productName(editing.product_id)}` : 'Promosi baru' }}</CardTitle>
@@ -11,9 +17,11 @@
       <CardContent>
         <form class="grid gap-3 md:grid-cols-2" @submit.prevent="onSave">
           <div class="md:col-span-2"><label class="mb-1 block text-sm" for="promo-product">Produk</label>
-            <select id="promo-product" v-model="form.product_id" :disabled="!!editing" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm disabled:bg-stone-100">
+            <select id="promo-product" v-model="form.product_id" :disabled="!!editing || productsUnavailable" class="h-9 w-full min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm disabled:bg-stone-100">
               <option value="">pilih produk…</option>
-              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} · {{ formatIDR(p.price) }}</option>
+              <template v-if="!loading && !productsError">
+                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} · {{ formatIDR(p.price) }}</option>
+              </template>
             </select>
             <p v-if="editing" class="mt-1 text-[11px] text-stone-500">Produk tidak bisa diganti pada promosi yang sudah dibuat — nonaktifkan saja dan buat baru.</p>
           </div>
@@ -31,13 +39,20 @@
             <span class="font-semibold text-emerald-600">{{ formatIDR(pricePreview.effective) }}</span>
             <span class="text-stone-500"> (potongan {{ form.discount_percentage }}%)</span>
           </p>
-          <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving">{{ editing ? 'Simpan perubahan' : 'Simpan' }}</Button></div>
+          <div class="md:col-span-2"><Button type="submit" size="sm" :loading="saving" :disabled="!editing && productsUnavailable">{{ editing ? 'Simpan perubahan' : 'Simpan' }}</Button></div>
         </form>
       </CardContent>
     </Card>
     <Card>
       <CardContent>
-        <div class="overflow-x-auto">
+        <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat promosi…</p>
+        <div v-else-if="loadError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p class="font-semibold">Gagal memuat promosi</p>
+          <p v-if="loadError !== 'Gagal memuat promosi'" class="mt-1 [overflow-wrap:anywhere]">{{ loadError }}</p>
+          <Button type="button" variant="outline" class="mt-3" @click="load()">Coba lagi</Button>
+        </div>
+        <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada promosi.</p>
+        <div v-else class="max-w-full overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Produk</th><th class="pr-2">Diskon</th><th class="pr-2">Periode</th><th class="pr-2">Status</th><th>Aksi</th>
@@ -58,7 +73,7 @@
             </tbody>
           </table>
         </div>
-        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading || !!loadError" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -73,7 +88,10 @@ const { request } = useApi()
 const toast = useToast()
 const items = ref<PromotionOut[]>([])
 const products = ref<ProductOut[]>([])
-const loading = ref(false)
+const loading = ref(true)
+const loadError = ref('')
+const productsError = ref('')
+const productsUnavailable = computed(() => loading.value || !!productsError.value || !products.value.length)
 const showForm = ref(false)
 const saving = ref(false)
 const form = reactive({ product_id: '', discount_percentage: 10, status: 'DRAFT', start_date: '', end_date: '' })
@@ -84,12 +102,13 @@ const page = ref(1)
 const pageSize = 10
 
 function productName(id: string) {
+  if (loading.value || productsError.value) return id.slice(0, 8) + '…'
   return products.value.find(p => p.id === id)?.name || id.slice(0, 8) + '…'
 }
 
 /** Pratinjau harga terpotong berdasar harga produk + diskon yang sedang diisi. */
 const pricePreview = computed(() => {
-  if (!form.product_id) return null
+  if (loading.value || productsError.value || !form.product_id) return null
   const p = products.value.find(x => x.id === form.product_id)
   if (!p) return null
   const d = Math.min(Math.max(Number(form.discount_percentage) || 0, 0), 100)
@@ -127,17 +146,25 @@ function startEdit(pr: PromotionOut) {
 }
 async function load() {
   loading.value = true
+  loadError.value = ''
+  productsError.value = ''
   try {
-    // Promosi + daftar produk di-fetch paralel (bukan berurutan).
+    // Promosi + daftar produk di-fetch paralel; masing-masing memiliki status error sendiri.
     const [iRes, pRes] = await Promise.allSettled([
       request<PromotionOut[]>('/promotions', { query: { page: page.value, page_size: pageSize } }),
       request<ProductOut[]>('/products', { query: { status: 'ACTIVE', page_size: 500 } })
     ])
     if (iRes.status === 'fulfilled') items.value = iRes.value
-    else throw iRes.reason
+    else {
+      loadError.value = iRes.reason instanceof Error && iRes.reason.message ? iRes.reason.message : 'Gagal memuat promosi'
+      toast.fromError(iRes.reason, 'Gagal memuat promosi')
+    }
     if (pRes.status === 'fulfilled') products.value = pRes.value
+    else {
+      productsError.value = pRes.reason instanceof Error && pRes.reason.message ? pRes.reason.message : 'Daftar produk belum bisa dimuat.'
+      toast.fromError(pRes.reason, 'Daftar produk belum bisa dimuat.')
+    }
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat promosi') }
   finally { loading.value = false }
 }
 onMounted(load)
@@ -156,7 +183,7 @@ function applyPromo(res: PromotionOut) {
   }
 }
 async function onSave() {
-  if (saving.value) return
+  if (saving.value || (!editing.value && productsUnavailable.value)) return
   if (!form.product_id) { toast.warning('Pilih produk dulu.'); return }
   if (!form.start_date || !form.end_date) { toast.warning('Isi tanggal mulai dan selesai.'); return }
   const discount = Number(form.discount_percentage)

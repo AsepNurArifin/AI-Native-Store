@@ -3,28 +3,28 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-2xl font-bold">Produk</h1>
       <!-- Tambah katalog kini sebagai popup (bukan form inline yang mendorong daftar turun). -->
-      <Button size="sm" @click="openCreate">+ Produk</Button>
+      <Button id="admin-create-product" size="sm" class="min-h-11" @click="openCreate">+ Produk</Button>
     </div>
 
     <Card>
       <CardContent>
         <!-- Form supaya menekan Enter di kolom pencarian langsung menyaring. -->
         <form class="mb-3 flex flex-wrap gap-2" @submit.prevent="page = 1; load()">
-          <Input v-model="q" placeholder="Nama / spesifikasi…" class="max-w-56" />
-          <Input v-model="category" placeholder="Kategori…" class="max-w-44" />
-          <select v-model="status" aria-label="Filter status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <Input v-model="q" placeholder="Nama / spesifikasi…" class="min-w-0 max-w-full sm:max-w-56" />
+          <Input v-model="category" placeholder="Kategori…" class="min-w-0 max-w-full sm:max-w-44" />
+          <select v-model="status" aria-label="Filter status" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua status</option>
             <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
           </select>
           <Button type="submit" size="sm" variant="secondary">Cari</Button>
-          <label class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
+          <label v-if="!loading && !loadError" class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
             <input type="checkbox" class="size-4 accent-brand-700" :checked="allSelected" @change="toggleSelectAll">
             Pilih semua di halaman ini
           </label>
         </form>
         <!-- Baris aksi massal: Muncul hanya ada yang dicentang. -->
         <div
-          v-if="selected.size"
+          v-if="!loading && !loadError && selected.size"
           class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
         >
           <span class="text-sm font-medium text-stone-700">{{ selected.size }} produk dipilih</span>
@@ -32,15 +32,20 @@
           <Button size="sm" variant="outline" class="ml-auto" @click="clearSelection">Batalkan pilihan</Button>
           <Button size="sm" variant="ghostDanger" :loading="bulkLoading" @click="bulkRemove()">Hapus terpilih</Button>
         </div>
-        <p v-if="loading" class="text-sm text-stone-500">Memuat…</p>
+        <p v-if="loading" class="text-sm text-stone-500">Memuat produk…</p>
+        <div v-else-if="loadError" role="alert" class="space-y-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <h2 class="font-semibold">Gagal memuat produk</h2>
+          <p v-if="loadError !== 'Gagal memuat produk'" class="[overflow-wrap:anywhere]">{{ loadError }}</p>
+          <Button type="button" variant="outline" @click="load()">Coba lagi</Button>
+        </div>
+        <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada produk.</p>
         <div v-else>
           <!-- Mobile: kartu per produk -->
-          <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500 sm:hidden">Belum ada produk.</p>
           <div class="space-y-3 sm:hidden">
             <template v-for="(p, i) in items" :key="p.id">
             <p v-if="isNewCategory(i)" class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{{ p.category }}</p>
             <div class="rounded-xl border bg-white p-3" :class="selected.has(p.id) ? 'border-brand-500 ring-1 ring-brand-500/30' : 'border-stone-200'">
-              <div class="flex items-start gap-2.5">
+              <div class="flex items-start gap-2.5 max-[320px]:flex-wrap">
                 <input
                   type="checkbox"
                   class="mt-1 size-4 shrink-0 accent-brand-700"
@@ -49,12 +54,12 @@
                   @change="toggleSelect(p)"
                 >
                 <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg border object-cover" >
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0 flex-1 max-[320px]:basis-full">
+                  <div class="flex flex-wrap items-start justify-between gap-2">
                     <p class="min-w-0 flex-1 text-sm font-medium text-stone-900 [overflow-wrap:anywhere]">{{ p.name }}</p>
                     <Badge :variant="statusVariant(p.status)">{{ p.status }}</Badge>
                   </div>
-              <p class="mt-1 text-xs text-stone-500">{{ p.category }} · <span class="font-semibold text-stone-800">{{ formatIDR(p.price) }}</span> · Stok
+              <p class="mt-1 text-xs text-stone-500 max-[320px]:[overflow-wrap:anywhere]">{{ p.category }} · <span class="font-semibold text-stone-800">{{ formatIDR(p.price) }}</span> · Stok
                 <span :class="p.is_low_stock ? 'font-semibold text-amber-700' : ''">{{ p.current_stock }}</span>
                 <span v-if="p.order_count" class="ml-1 font-medium text-rose-600">· dipakai {{ p.order_count }} order</span>
               </p>
@@ -88,12 +93,12 @@
                 <Plus class="h-3 w-3" aria-hidden="true" />
                 Tambah spek
               </button>
-              <div class="mt-2.5 flex gap-2">
-                <Button size="sm" variant="outline" class="flex-1" @click="startEdit(p)">Ubah</Button>
-                <Button size="sm" variant="ghost" class="flex-1" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
-                <Button size="sm" variant="ghostDanger" class="flex-1" @click="remove(p)">Hapus</Button>
-              </div>
                 </div>
+              </div>
+              <div class="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-3">
+                <Button size="sm" variant="outline" class="min-h-11 min-w-0 whitespace-normal px-2" @click="startEdit(p)">Ubah</Button>
+                <Button size="sm" variant="ghost" class="min-h-11 min-w-0 whitespace-normal px-2" @click="toggleStatus(p)">{{ p.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan' }}</Button>
+                <Button size="sm" variant="ghostDanger" class="min-h-11 min-w-0 whitespace-normal px-2" @click="remove(p)">Hapus</Button>
               </div>
             </div>
             </template>
@@ -174,10 +179,9 @@
               </template>
             </tbody>
           </table>
-          <p v-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada produk.</p>
           </div>
         </div>
-        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading || !!loadError" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
 
@@ -201,8 +205,26 @@ const confirmAction = useConfirm()
 const specProduct = ref<ProductOut | null>(null)
 const formOpen = ref(false)
 const editing = ref<ProductOut | null>(null)
+const productDialogOpen = computed(() => formOpen.value || specProduct.value !== null)
+let productDialogOpener: HTMLElement | null = null
+watch(productDialogOpen, async (open, wasOpen) => {
+  if (open && !wasOpen) {
+    productDialogOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    return
+  }
+  if (open || !wasOpen) return
+  await nextTick()
+  if (productDialogOpen.value) return
+  const opener = productDialogOpener
+  const target = opener?.isConnected && opener.getClientRects().length && getComputedStyle(opener).visibility !== 'hidden'
+    ? opener
+    : document.getElementById('admin-create-product')
+  target?.focus()
+  productDialogOpener = null
+})
 const items = ref<ProductOut[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const q = ref('')
 const category = ref('')
 // Default "Semua status" — OWNER menandai INACTIVE lewat tabel ini juga, jadi
@@ -282,12 +304,16 @@ function dropProducts(ids: string[]) {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     items.value = await request<ProductOut[]>('/products', {
       query: { q: q.value || undefined, category: category.value || undefined, status: status.value || undefined, page: page.value, page_size: pageSize }
     })
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat produk') }
+  catch (e: unknown) {
+    loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat produk'
+    toast.fromError(e, 'Gagal memuat produk')
+  }
   finally { loading.value = false }
 }
 onMounted(load)

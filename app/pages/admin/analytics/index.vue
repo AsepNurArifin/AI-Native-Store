@@ -1,8 +1,8 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 max-[320px]:[overflow-wrap:anywhere]">
     <h1 class="text-2xl font-bold">Analitik</h1>
     <div class="grid gap-4 lg:grid-cols-2">
-      <Card>
+      <Card class="min-w-0">
         <CardHeader>
           <CardTitle>Tanya analis (bahasa natural)</CardTitle>
         </CardHeader>
@@ -21,17 +21,22 @@
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card class="min-w-0">
         <CardHeader>
           <CardTitle>Penjualan per produk</CardTitle>
         </CardHeader>
         <CardContent>
           <form class="mb-2 flex flex-wrap gap-2" @submit.prevent="loadSales()">
-            <Input v-model="from" type="date" aria-label="Tanggal dari" class="w-40" />
-            <Input v-model="to" type="date" aria-label="Tanggal sampai" class="w-40" />
+            <Input v-model="from" type="date" aria-label="Tanggal dari" class="w-40 min-w-0 max-w-full" />
+            <Input v-model="to" type="date" aria-label="Tanggal sampai" class="w-40 min-w-0 max-w-full" />
             <Button type="submit" size="sm" variant="secondary">Muat</Button>
           </form>
           <p v-if="salesLoading" class="text-sm text-stone-500">Memuat…</p>
+          <div v-else-if="salesError" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm" role="alert">
+            <h3 class="font-semibold text-stone-900">Gagal memuat penjualan</h3>
+            <p v-if="salesError !== 'Gagal memuat penjualan'" class="mt-1 text-stone-600">{{ salesError }}</p>
+            <Button type="button" variant="outline" class="mt-3" @click="loadSales()">Coba lagi</Button>
+          </div>
           <template v-else-if="sales">
             <p class="mb-2 text-sm text-stone-500">
               {{ formatWIB(sales.period.from) }} – {{ formatWIB(sales.period.to) }}
@@ -73,11 +78,16 @@
           <CardTitle>Risiko stockout</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="mb-2 flex gap-2">
-            <Input v-model.number="threshold" type="number" class="w-28" placeholder="7 hari" />
+          <div class="mb-2 flex flex-wrap gap-2">
+            <Input v-model.number="threshold" type="number" class="w-28 min-w-0 max-w-full" placeholder="7 hari" />
             <Button size="sm" variant="secondary" :loading="invLoading" @click="loadInv()">Muat</Button>
           </div>
           <p v-if="invLoading" class="text-sm text-stone-500">Memuat…</p>
+          <div v-else-if="invError" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm" role="alert">
+            <h3 class="font-semibold text-stone-900">Gagal memuat risiko stockout</h3>
+            <p v-if="invError !== 'Gagal memuat risiko stockout'" class="mt-1 text-stone-600">{{ invError }}</p>
+            <Button type="button" variant="outline" class="mt-3" @click="loadInv()">Coba lagi</Button>
+          </div>
           <template v-else-if="inv">
             <p class="mb-2 text-sm text-stone-500">
               Ambang batas: &le;{{ inv.threshold_days }} hari stok tersisa
@@ -110,13 +120,18 @@
           </template>
         </CardContent>
       </Card>
-      <Card>
+      <Card class="min-w-0">
         <CardHeader>
           <CardTitle>Distribusi channel</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button size="sm" variant="secondary" :loading="channelsLoading" @click="loadChannels()">Muat (pakai rentang di atas)</Button>
+          <Button size="sm" variant="secondary" class="max-[320px]:h-auto max-[320px]:min-h-11 max-[320px]:whitespace-normal" :loading="channelsLoading" @click="loadChannels()">Muat (pakai rentang di atas)</Button>
           <p v-if="channelsLoading" class="mt-2 text-sm text-stone-500">Memuat…</p>
+          <div v-else-if="channelsError" class="mt-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm" role="alert">
+            <h3 class="font-semibold text-stone-900">Gagal memuat distribusi channel</h3>
+            <p v-if="channelsError !== 'Gagal memuat distribusi channel'" class="mt-1 text-stone-600">{{ channelsError }}</p>
+            <Button type="button" variant="outline" class="mt-3" @click="loadChannels()">Coba lagi</Button>
+          </div>
           <template v-else-if="channels">
             <p class="mt-2 mb-3 text-sm text-stone-500">
               Total {{ channels.total_orders }} pesanan
@@ -155,12 +170,15 @@ const asking = ref(false)
 const from = ref('')
 const to = ref('')
 const sales = ref<SalesAnalytics | null>(null)
-const salesLoading = ref(false)
+const salesLoading = ref(true)
+const salesError = ref('')
 const threshold = ref<number | undefined>(7)
 const inv = ref<InventoryAnalytics | null>(null)
-const invLoading = ref(false)
+const invLoading = ref(true)
+const invError = ref('')
 const channels = ref<ChannelAnalytics | null>(null)
 const channelsLoading = ref(false)
+const channelsError = ref('')
 
 // label baris: group_by=product -> nama produk, selain itu key apa adanya
 function salesLabel(key: string): string {
@@ -209,29 +227,40 @@ function rangeIso() {
   }
 }
 async function loadSales() {
+  salesError.value = ''
   try {
     const r = rangeIso()
     if (!r.from_date || !r.to_date) { toast.warning('Isi tanggal dari & sampai.'); return }
     salesLoading.value = true
     sales.value = await request<SalesAnalytics>('/analytics/sales', { query: { ...r, group_by: 'product', top: 10 } })
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat penjualan') }
+  catch (e: unknown) {
+    salesError.value = e instanceof Error ? e.message : 'Gagal memuat penjualan'
+    toast.fromError(e, 'Gagal memuat penjualan')
+  }
   finally { salesLoading.value = false }
 }
 async function loadInv() {
-  if (invLoading.value) return
+  invError.value = ''
   invLoading.value = true
   try { inv.value = await request<InventoryAnalytics>('/analytics/inventory', { query: { threshold_days: threshold.value } }) }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat risiko stockout') }
+  catch (e: unknown) {
+    invError.value = e instanceof Error ? e.message : 'Gagal memuat risiko stockout'
+    toast.fromError(e, 'Gagal memuat risiko stockout')
+  }
   finally { invLoading.value = false }
 }
 async function loadChannels() {
   if (channelsLoading.value) return
   const r = rangeIso()
   if (!r.from_date || !r.to_date) { toast.warning('Isi rentang tanggal di kartu "Penjualan per produk" dulu.'); return }
+  channelsError.value = ''
   channelsLoading.value = true
   try { channels.value = await request<ChannelAnalytics>('/analytics/channels', { query: r }) }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat distribusi channel') }
+  catch (e: unknown) {
+    channelsError.value = e instanceof Error ? e.message : 'Gagal memuat distribusi channel'
+    toast.fromError(e, 'Gagal memuat distribusi channel')
+  }
   finally { channelsLoading.value = false }
 }
 // Kartu tidak perlu diisi manual tiap kali masuk: default = 30 hari terakhir.

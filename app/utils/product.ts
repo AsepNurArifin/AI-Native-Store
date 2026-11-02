@@ -33,37 +33,6 @@ export function productInitials(name: string): string {
   return `${first[0] ?? ''}${second[0] ?? ''}`.toUpperCase()
 }
 
-/** Helper spec parser ala Newegg/BestBuy: ekstrak chip/RAM/Storage/Layar dari nama atau deskripsi. */
-export function extractSpecs(p: { name: string; description?: string | null }): string[] {
-  const text = `${p.name} ${p.description || ''}`
-  const specs: string[] = []
-
-  // Chip / Processor / GPU
-  const chipMatch = text.match(/(M[1-4]|Ryzen\s+[3579]|Core\s+i[3579]|RTX\s+\d{4}|Snapdragon\s+\d+|A1[678]\s+Pro|Dimensity\s+\d+)/i)
-  if (chipMatch?.[0]) specs.push(chipMatch[0])
-
-  // RAM
-  const ramMatch = text.match(/(\d+\s*GB\s*(?:DDR[45]|RAM)?)/i) // match RAM
-  const ramSpecific = text.match(/(\d{1,2}\s*GB)\s+(?:RAM|DDR)/i) || text.match(/(?:RAM|DDR)\s*(\d{1,2}\s*GB)/i)
-  // Group capture selalu ada kalau regex-nya match, tapi TS tidak bisa-dih-know itu.
-  const ramValue = ramSpecific?.[1]
-  const ramValueLoose = ramMatch?.[1]
-  if (ramValue) specs.push(ramValue)
-  else if (ramValueLoose && !specs.some(s => s.toLowerCase().includes('gb'))) specs.push(ramValueLoose)
-
-  // Storage
-  const storageMatch = text.match(/(\d{3}\s*GB|1\s*TB|2\s*TB)\s*(?:SSD|NVMe|Storage)?/i)
-  const storageValue = storageMatch?.[1]
-  if (storageValue && !specs.includes(storageValue)) specs.push(storageValue)
-
-  // Screen
-  const screenMatch = text.match(/(\d{1,2}(?:\.\d)?["”']|\d{1,2}(?:\.\d)?\s*inch)/i)
-  const screenValue = screenMatch?.[1]
-  if (screenValue) specs.push(screenValue)
-
-  return [...new Set(specs)].slice(0, 3)
-}
-
 /* ---- Spesifikasi produk: label, satuan, format nilai (dipakai tabel & chip spek) ---- */
 
 export const specLabels: Record<string, string> = {

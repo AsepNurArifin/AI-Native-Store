@@ -15,17 +15,17 @@
       <CardContent>
         <!-- Filter: bahasa toko (jenis + pelaku + periode + cari), instant client-side -->
         <div class="mb-3 flex flex-wrap items-center gap-2">
-          <select v-model="fCat" aria-label="Jenis kejadian" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fCat" aria-label="Jenis kejadian" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option v-for="o in auditCategoryOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
-          <select v-model="fActor" aria-label="Pelaku" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fActor" aria-label="Pelaku" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua pelaku</option>
             <option value="USER">Toko (owner/staf)</option>
             <option value="CUSTOMER">Pelanggan</option>
             <option value="AI_SYSTEM">Asisten AI</option>
             <option value="SYSTEM">Sistem (otomatis)</option>
           </select>
-          <select v-model="fPeriod" aria-label="Rentang waktu" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fPeriod" aria-label="Rentang waktu" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="all">Sepanjang waktu</option>
             <option value="1">24 jam terakhir</option>
             <option value="7">7 hari terakhir</option>
@@ -40,6 +40,11 @@
         </div>
 
         <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat riwayat…</p>
+        <div v-else-if="loadError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p class="font-semibold">Gagal memuat riwayat toko</p>
+          <p v-if="loadError !== 'Gagal memuat riwayat toko'" class="mt-1 [overflow-wrap:anywhere]">{{ loadError }}</p>
+          <Button type="button" variant="outline" class="mt-3" @click="load()">Coba lagi</Button>
+        </div>
         <p v-else-if="!visible.length" class="py-4 text-center text-sm text-stone-500">
           Belum ada kejadian untuk filter ini.
         </p>
@@ -92,8 +97,14 @@
         </ul>
 
         <!-- Log besar? Muat bertambah dari server (append-only dijaga, tanpa membuat halaman berat). -->
-        <div v-if="hasMore" class="mt-3 flex justify-center">
-          <Button size="sm" variant="outline" :loading="loadingMore" @click="loadMore">Tampilkan 100 kejadian lagi</Button>
+        <div v-if="!loading && !loadError && hasMore" class="mt-3 space-y-3">
+          <div v-if="loadMoreError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p class="font-semibold">Gagal memuat kejadian tambahan</p>
+            <p v-if="loadMoreError !== 'Gagal memuat kejadian tambahan'" class="mt-1 [overflow-wrap:anywhere]">{{ loadMoreError }}</p>
+          </div>
+          <div class="flex justify-center">
+            <Button type="button" size="sm" variant="outline" :loading="loadingMore" @click="loadMore()">{{ loadMoreError ? 'Coba lagi' : 'Tampilkan 100 kejadian lagi' }}</Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -136,8 +147,10 @@ interface VisibleRow {
 
 const rows = ref<AuditLogOut[]>([])
 const names = ref<AuditNames | undefined>(undefined)
-const loading = ref(false)
+const loading = ref(true)
+const loadError = ref('')
 const loadingMore = ref(false)
+const loadMoreError = ref('')
 const page = ref(0)
 const pageSize = 100
 const hasMore = ref(false)
@@ -182,6 +195,9 @@ function toneText(tone: VisibleRow['tone']) {
 /** Muat halaman pertama dari endpoint (log + peta nama UUID). */
 async function load() {
   loading.value = true
+  loadError.value = ''
+  loadMoreError.value = ''
+  hasMore.value = false
   rows.value = []
   page.value = 0
   try {
@@ -190,13 +206,18 @@ async function load() {
     names.value = res.names
     hasMore.value = res.items.length >= pageSize
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat riwayat toko') }
+  catch (e: unknown) {
+    loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat riwayat toko'
+    toast.fromError(e, 'Gagal memuat riwayat toko')
+  }
   finally { loading.value = false }
 }
 
 /** Log besar? Ambil halaman berikutnya dari server dan tambahkan ke daftar. */
 async function loadMore() {
+  if (loading.value || loadingMore.value || loadError.value || !hasMore.value) return
   loadingMore.value = true
+  loadMoreError.value = ''
   try {
     const next = page.value + 1
     const res = await request<AuditLogsResponse>('/audit/logs', { query: { page: next + 1, page_size: pageSize } })
@@ -205,7 +226,10 @@ async function loadMore() {
     page.value = next
     hasMore.value = res.items.length >= pageSize
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat kejadian tambahan') }
+  catch (e: unknown) {
+    loadMoreError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat kejadian tambahan'
+    toast.fromError(e, 'Gagal memuat kejadian tambahan')
+  }
   finally { loadingMore.value = false }
 }
 onMounted(load)

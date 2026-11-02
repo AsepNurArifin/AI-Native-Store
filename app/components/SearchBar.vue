@@ -24,8 +24,8 @@ function onSubmit() {
 </script>
 
 <template>
-  <form role="search" class="flex w-full items-center gap-2" @submit.prevent="onSubmit">
-    <div class="relative flex-1">
+  <form role="search" class="flex w-full items-center gap-2 max-[320px]:flex-col max-[320px]:items-stretch" @submit.prevent="onSubmit">
+    <div class="relative min-w-0 flex-1">
       <Search class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
       <input
         v-model="inner"
@@ -33,7 +33,7 @@ function onSubmit() {
         :placeholder="placeholder"
         :autofocus="autofocus"
         aria-label="Cari produk"
-        class="h-11 w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/30 focus:outline-hidden"
+        class="h-11 w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 text-base md:text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/30 focus:outline-hidden"
         @input="onInput"
       >
     </div>

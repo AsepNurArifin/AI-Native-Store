@@ -3,7 +3,6 @@
     <div
       v-if="product"
       class="fixed inset-0 z-[110] flex items-end justify-center p-4 sm:items-center"
-      @keydown="trapFocus"
     >
       <div class="absolute inset-0 bg-stone-950/45" aria-hidden="true" @click="close" />
 
@@ -38,7 +37,7 @@
           </div>
           <button
             type="button"
-            class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-brand-600"
+            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
             aria-label="Tutup spesifikasi"
             @click="close"
           >
@@ -110,8 +109,8 @@
 
         <!-- Footer -->
         <div class="flex items-center justify-end gap-2 border-t border-stone-100 bg-stone-50 px-4 py-3">
-          <Button size="sm" variant="outline" @click="close">Tutup</Button>
-          <Button size="sm" @click="edit">
+          <Button type="button" size="sm" variant="outline" class="min-h-11" @click="close">Tutup</Button>
+          <Button type="button" size="sm" class="min-h-11" @click="edit">
             <Pencil class="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Ubah spesifikasi
           </Button>
@@ -135,6 +134,7 @@ import {
 import { effectivePrice, hasPromo, keySpecs, specEntries } from '~/utils/product'
 import { formatIDR } from '~/utils/format'
 import type { ProductOut } from '~/utils/api-types'
+import { handleDialogKeydown } from '~/utils/focus'
 
 const props = defineProps<{ product: ProductOut | null }>()
 const emit = defineEmits<{ close: [], edit: [product: ProductOut] }>()
@@ -170,22 +170,14 @@ const panelRef = ref<HTMLElement | null>(null)
 watch(() => props.product, async (p) => {
   if (!p) return
   await nextTick()
-  panelRef.value?.focus()
+  if (props.product === p) panelRef.value?.focus()
 })
 
-/** Focus trap modal: Tab dikurung di dalam dialog (a11y), Escape menutup. */
-function trapFocus(e: KeyboardEvent) {
-  if (e.key === 'Escape') { e.preventDefault(); close(); return }
-  if (e.key !== 'Tab' || !panelRef.value) return
-  const focusables = panelRef.value.querySelectorAll<HTMLElement>(
-    'button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
-  )
-  if (!focusables.length) return
-  const first = focusables[0] as HTMLElement
-  const last = focusables[focusables.length - 1] as HTMLElement
-  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+function onKeydown(event: KeyboardEvent) {
+  if (props.product && panelRef.value) handleDialogKeydown(event, panelRef.value, close)
 }
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>

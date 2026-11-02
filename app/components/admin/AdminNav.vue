@@ -9,7 +9,7 @@
         <NuxtLink
           to="/admin"
           exact-active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <LayoutDashboard class="h-4 w-4 shrink-0" />
           <span>Dashboard</span>
@@ -21,7 +21,7 @@
         <NuxtLink
           to="/admin/products"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <Package class="h-4 w-4 shrink-0" />
           <span>Katalog Produk</span>
@@ -30,7 +30,7 @@
         <NuxtLink
           to="/admin/inventory"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <ArrowLeftRight class="h-4 w-4 shrink-0" />
           <span>Inventori &amp; Stok</span>
@@ -39,7 +39,7 @@
         <NuxtLink
           to="/admin/orders"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <ShoppingCart class="h-4 w-4 shrink-0" />
           <span>Pesanan</span>
@@ -48,7 +48,7 @@
         <NuxtLink
           to="/admin/promotions"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <Ticket class="h-4 w-4 shrink-0" />
           <span>Promosi &amp; Kupon</span>
@@ -66,7 +66,7 @@
         <NuxtLink
           to="/admin/conversations"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <MessagesSquare class="h-4 w-4 shrink-0" />
           <span>Percakapan Chat</span>
@@ -75,7 +75,7 @@
         <NuxtLink
           to="/admin/customers"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <Users class="h-4 w-4 shrink-0" />
           <span>Pelanggan</span>
@@ -84,7 +84,7 @@
         <NuxtLink
           to="/admin/analytics"
           active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
         >
           <ChartColumn class="h-4 w-4 shrink-0" />
           <span>Analitik &amp; Metrik</span>
@@ -94,7 +94,7 @@
           <NuxtLink
             to="/admin/actions"
             active-class="bg-sidebar-accent text-white font-semibold"
-            class="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+            class="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
           >
             <span class="flex items-center gap-3">
               <ListChecks class="h-4 w-4 shrink-0" />
@@ -106,7 +106,7 @@
           <NuxtLink
             to="/admin/audit"
             active-class="bg-sidebar-accent text-white font-semibold"
-            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors"
+            class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
           >
             <Shield class="h-4 w-4 shrink-0" />
             <span>Audit Trail</span>

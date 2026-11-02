@@ -10,7 +10,15 @@ const quickSearches = ['iPhone 15 Pro', 'Galaxy S24 Ultra', 'iPad Air', 'Apple W
 
 const { data: categories } = await useAsyncData('layout-categories', async () => {
   try {
-    return await $fetch<string[]>(`${base}/catalog/categories`)
+    const names = await $fetch<string[]>(`${base}/catalog/categories`)
+    const unique = new Map<string, string>()
+    for (const name of names) {
+      if (!name.trim()) continue
+      const key = name.toLowerCase()
+      const current = unique.get(key)
+      if (current === undefined || name < current) unique.set(key, name)
+    }
+    return [...unique.values()].sort((a, b) => a.localeCompare(b, 'id'))
   }
   catch { return [] as string[] }
 }, { default: () => [] as string[] })
@@ -21,27 +29,54 @@ function goSearch(q: string) {
   navigateTo({ path: '/', hash: '#katalog', query: { q: keyword } })
   searchText.value = keyword
 }
+
+const headerEl = ref<HTMLElement | null>(null)
+const headerHeight = ref<number | null>(null)
+let headerObserver: ResizeObserver | null = null
+
+function measureHeader() {
+  if (!headerEl.value) return
+  const height = Math.ceil(headerEl.value.getBoundingClientRect().height)
+  if (headerHeight.value !== height) headerHeight.value = height
+}
+
+onMounted(async () => {
+  measureHeader()
+  if (typeof ResizeObserver !== 'undefined') {
+    headerObserver = new ResizeObserver(measureHeader)
+    if (headerEl.value) headerObserver.observe(headerEl.value)
+  }
+  else window.addEventListener('resize', measureHeader)
+  const initialHash = route.hash
+  await nextTick()
+  if (['#promo', '#katalog', '#cara-belanja'].includes(initialHash)) {
+    document.getElementById(initialHash.slice(1))?.scrollIntoView()
+  }
+})
+
+onUnmounted(() => {
+  headerObserver?.disconnect()
+  window.removeEventListener('resize', measureHeader)
+})
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50 text-stone-900 antialiased selection:bg-brand-700 selection:text-white">
-    <!-- Header Best Buy Style (Royal Blue #0046BE) -->
-    <header class="sticky top-0 z-40 shadow-md">
-      <!-- Tier 1: Top Utility Strip (Deep Navy #001E60) -->
-      <div class="bg-brand-900 text-xs text-white">
+  <div class="storefront-shell min-h-screen bg-stone-50 text-stone-900 antialiased selection:bg-brand-700 selection:text-white" :style="headerHeight === null ? undefined : { '--store-header-height': `${headerHeight}px` }">
+      <!-- Utility information stays outside the sticky masthead. -->
+      <div class="storefront-dark hidden bg-brand-900 text-xs text-white sm:block">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-1.5 font-medium sm:px-6">
           <div class="flex items-center gap-6">
             <span class="inline-flex items-center gap-1.5 text-promo-400 font-bold">
               <Zap class="h-3.5 w-3.5 fill-promo-400" />
-              Ready 1 Jam Ambil di Toko
+              Ambil di toko atau diantar
             </span>
             <span class="hidden sm:inline-flex items-center gap-1.5 text-white/90">
               <Truck class="h-3.5 w-3.5 text-brand-300" />
-              Bebas Biaya Antar Direct
+              Cek stok sebelum memesan
             </span>
             <span class="hidden md:inline-flex items-center gap-1.5 text-emerald-300">
               <QrCode class="h-3.5 w-3.5" />
-              Bayar Instan via QRIS
+              QRIS simulasi
             </span>
           </div>
           <div class="flex items-center gap-4 text-white/80">
@@ -52,9 +87,10 @@ function goSearch(q: string) {
         </div>
       </div>
 
+    <header ref="headerEl" class="storefront-dark sticky top-0 z-40 shadow-md">
       <!-- Tier 2: Royal Blue Masthead (#0046BE) -->
       <div class="bg-brand-700 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-6 sm:px-6">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:gap-6 sm:px-6">
           <!-- Logo SHAF STORE Best Buy Styled -->
           <NuxtLink to="/" class="group flex shrink-0 items-center gap-2.5">
             <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-md transition-transform duration-200 group-hover:scale-105 sm:h-11 sm:w-11">
@@ -101,7 +137,7 @@ function goSearch(q: string) {
               to="/#promo"
               class="hidden whitespace-nowrap rounded-lg px-3.5 py-2 text-promo-400 bg-brand-800/80 transition-colors hover:bg-brand-800 lg:inline-flex"
             >
-              🔥 Deals Hari Ini
+              Promo hari ini
             </NuxtLink>
             <!-- Best Buy Yellow Tag Button -->
             <NuxtLink
@@ -120,22 +156,22 @@ function goSearch(q: string) {
       <div class="bg-brand-800 md:hidden px-4 py-2.5 border-t border-brand-600">
         <SearchBar v-model="searchText" placeholder="Cari iPhone, Samsung Galaxy, aksesoris…" @submit="goSearch" />
       </div>
+    </header>
 
       <!-- Tier 3: Sub-Navigation Category Bar (#003899) -->
-      <div v-if="categories?.length" class="bg-brand-800 border-t border-brand-600">
+      <div v-if="categories?.length" class="storefront-dark bg-brand-800 border-t border-brand-600">
         <nav aria-label="Kategori" class="modern-scrollbar mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2 sm:px-6">
           <span class="hidden text-xs font-black tracking-wider uppercase text-promo-400 lg:inline-block pr-2">Kategori:</span>
           <NuxtLink
             v-for="c in categories"
             :key="c"
             :to="`/rak/${encodeURIComponent(c)}`"
-            class="shrink-0 whitespace-nowrap rounded-lg bg-brand-900/60 px-3.5 py-1 text-xs font-bold text-white transition-colors hover:bg-promo-400 hover:text-stone-950"
+            class="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg bg-brand-900/60 px-3.5 py-1 text-xs font-bold text-white transition-colors hover:bg-promo-400 hover:text-stone-950"
           >
             {{ c }}
           </NuxtLink>
         </nav>
       </div>
-    </header>
 
     <!-- Main Content -->
     <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
@@ -143,7 +179,7 @@ function goSearch(q: string) {
     </main>
 
     <!-- Footer Best Buy Multi-Column -->
-    <footer class="border-t border-stone-200 bg-stone-900 text-xs text-stone-300 pt-12 pb-8">
+    <footer class="storefront-dark border-t border-stone-200 bg-stone-900 text-xs text-stone-300 pt-12 pb-8">
       <div class="mx-auto grid max-w-7xl gap-8 px-4 sm:grid-cols-4 sm:px-6">
         <div class="space-y-3">
           <div class="flex items-center gap-2.5 font-display text-lg font-black text-white">
@@ -153,10 +189,10 @@ function goSearch(q: string) {
             SHAF STORE
           </div>
           <p class="leading-relaxed text-stone-400">
-            Tech &amp; Electronics Marketplace terpercaya. Cek harga realtime, garansi resmi, &amp; konsultasi spesifikasi langsung via Chat.
+            Katalog gadget dengan harga dan stok yang jelas. Konsultasikan spesifikasi lewat chat, lalu pesan langsung tanpa akun.
           </p>
           <p class="font-bold text-promo-400">
-            📍 Ready Store Pickup dalam 1 Jam · Pembayaran QRIS
+            Ambil di toko atau diantar · QRIS simulasi
           </p>
         </div>
 
@@ -164,7 +200,7 @@ function goSearch(q: string) {
           <p class="font-bold uppercase tracking-wider text-white">Katalog Utama</p>
           <ul class="mt-3 space-y-2 font-medium text-stone-400">
             <li v-for="c in categories?.slice(0, 5)" :key="c">
-              <NuxtLink :to="`/rak/${encodeURIComponent(c)}`" class="hover:text-promo-400 flex items-center gap-1 transition-colors">
+              <NuxtLink :to="`/rak/${encodeURIComponent(c)}`" class="min-h-11 inline-flex items-center gap-1 hover:text-promo-400 transition-colors">
                 <ChevronRight class="h-3 w-3 text-stone-500" />
                 {{ c }}
               </NuxtLink>
@@ -176,7 +212,7 @@ function goSearch(q: string) {
           <p class="font-bold uppercase tracking-wider text-white">Belanja &amp; Layanan</p>
           <ul class="mt-3 space-y-2 font-medium text-stone-400">
             <li><NuxtLink to="/#katalog" class="hover:text-promo-400 transition-colors">Katalog Produk</NuxtLink></li>
-            <li><NuxtLink to="/#promo" class="hover:text-promo-400 transition-colors">🔥 Top Deals Hari Ini</NuxtLink></li>
+            <li><NuxtLink to="/#promo" class="hover:text-promo-400 transition-colors">Promo hari ini</NuxtLink></li>
             <li><NuxtLink to="/chat" class="hover:text-promo-400 transition-colors">Chat &amp; Tanya Stok</NuxtLink></li>
             <li><NuxtLink to="/#cara-belanja" class="hover:text-promo-400 transition-colors">Panduan Nota Belanja</NuxtLink></li>
           </ul>
@@ -186,13 +222,13 @@ function goSearch(q: string) {
           <p class="font-bold uppercase tracking-wider text-white">Akses Admin</p>
           <ul class="mt-3 space-y-2 font-medium text-stone-400">
             <li><NuxtLink to="/login" class="text-stone-400 hover:text-white transition-colors">Dashboard Admin Toko</NuxtLink></li>
-            <li><span class="text-stone-500">Jam Operasional: 09.00 - 21.00 WIB</span></li>
+            <li><span class="text-stone-400">Jam Operasional: 09.00 - 21.00 WIB</span></li>
           </ul>
         </div>
       </div>
 
-      <div class="mx-auto mt-10 max-w-7xl border-t border-stone-800 pt-6 px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-500">
-        <p>© 2026 SHAF STORE — toko gadget resmi &amp; transparan harga.</p>
+      <div class="mx-auto mt-10 max-w-7xl border-t border-stone-800 pt-6 px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-400">
+        <p>© 2026 SHAF STORE — katalog gadget dengan harga transparan.</p>
         <p class="text-[11px] text-stone-400">Layanan pelanggan 09.00–21.00 WIB, setiap hari</p>
       </div>
     </footer>

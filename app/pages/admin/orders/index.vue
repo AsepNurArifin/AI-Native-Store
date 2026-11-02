@@ -5,46 +5,52 @@
       <CardContent>
         <!-- Form: Enter di kolom pencarian langsung menyaring. -->
         <form class="mb-3 flex flex-wrap gap-2" @submit.prevent="page = 1; load()">
-          <Input v-model="fQ" placeholder="Cari ID order / nama pelanggan…" class="max-w-56" />
-          <select v-model="fStatus" aria-label="Filter status" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <Input v-model="fQ" placeholder="Cari ID order / nama pelanggan…" class="min-w-0 max-w-full sm:max-w-56" />
+          <select v-model="fStatus" aria-label="Filter status" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua status</option>
             <option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option>
           </select>
-          <select v-model="fChannel" aria-label="Filter channel" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fChannel" aria-label="Filter channel" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua channel</option><option>WEB</option><option>TELEGRAM</option>
           </select>
-          <select v-model="fPayment" aria-label="Filter pembayaran" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fPayment" aria-label="Filter pembayaran" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua pembayaran</option><option value="UNPAID">Belum dibayar</option><option value="PAID">Sudah dibayar</option>
           </select>
           <Button type="submit" size="sm" variant="secondary">Terapkan filter</Button>
         </form>
-        <!-- Mobile: kartu per pesanan (tabel tidak muat di <640px) -->
-        <div v-if="loading" class="py-4 text-center text-sm text-stone-500 sm:hidden">
+        <div v-if="loading" class="py-4 text-center text-sm text-stone-500">
           Memuat daftar pesanan…
         </div>
-        <div v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500 sm:hidden">
-          Belum ada pesanan yang cocok. Pesanan tercatat saat customer mengonfirmasi lewat chat.
+        <div v-else-if="loadError" role="alert" class="space-y-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <h2 class="font-semibold">Gagal memuat pesanan</h2>
+          <p v-if="loadError !== 'Gagal memuat pesanan'" class="[overflow-wrap:anywhere]">{{ loadError }}</p>
+          <Button type="button" variant="outline" @click="load()">Coba lagi</Button>
         </div>
-        <div v-else class="space-y-3 sm:hidden">
+        <div v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">
+          Belum ada pesanan yang cocok dengan filter.
+        </div>
+        <template v-else>
+        <!-- Mobile: kartu per pesanan (tabel tidak muat di <640px) -->
+        <div class="space-y-3 sm:hidden">
           <div v-for="o in items" :key="o.id" class="rounded-xl border border-stone-200 bg-white p-3">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="font-mono text-xs font-bold text-stone-800">#{{ o.id.slice(0, 8) }}…</span>
-              <div class="flex gap-1">
+              <div class="flex flex-wrap gap-1">
                 <Badge :variant="statusVariant(o.status)">{{ o.status }}</Badge>
                 <Badge :variant="statusVariant(o.payment_status)">{{ o.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}</Badge>
               </div>
             </div>
-            <div class="mt-1.5 flex items-baseline justify-between gap-2 text-sm">
+            <div class="mt-1.5 flex flex-wrap items-baseline justify-between gap-2 text-sm">
               <span class="font-semibold text-stone-900">{{ formatIDR(o.total_amount) }}</span>
               <span class="text-xs text-stone-500">{{ o.channel_origin }} · {{ formatWIB(o.created_at) }}</span>
             </div>
-            <div class="mt-2.5 flex gap-2">
-              <NuxtLink :to="`/admin/orders/${o.id}`" class="flex-1"><Button size="sm" variant="outline" class="w-full">Detail</Button></NuxtLink>
+            <div class="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-3">
+              <Button :to="`/admin/orders/${o.id}`" size="sm" variant="outline" class="min-h-11 min-w-0 whitespace-normal px-2">Detail</Button>
               <template v-if="o.status === 'CONFIRMED'">
-                <Button v-if="o.payment_status !== 'PAID'" size="sm" variant="secondary" class="flex-1" @click="markPaid(o)">Tandai Lunas</Button>
-                <!-- Complete tanpa bayar pasti ditolak 409 NOT_PAID — sembunyikan. -->
-                <Button v-if="o.payment_status === 'PAID'" size="sm" variant="secondary" class="flex-1" @click="complete(o)">Complete</Button>
-                <Button size="sm" variant="ghostDanger" class="flex-1" @click="cancel(o)">Cancel</Button>
+                <Button v-if="o.payment_status !== 'PAID'" size="sm" variant="secondary" class="min-h-11 min-w-0 whitespace-normal px-2" @click="markPaid(o)">Tandai Lunas</Button>
+                <!-- Menyelesaikan tanpa bayar pasti ditolak 409 NOT_PAID — sembunyikan. -->
+                <Button v-if="o.payment_status === 'PAID'" size="sm" variant="secondary" class="min-h-11 min-w-0 whitespace-normal px-2" @click="complete(o)">Selesaikan</Button>
+                <Button size="sm" variant="ghostDanger" class="min-h-11 min-w-0 whitespace-normal px-2" @click="cancel(o)">Batalkan</Button>
               </template>
             </div>
           </div>
@@ -56,14 +62,6 @@
               <th class="pr-2">Total</th><th class="pr-2">Dibuat</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              <tr v-if="loading">
-                <td colspan="7" class="py-4 text-center text-sm text-stone-500">Memuat daftar pesanan…</td>
-              </tr>
-              <tr v-else-if="!items.length">
-                <td colspan="7" class="py-4 text-center text-sm text-stone-500">
-                  Belum ada pesanan yang cocok. Pesanan tercatat saat customer mengonfirmasi lewat chat.
-                </td>
-              </tr>
               <tr v-for="o in items" :key="o.id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-mono text-xs">{{ o.id.slice(0, 8) }}…</td>
                 <td class="pr-2">{{ o.channel_origin }}</td>
@@ -76,16 +74,17 @@
                 <td class="pr-2">{{ formatIDR(o.total_amount) }}</td>
                 <td class="pr-2 text-xs">{{ formatWIB(o.created_at) }}</td>
                 <td class="flex gap-1">
-                  <NuxtLink :to="`/admin/orders/${o.id}`"><Button size="sm" variant="outline">Detail</Button></NuxtLink>
+                  <Button :to="`/admin/orders/${o.id}`" size="sm" variant="outline">Detail</Button>
                   <Button v-if="o.status === 'CONFIRMED' && o.payment_status !== 'PAID'" size="sm" variant="secondary" @click="markPaid(o)">Lunas</Button>
-                  <Button v-if="o.status === 'CONFIRMED' && o.payment_status === 'PAID'" size="sm" variant="secondary" @click="complete(o)">Complete</Button>
-                  <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="ghostDanger" @click="cancel(o)">Cancel</Button>
+                  <Button v-if="o.status === 'CONFIRMED' && o.payment_status === 'PAID'" size="sm" variant="secondary" @click="complete(o)">Selesaikan</Button>
+                  <Button v-if="o.status === 'CONFIRMED'" size="sm" variant="ghostDanger" @click="cancel(o)">Batalkan</Button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
+        </template>
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading || !!loadError" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -102,6 +101,7 @@ const confirmAction = useConfirm()
 const items = ref<OrderOut[]>([])
 // Mulai true: empty-state "Belum ada pesanan" tidak berkedip sebelum fetch pertama.
 const loading = ref(true)
+const loadError = ref('')
 const fStatus = ref('')
 const fChannel = ref('')
 const fPayment = ref('')
@@ -111,6 +111,7 @@ const pageSize = 10
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     items.value = await request<OrderOut[]>('/orders', {
       query: {
@@ -123,7 +124,10 @@ async function load() {
       }
     })
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat pesanan') }
+  catch (e: unknown) {
+    loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat pesanan'
+    toast.fromError(e, 'Gagal memuat pesanan')
+  }
   finally { loading.value = false }
 }
 onMounted(load)
@@ -149,7 +153,7 @@ async function markPaid(o: OrderOut) {
   // Aksi finansial: konfirmasi dulu (sama seperti di halaman detail).
   const ok = await confirmAction.ask({
     title: `Tandai lunas order #${o.id.slice(0, 8)}…?`,
-    message: 'Sudah menerima pembayaran (QRIS/transfer/tunai)? Order berstatus PAID masuk pendapatan analitik dan siap di-Complete.',
+    message: 'Sudah menerima pembayaran (QRIS/transfer/tunai)? Order berstatus PAID masuk pendapatan analitik dan siap diselesaikan.',
     confirmLabel: 'Tandai Lunas'
   })
   if (!ok) return

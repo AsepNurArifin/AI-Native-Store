@@ -108,9 +108,9 @@ selalu tanyakan sebelum membeli.
 **Barang second/pre-owned** dijual dengan **grade kondisi yang jelas** dan mendapat
 **garansi toko**.
 
-> **Koreksi klaim lama:** halaman depan sebelumnya mengklaim *"Semua produk tersegel
-> original & bergaransi resmi toko."* Klaim itu tidak akurat untuk model bisnis ini
-> dan perlu diperbaiki.
+> **Tampilan katalog:** informasi produk dan stok ditampilkan tanpa klaim bahwa
+> semua unit tersegel atau bergaransi resmi. Status garansi tetap mengikuti
+> informasi masing-masing produk.
 
 ## A.8 Purna Jual
 
@@ -459,6 +459,34 @@ produk/orders/promotions/inventory/customers/conversations/audit/analytics;
 analyst ask (pastikan order UNPAID **tidak** masuk revenue); AI Action draft →
 approve (EXECUTED) / reject. Plus: adjustment `quantity: -5` → 422 (bukan 500);
 `idempotency_key` > 64 char → 422; hapus produk yang pernah muncul di chat → 409.
+
+### Penyempurnaan UI pelanggan dan admin
+
+- Identitas biru–kuning dipertahankan. Header sticky hanya memuat masthead dan
+  pencarian mobile; offset anchor mengikuti tinggi header terukur. Kategori
+  navigasi dideduplikasi tanpa mengubah data kategori di database.
+- Kartu produk memakai spesifikasi terstruktur yang sama dengan detail produk.
+  Gambar yang kosong atau gagal dimuat memiliki fallback berlabel; CTA produk
+  dan receipt memiliki target sentuh minimal 44 px. Tampilan ekstra sempit
+  beralih ke susunan satu kolom agar teks dan kontrol tetap dapat dijangkau.
+- Checkout memakai label, radio penerimaan native, error per-field dan fokus ke
+  field pertama yang salah. Kontak yang ditolak validasi tidak mengirim pesanan.
+  Harga, batas stok, idempotency dan payload transaksi tetap memakai alur lama.
+- Chat mobile mendahulukan satu widget percakapan. Transcript memakai live log;
+  status sedang mengirim terpisah dan jawaban tidak mengambil fokus input.
+- Drawer/dialog admin menangani Tab, Shift+Tab, Escape dan pengembalian fokus;
+  hanya dialog teratas merespons. Validasi stok/ambang menolak pecahan, bukan
+  membulatkannya. Error simpan/upload tetap terlihat dan input tidak dikosongkan.
+- Daftar/detail admin membedakan loading, gagal, kosong dan data; retry memakai
+  pemuat yang sama. Append audit yang gagal mempertahankan kejadian sebelumnya.
+  Dashboard role non-Owner menampilkan pembatasan, bukan angka nol palsu.
+- QRIS tetap **simulasi yang tidak dapat dibayar**; pembayaran dikonfirmasi kasir.
+
+Verifikasi UI dilakukan pada aplikasi Nuxt aktual dengan fixture API in-memory
+terpisah: viewport 320×740, 390×844, 768×1024 dan 1440×1000, navigasi keyboard,
+reflow ekuivalen zoom 200%, validasi, error/retry, receipt, upload dan role STAFF.
+Fixture tidak meneruskan request ke produksi; pengujian ini membuktikan perilaku
+UI, bukan integrasi pembayaran, SQL atau transaksi database produksi.
 
 ---
 

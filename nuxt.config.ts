@@ -66,7 +66,7 @@ export default defineNuxtConfig({
         { property: 'og:image:alt', content: 'Papan nama SHAF STORE: spesialis iPhone & Samsung Galaxy flagship yang buka lewat chat' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'robots', content: 'index, follow, max-image-preview:large' },
-        { name: 'theme-color', content: '#177b2c' }
+        { name: 'theme-color', content: '#0046be' }
       ],
       link: [
         { rel: 'icon', type: 'image/jpeg', href: '/logo.jpeg' }

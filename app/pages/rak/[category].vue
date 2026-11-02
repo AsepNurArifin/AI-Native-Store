@@ -103,7 +103,7 @@ watch(fetchError, (err) => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 max-[320px]:min-w-0 max-[320px]:[overflow-wrap:anywhere]">
     <nav aria-label="Breadcrumb" class="text-xs font-medium text-stone-500">
       <ol class="flex flex-wrap items-center gap-1.5">
         <li><NuxtLink to="/" class="hover:text-brand-700">Beranda</NuxtLink></li>
@@ -119,26 +119,27 @@ watch(fetchError, (err) => {
         {{ category }}
       </h1>
       <p class="max-w-xl text-sm leading-relaxed text-stone-600 sm:text-base">
-        {{ products?.length || 0 }} produk aktif di rak ini. Klik kartu untuk detail, atau tanya lewat chat bila butuh bantuan memilih.
+        <template v-if="pending">Memuat produk…</template>
+        <template v-else-if="!fetchError">Menampilkan {{ products.length }} produk. Klik kartu untuk detail atau tanya lewat chat.</template>
       </p>
     </div>
 
     <div class="flex flex-col gap-2.5 rounded-xl border border-stone-200 bg-white p-3 sm:flex-row sm:items-center">
-      <div class="relative flex-1">
+      <div class="relative flex-1 max-[320px]:min-w-0">
         <input
           v-model="q"
           type="search"
           placeholder="Cari di rak ini…"
           aria-label="Cari di rak ini"
-          class="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm placeholder:text-stone-500 focus:border-brand-500 focus:outline-2 focus:outline-brand-600"
+          class="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm placeholder:text-stone-500 focus:border-brand-500 focus:outline-2 focus:outline-brand-600 max-[320px]:min-w-0"
         >
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 max-[320px]:flex-wrap">
         <label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
           <input v-model="promoOnly" type="checkbox" class="h-4 w-4 accent-brand-700" >
           Promo saja
         </label>
-        <select v-model="sort" aria-label="Urutkan" class="h-10 rounded-lg border border-stone-300 bg-white px-2 text-xs font-medium text-stone-700">
+        <select v-model="sort" aria-label="Urutkan" class="h-10 rounded-lg border border-stone-300 bg-white px-2 text-xs font-medium text-stone-700 max-[320px]:min-w-0 max-[320px]:max-w-full">
           <option value="">Paling relevan</option>
           <option value="termurah">Termurah</option>
           <option value="termahal">Termahal</option>
@@ -149,24 +150,24 @@ watch(fetchError, (err) => {
 
     <div v-if="fetchError" class="space-y-3 text-center">
       <p class="text-sm text-stone-600">Rak ini gagal dimuat — mungkin koneksi ke server sedang bermasalah, bukan raknya kosong.</p>
-      <Button size="sm" variant="outline" @click="() => refresh()">Coba lagi muat rak</Button>
+      <Button size="sm" variant="outline" class="max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal" @click="() => refresh()">Coba lagi muat rak</Button>
     </div>
 
-    <div v-else-if="pending" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div v-else-if="pending" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
       <div v-for="i in 8" :key="i" class="h-64 animate-pulse rounded-xl bg-stone-100" aria-label="Memuat produk" />
     </div>
 
-    <div v-else-if="!products?.length" class="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-8 text-center">
+    <div v-else-if="!products?.length" class="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-8 text-center max-[320px]:p-3">
       <h2 class="font-display font-bold text-stone-800">{{ q || promoOnly ? 'Tidak ada yang cocok dengan filter' : 'Rak ini sedang kosong' }}</h2>
       <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-stone-600">
         {{ q || promoOnly
           ? 'Belum ada produk yang memenuhi kata kunci / filter "Promo saja" ini. Coba ubah pilihan atau tanya langsung di chat.'
           : 'Belum ada produk di rak ini saat ini. Tanya lewat chat — mungkin stoknya baru saja habis.' }}
       </p>
-      <Button to="/chat" variant="ai" class="mt-5">Tanya lewat chat</Button>
+      <Button to="/chat" variant="ai" class="mt-5 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal">Tanya lewat chat</Button>
     </div>
 
-    <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
       <ProductCard v-for="p in products" :key="p.id" :product="p" />
     </div>
 
@@ -176,7 +177,7 @@ watch(fetchError, (err) => {
         v-if="hasMore"
         variant="outline"
         :disabled="loadingMore"
-        class="px-6"
+        class="px-6 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal"
         @click="loadMore()"
       >
         {{ loadingMore ? 'Memuat…' : 'Muat lebih banyak' }}

@@ -7,15 +7,15 @@
       </CardHeader>
       <CardContent>
         <form class="flex flex-wrap items-end gap-2" @submit.prevent="onAdjust">
-          <div class="min-w-52 flex-1"><label class="mb-1 block text-sm" for="adj-product">Produk</label>
+          <div class="min-w-0 max-w-full flex-1 basis-full sm:basis-52"><label class="mb-1 block text-sm" for="adj-product">Produk</label>
             <!-- Produk nonaktif disaring: endpoint adjustment menolaknya (409). -->
-            <select id="adj-product" v-model="adj.product_id" class="h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
+            <select id="adj-product" v-model="adj.product_id" class="h-9 w-full min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option value="">pilih produk…</option>
               <option v-for="s in activeSummary" :key="s.product_id" :value="s.product_id">{{ s.name }} ({{ s.current_stock }})</option>
             </select>
           </div>
           <div><label class="mb-1 block text-sm" for="adj-movement">Arah</label>
-            <select id="adj-movement" v-model="adj.movement" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+            <select id="adj-movement" v-model="adj.movement" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
               <option value="IN">IN (tambah)</option><option value="OUT">OUT (kurang)</option>
             </select>
           </div>
@@ -29,18 +29,19 @@
         <CardTitle>Ringkasan stok</CardTitle>
       </CardHeader>
       <CardContent>
-        <div class="overflow-x-auto">
+        <p v-if="summaryLoading" class="py-4 text-center text-sm text-stone-500">Memuat ringkasan stok…</p>
+        <div v-else-if="summaryError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p class="font-semibold">Gagal memuat ringkasan stok</p>
+          <p v-if="summaryError !== 'Gagal memuat ringkasan stok'" class="mt-1 [overflow-wrap:anywhere]">{{ summaryError }}</p>
+          <Button type="button" variant="outline" class="mt-3" @click="loadSummary()">Coba lagi</Button>
+        </div>
+        <p v-else-if="!summary.length" class="py-4 text-center text-sm text-stone-500">Belum ada data stok.</p>
+        <div v-else class="max-w-full overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Produk</th><th class="pr-2">Kategori</th><th class="pr-2">Harga</th><th class="pr-2">Stok</th><th>Status</th>
             </tr></thead>
             <tbody>
-              <tr v-if="summaryLoading">
-                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Memuat ringkasan stok…</td>
-              </tr>
-              <tr v-else-if="!summary.length">
-                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Belum ada data stok.</td>
-              </tr>
               <tr v-for="s in summary" :key="s.product_id" class="border-b border-stone-100">
                 <td class="py-2 pr-2 font-medium">
                   {{ s.name }}
@@ -61,30 +62,28 @@
         <CardTitle>Riwayat transaksi</CardTitle>
       </CardHeader>
       <CardContent>
-        <div class="mb-2 flex gap-2">
-          <select v-model="fType" aria-label="Filter type transaksi" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+        <div class="mb-2 flex flex-wrap gap-2">
+          <select v-model="fType" aria-label="Filter type transaksi" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua type</option><option>IN</option><option>OUT</option><option>ADJUSTMENT</option>
           </select>
-          <select v-model="fMovement" aria-label="Filter arah pergerakan" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+          <select v-model="fMovement" aria-label="Filter arah pergerakan" class="h-9 min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm">
             <option value="">Semua arah</option><option value="IN">Masuk</option><option value="OUT">Keluar</option>
           </select>
           <Button size="sm" variant="secondary" @click="txPage = 1; loadTx()">Muat</Button>
         </div>
-        <div class="overflow-x-auto">
+        <p v-if="txLoading" class="py-4 text-center text-sm text-stone-500">Memuat riwayat transaksi…</p>
+        <div v-else-if="txError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p class="font-semibold">Gagal memuat riwayat transaksi</p>
+          <p v-if="txError !== 'Gagal memuat riwayat transaksi'" class="mt-1 [overflow-wrap:anywhere]">{{ txError }}</p>
+          <Button type="button" variant="outline" class="mt-3" @click="loadTx()">Coba lagi</Button>
+        </div>
+        <p v-else-if="!tx.length" class="py-4 text-center text-sm text-stone-500">Belum ada transaksi stok.</p>
+        <div v-else class="max-w-full overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">Waktu</th><th class="pr-2">Type</th><th class="pr-2">Arah</th><th class="pr-2">Qty</th><th>Ref</th>
             </tr></thead>
             <tbody>
-              <tr v-if="txLoading">
-                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Memuat riwayat transaksi…</td>
-              </tr>
-              <tr v-else-if="txFailed">
-                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Riwayat transaksi gagal dimuat — cek notifikasi, lalu tekan "Muat".</td>
-              </tr>
-              <tr v-else-if="!tx.length">
-                <td colspan="5" class="py-4 text-center text-sm text-stone-500">Belum ada transaksi stok.</td>
-              </tr>
               <tr v-for="t in tx" :key="t.id" class="border-b border-stone-100">
                 <td class="py-1 pr-2">{{ formatWIB(t.timestamp) }}</td>
                 <td class="pr-2">{{ t.type }}</td><td class="pr-2">{{ t.movement }}</td>
@@ -93,7 +92,7 @@
             </tbody>
           </table>
         </div>
-        <AdminPager :page="txPage" :count="tx.length" :page-size="txPageSize" :loading="txLoading" @prev="txPage--; loadTx()" @next="txPage++; loadTx()" />
+        <AdminPager :page="txPage" :count="tx.length" :page-size="txPageSize" :loading="txLoading || !!txError" @prev="txPage--; loadTx()" @next="txPage++; loadTx()" />
       </CardContent>
     </Card>
   </div>
@@ -108,10 +107,10 @@ const { request } = useApi()
 const toast = useToast()
 const summary = ref<StockSummaryItem[]>([])
 const summaryLoading = ref(true)
+const summaryError = ref('')
 const tx = ref<InventoryTx[]>([])
 const txLoading = ref(true)
-// Beda "kosong" dan "gagal": error jaringan jangan tampil seolah belum ada transaksi.
-const txFailed = ref(false)
+const txError = ref('')
 const fType = ref('')
 const fMovement = ref('')
 const txPage = ref(1)
@@ -124,15 +123,19 @@ const activeSummary = computed(() => summary.value.filter(s => s.status !== 'INA
 
 async function loadSummary() {
   summaryLoading.value = true
+  summaryError.value = ''
   try { summary.value = await request<StockSummaryItem[]>('/inventory/summary') }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat ringkasan stok') }
+  catch (e: unknown) {
+    summaryError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat ringkasan stok'
+    toast.fromError(e, 'Gagal memuat ringkasan stok')
+  }
   finally { summaryLoading.value = false }
 }
 // Ringkasan + riwayat di-fetch paralel (bukan berurutan).
 onMounted(() => Promise.all([loadSummary(), loadTx()]))
 async function loadTx() {
   txLoading.value = true
-  txFailed.value = false
+  txError.value = ''
   try {
     tx.value = await request<InventoryTx[]>('/inventory/transactions', {
       query: {
@@ -144,7 +147,7 @@ async function loadTx() {
     })
   }
   catch (e: unknown) {
-    txFailed.value = true
+    txError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat riwayat transaksi'
     toast.fromError(e, 'Gagal memuat riwayat transaksi')
   }
   finally { txLoading.value = false }

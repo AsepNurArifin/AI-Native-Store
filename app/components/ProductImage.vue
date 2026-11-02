@@ -36,20 +36,39 @@ const displayUrl = computed(() => {
   const sep = url.includes('?') ? '&' : '?'
   return `${url}${sep}width=${width}&quality=70`
 })
+
+const imageEl = ref<HTMLImageElement | null>(null)
+const imageFailed = ref(false)
+watch(displayUrl, () => { imageFailed.value = false })
+
+onMounted(() => {
+  // Gambar SSR bisa gagal sebelum hydration memasang listener error Vue.
+  if (displayUrl.value && imageEl.value?.complete && imageEl.value.naturalWidth === 0) {
+    imageFailed.value = true
+  }
+})
 </script>
 
 <template>
   <div :class="['relative flex items-center justify-center overflow-hidden bg-stone-100', boxClass, categoryAccent(category)]">
     <img
-      v-if="imageUrl"
+      v-if="displayUrl && !imageFailed"
+      :key="displayUrl"
+      ref="imageEl"
       :src="displayUrl"
       :alt="name"
       :loading="eager ? 'eager' : 'lazy'"
       :fetchpriority="eager ? 'high' : 'auto'"
       decoding="async"
       class="h-full w-full object-cover"
+      @error="imageFailed = true"
     >
-    <div v-else class="flex flex-col items-center gap-1.5 p-4 text-center">
+    <div
+      v-else
+      role="img"
+      :aria-label="name.trim() ? `Gambar ${name} tidak tersedia` : 'Gambar produk tidak tersedia'"
+      class="flex flex-col items-center gap-1.5 p-4 text-center"
+    >
       <component :is="iconComp" class="h-8 w-8 opacity-70" />
       <span class="font-display text-lg font-extrabold tracking-tight opacity-60">{{ productInitials(name) }}</span>
       <span class="max-w-full truncate text-[10px] font-medium opacity-60">{{ category }}</span>

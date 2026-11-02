@@ -1,28 +1,33 @@
 <template>
-  <div class="py-2 sm:py-4">
+  <div class="py-2 sm:py-4 max-[320px]:[overflow-wrap:anywhere]">
     <!-- Fokus halaman: obrolan itu sendiri. Penjelasan "cara belanja"
          lengkap ada di /#cara-belanja; di sini cukup ringkasan mini. -->
-    <section class="grid grid-cols-1 items-start gap-10 lg:grid-cols-12">
-      <!-- Kolom kiri: copy, contoh pertanyaan -->
-      <div class="space-y-7 pt-4 lg:col-span-5">
+    <section class="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-10">
+      <!-- Pengantar singkat sebelum widget di mobile -->
+      <div class="space-y-3 lg:col-span-5 lg:col-start-1 lg:row-start-1 lg:pt-4 max-[320px]:min-w-0">
         <h1 class="font-display text-4xl font-extrabold tracking-tight text-stone-900 sm:text-5xl sm:leading-tight">
-          Belanja lewat obrolan
+          Tanya produk lewat chat
         </h1>
 
         <p class="text-base leading-relaxed text-stone-600 sm:text-lg">
-          Tanya produk, anggaran, atau spesifikasi. Asisten mencocokkannya
-          dengan katalog toko. Untuk beli, langsung checkout lewat tombol
-          <i>Pesan</i> — chat ini khusus tanya-jawab.
+          Cek stok, spesifikasi, atau rekomendasi. Untuk membeli, gunakan tombol Pesan di katalog.
         </p>
+      </div>
+
+      <div class="min-w-0 lg:col-span-7 lg:col-start-6 lg:row-span-2 lg:row-start-1">
+        <ChatWidget ref="chatWidgetRef" />
+      </div>
+
+      <div class="min-w-0 space-y-7 lg:col-span-5 lg:col-start-1 lg:row-start-2">
 
         <!-- Contoh pertanyaan: chip mengirim langsung ke widget -->
         <div class="space-y-3">
-          <p class="text-sm font-medium text-stone-500">Coba salah satu:</p>
+          <p class="text-sm font-medium text-stone-600">Coba salah satu:</p>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="prompt in suggestedPrompts"
               :key="prompt"
-              class="rounded-xl border border-stone-200/80 bg-white/80 px-4 py-3 text-sm font-medium text-stone-700 shadow-xs transition-colors hover:border-brand-400 hover:bg-brand-50/60 hover:text-brand-700"
+              class="rounded-xl border border-stone-200/80 bg-white/80 px-4 py-3 text-sm font-medium text-stone-700 shadow-xs transition-colors hover:border-brand-400 hover:bg-brand-50/60 hover:text-brand-700 max-[320px]:min-w-0 max-[320px]:max-w-full"
               @click="triggerPrompt(prompt)"
             >
               {{ prompt }}
@@ -34,17 +39,9 @@
         <div class="space-y-2 border-t border-dashed border-stone-300 pt-5">
           <p class="text-sm leading-relaxed text-stone-600">
             <span class="font-semibold text-stone-800">Cara belinya:</span>
-            tekan tombol <i>Pesan</i> di kartu produk (atau <i>Beli sekarang</i>
-            di halaman produk), isi data pemesan, lalu bayar via QRIS
-            (dikonfirmasi kasir). Stok
-            terkunci saat pesanan tercatat.
+            Tekan Pesan di kartu produk atau Beli sekarang di halaman produk, lalu isi data pemesan. QRIS pada demo adalah simulasi; pembayaran dikonfirmasi kasir.
           </p>
         </div>
-      </div>
-
-      <!-- Kolom kanan: widget chat -->
-      <div class="min-w-0 lg:col-span-7">
-        <ChatWidget ref="chatWidgetRef" />
       </div>
     </section>
   </div>

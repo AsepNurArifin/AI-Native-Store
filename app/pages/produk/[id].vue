@@ -139,7 +139,7 @@ useHead(() => ({
 </script>
 
 <template>
-  <div class="space-y-10">
+  <div class="space-y-10 max-[320px]:min-w-0 max-[320px]:[overflow-wrap:anywhere]">
     <nav aria-label="Breadcrumb" class="text-xs font-medium text-stone-500">
       <ol class="flex flex-wrap items-center gap-1.5">
         <li><NuxtLink to="/" class="hover:text-brand-700">Beranda</NuxtLink></li>
@@ -150,30 +150,30 @@ useHead(() => ({
           </NuxtLink>
         </li>
         <li aria-hidden="true">/</li>
-        <li class="line-clamp-1 text-stone-800">{{ product?.name || 'Produk' }}</li>
+        <li class="line-clamp-1 text-stone-800 max-[320px]:line-clamp-none">{{ product?.name || 'Produk' }}</li>
       </ol>
     </nav>
 
     <!-- Error: server/DB lagi bermasalah — bukan berarti produk hilang -->
-    <div v-if="error && !isNotFound" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center" role="alert">
+    <div v-if="error && !isNotFound" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center max-[320px]:p-3" role="alert">
       <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak bisa dimuat</h1>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya sudah hilang. Coba muat ulang beberapa saat lagi.</p>
-      <div class="mt-5 flex justify-center gap-2">
+      <div class="mt-5 flex justify-center gap-2 max-[320px]:flex-col max-[320px]:[&>a]:h-auto max-[320px]:[&>a]:whitespace-normal max-[320px]:[&>button]:h-auto max-[320px]:[&>button]:whitespace-normal">
         <Button variant="ai" @click="refreshProduct()">Muat Ulang</Button>
         <Button to="/#katalog" variant="outline">Lihat katalog</Button>
       </div>
     </div>
 
-    <div v-else-if="!product" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
+    <div v-else-if="!product" class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center max-[320px]:p-3">
       <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak ditemukan</h1>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Mungkin sudah nonaktif atau tautannya keliru. Coba cari di katalog atau tanya lewat chat.</p>
-      <div class="mt-5 flex justify-center gap-2">
+      <div class="mt-5 flex justify-center gap-2 max-[320px]:flex-col max-[320px]:[&>a]:h-auto max-[320px]:[&>a]:whitespace-normal">
         <Button to="/#katalog" variant="outline">Lihat katalog</Button>
         <Button to="/chat" variant="ai">Chat toko</Button>
       </div>
     </div>
 
-    <div v-else class="grid gap-6 lg:grid-cols-2">
+    <div v-else class="grid gap-6 lg:grid-cols-2 max-[320px]:grid-cols-1">
       <div class="relative">
         <ProductImage :image-url="product.image_url" :name="product.name" :category="product.category" size="detail" eager />
         <span v-if="promo" class="absolute left-3 top-3 rounded-md bg-promo-700 px-2.5 py-1 text-xs font-bold text-white">
@@ -181,7 +181,7 @@ useHead(() => ({
         </span>
       </div>
 
-      <div class="space-y-4">
+      <div class="space-y-4 max-[320px]:min-w-0">
         <div>
           <p class="text-xs font-semibold text-stone-500">{{ product.category }}</p>
           <h1 class="mt-1 font-display text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">{{ product.name }}</h1>
@@ -203,38 +203,38 @@ useHead(() => ({
 
         <!-- Spek unggulan ala marketplace (otomatis dari key prioritas, maks. 4) -->
         <div v-if="topSpecs.length" class="flex flex-wrap gap-2">
-          <div v-for="spec in topSpecs" :key="spec.key" class="rounded-md border border-brand-100 bg-brand-50 px-2.5 py-1.5">
+          <div v-for="spec in topSpecs" :key="spec.key" class="rounded-md border border-brand-100 bg-brand-50 px-2.5 py-1.5 max-[320px]:min-w-0 max-[320px]:max-w-full">
             <p class="text-[10px] font-semibold uppercase tracking-wide text-brand-600">{{ spec.label }}</p>
             <p class="text-xs font-bold text-brand-900">{{ spec.value }}</p>
           </div>
         </div>
 
         <div class="flex flex-col gap-2 sm:flex-row">
-          <Button v-if="!soldOut" :to="`/checkout?item=${product.id}`" variant="ai" size="lg" class="flex-1 justify-center">
+          <Button v-if="!soldOut" :to="`/checkout?item=${product.id}`" variant="ai" size="lg" class="w-full min-h-11 justify-center sm:w-auto sm:flex-1 max-[320px]:h-auto max-[320px]:flex-wrap max-[320px]:whitespace-normal">
             <ShoppingCart class="h-4 w-4" />
             Beli sekarang
           </Button>
-          <Button :to="chatLink" :variant="soldOut ? 'ai' : 'outline'" size="lg" :class="soldOut ? 'flex-1 justify-center' : ''">
+          <Button :to="chatLink" :variant="soldOut ? 'ai' : 'outline'" size="lg" class="w-full min-h-11 sm:w-auto max-[320px]:h-auto max-[320px]:flex-wrap max-[320px]:whitespace-normal" :class="soldOut ? 'sm:flex-1 justify-center' : ''">
             <MessageCircle class="h-4 w-4" />
             {{ soldOut ? 'Tanya restock' : 'Tanya via chat' }}
           </Button>
         </div>
 
         <ul class="space-y-1.5 rounded-xl border border-stone-200 bg-white p-4 text-xs text-stone-600">
-          <li class="inline-flex items-center gap-1.5"><ShieldCheck class="h-3.5 w-3.5 text-emerald-600" /> Stok dicek ulang atomik saat konfirmasi</li>
-          <li class="flex items-center gap-1.5"><Truck class="h-3.5 w-3.5 text-stone-500" /> Ambil di toko atau diantar · bayar via QRIS</li>
+          <li class="inline-flex items-center gap-1.5"><ShieldCheck class="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Harga dan stok dicek kembali saat pesanan dibuat.</li>
+          <li class="flex items-center gap-1.5"><Truck class="h-3.5 w-3.5 shrink-0 text-stone-500" /> Ambil di toko atau diantar · QRIS simulasi</li>
         </ul>
 
         <div class="rounded-xl border border-stone-200 bg-white p-4">
           <h2 class="font-display text-sm font-bold text-stone-900">Spesifikasi Produk</h2>
-          <ProductSpecifications class="mt-3" :specification="product.specification" />
+          <ProductSpecifications class="mt-3 max-[320px]:[&_dl>div]:grid-cols-1" :specification="product.specification" />
         </div>
       </div>
     </div>
 
     <section v-if="related?.length">
       <h2 class="font-display text-lg font-bold text-stone-900">Mungkin kamu juga suka</h2>
-      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
         <ProductCard v-for="p in related" :key="p.id" :product="p" />
       </div>
       <div class="mt-4 flex justify-center">
@@ -242,7 +242,7 @@ useHead(() => ({
           v-if="hasMoreRelated"
           variant="outline"
           :disabled="loadingMoreRelated"
-          class="px-6"
+          class="px-6 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal"
           @click="loadMoreRelated()"
         >
           {{ loadingMoreRelated ? 'Memuat…' : 'Muat lebih banyak' }}

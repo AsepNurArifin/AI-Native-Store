@@ -1,11 +1,27 @@
 <template>
-  <div class="space-y-4">
+  <div class="min-w-0 space-y-4">
     <NuxtLink to="/admin/orders" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
-    <h1 class="text-2xl font-bold">Detail Order</h1>
-    <Card v-if="order">
+    <h1 class="text-2xl font-bold">Detail pesanan</h1>
+    <Card v-if="loading">
+      <CardContent><p class="text-sm text-stone-500">Memuat detail…</p></CardContent>
+    </Card>
+    <Card v-else-if="loadError" role="alert">
+      <CardContent class="space-y-3">
+        <h2 class="font-semibold">Gagal memuat detail pesanan</h2>
+        <p v-if="loadError !== 'Gagal memuat detail pesanan'" class="text-sm [overflow-wrap:anywhere]">{{ loadError }}</p>
+        <Button type="button" variant="outline" @click="load()">Coba lagi</Button>
+      </CardContent>
+    </Card>
+    <Card v-else-if="notFound">
+      <CardContent class="space-y-3">
+        <h2 class="font-semibold">Pesanan tidak ditemukan.</h2>
+        <Button to="/admin/orders" variant="outline">Kembali ke daftar</Button>
+      </CardContent>
+    </Card>
+    <Card v-else-if="order">
       <CardHeader>
-        <div class="flex items-center gap-2">
-          <span class="font-mono text-sm">{{ order.id }}</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="min-w-0 font-mono text-sm [overflow-wrap:anywhere]">{{ order.id }}</span>
           <Badge :variant="statusVariant(order.status)">{{ order.status }}</Badge>
           <Badge v-if="order.status === 'CONFIRMED'" :variant="statusVariant(order.payment_status)">
             {{ order.payment_status === 'PAID' ? 'Lunas' : 'Belum bayar' }}
@@ -13,7 +29,7 @@
         </div>
       </CardHeader>
       <CardContent>
-        <dl class="grid gap-2 text-sm md:grid-cols-2">
+        <dl class="grid min-w-0 gap-2 text-sm [overflow-wrap:anywhere] md:grid-cols-2 [&>div]:min-w-0">
           <div><dt class="text-stone-500">Channel</dt><dd>{{ order.channel_origin }}</dd></div>
           <div><dt class="text-stone-500">Total</dt><dd class="font-bold">{{ formatIDR(order.total_amount) }}</dd></div>
           <div><dt class="text-stone-500">Dibuat</dt><dd>{{ formatWIB(order.created_at) }}</dd></div>
@@ -35,11 +51,12 @@
           </div>
         </dl>
         <h2 class="mb-2 mt-4 font-semibold">Item</h2>
-        <table class="w-full text-sm">
+        <div class="max-w-full overflow-x-auto" tabindex="0" role="region" aria-label="Item pesanan">
+        <table class="w-full min-w-[32rem] text-sm">
           <thead><tr class="border-b text-left text-stone-500"><th class="py-1">Produk</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead>
           <tbody>
             <tr v-for="it in order.items" :key="it.id" class="border-b border-stone-100">
-              <td class="py-1">
+              <td class="py-1 [overflow-wrap:anywhere]">
                 {{ productName(it.product_id) }}
                 <span class="block font-mono text-[10px] text-stone-400">{{ it.product_id.slice(0, 8) }}…</span>
               </td>
@@ -47,7 +64,8 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="promoEntries.length" class="mt-3 rounded-lg border border-stone-200 p-3 text-xs text-stone-600">
+        </div>
+        <div v-if="promoEntries.length" class="mt-3 min-w-0 rounded-lg border border-stone-200 p-3 text-xs text-stone-600 [overflow-wrap:anywhere]">
           <p class="mb-1 font-semibold text-stone-700">Promo yang dipakai:</p>
           <ul class="space-y-0.5">
             <li v-for="e in promoEntries" :key="e.productId">
@@ -58,24 +76,24 @@
           </ul>
         </div>
       </CardContent>
-      <CardFooter>
-        <div class="flex gap-2">
-          <Button v-if="order.status === 'CONFIRMED' && order.payment_status !== 'PAID'" size="sm" variant="secondary" @click="markPaid()">Tandai Lunas</Button>
-          <Button v-if="order.status === 'CONFIRMED' && order.payment_status === 'PAID'" size="sm" variant="secondary" @click="complete()">Complete</Button>
-          <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="destructive" @click="cancel()">Cancel</Button>
+      <CardFooter class="flex-col items-start">
+        <div class="flex flex-wrap gap-2">
+          <Button v-if="order.status === 'CONFIRMED' && order.payment_status !== 'PAID'" size="sm" variant="secondary" class="min-h-11" @click="markPaid()">Tandai Lunas</Button>
+          <Button v-if="order.status === 'CONFIRMED' && order.payment_status === 'PAID'" size="sm" variant="secondary" class="min-h-11" @click="complete()">Selesaikan</Button>
+          <Button v-if="order.status === 'CONFIRMED'" size="sm" variant="destructive" class="min-h-11" @click="cancel()">Batalkan</Button>
         </div>
         <p v-if="order.status === 'CONFIRMED' && order.payment_status !== 'PAID'" class="mt-2 text-xs text-stone-500">
           Order belum dibayar — stok ditahan sampai {{ formatWIB(order.expires_at) }}, lalu otomatis dibatalkan dan stok dikembalikan.
         </p>
       </CardFooter>
     </Card>
-    <p v-else-if="!loadFailed" class="text-sm text-stone-500">Memuat…</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { formatIDR, formatWIB, statusVariant } from '~/utils/format'
 import type { OrderOut, ProductOut } from '~/utils/api-types'
+import { NormalizedApiError } from '~/composables/useApi'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const route = useRoute()
@@ -83,11 +101,13 @@ const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
 const order = ref<OrderOut | null>(null)
-const loadFailed = ref(false)
+const loading = ref(true)
+const loadError = ref('')
+const notFound = ref(false)
 const productNames = ref<Record<string, string>>({})
 
 function productName(id: string) {
-  return productNames.value[id] || 'Produk'
+  return productNames.value[id] || 'Produk tidak tersedia'
 }
 const promoEntries = computed(() => {
   const snap = (order.value?.promotion_snapshot || null) as Record<string, { promotion_id?: string, discount_percentage?: number, price_before?: number, discount_per_unit?: number }> | null
@@ -108,17 +128,27 @@ const expiringSoon = computed(() => {
 })
 
 async function load() {
+  loading.value = true
+  loadError.value = ''
+  notFound.value = false
   try {
     // Order + daftar produk (untuk nama item) di-fetch paralel.
     const [o, prods] = await Promise.all([
-      request<OrderOut>(`/orders/${route.params.id}`),
+      request<OrderOut | null>(`/orders/${route.params.id}`),
       request<ProductOut[]>('/products', { query: { page_size: 500 } }).catch(() => [] as ProductOut[])
     ])
     order.value = o
-    loadFailed.value = false
+    notFound.value = o === null
     productNames.value = Object.fromEntries(prods.map(p => [p.id, p.name]))
   }
-  catch (e: unknown) { loadFailed.value = true; toast.fromError(e, 'Gagal memuat detail order') }
+  catch (e: unknown) {
+    if (e instanceof NormalizedApiError && e.status === 404) notFound.value = true
+    else {
+      loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat detail pesanan'
+      toast.fromError(e, 'Gagal memuat detail pesanan')
+    }
+  }
+  finally { loading.value = false }
 }
 onMounted(load)
 async function markPaid() {

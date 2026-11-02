@@ -31,7 +31,7 @@
               </div>
             </div>
             <button
-              class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer"
+              class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
               title="Keluar"
               aria-label="Keluar dari akun admin"
               @click="auth.logout()"
@@ -40,7 +40,7 @@
             </button>
           </div>
           <div class="mt-2 text-center">
-            <NuxtLink to="/" class="text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors">
+            <NuxtLink to="/" class="inline-flex min-h-11 items-center text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400">
               ← Lihat Halaman Toko
             </NuxtLink>
           </div>
@@ -53,10 +53,11 @@
         v-if="menuOpen"
         class="fixed inset-0 z-40 bg-stone-950/30 md:hidden"
         aria-hidden="true"
-        @click="menuOpen = false"
+        @click="closeMenu"
       />
       <div
         v-if="menuOpen"
+        id="admin-menu"
         ref="drawerRef"
         role="dialog"
         aria-modal="true"
@@ -75,9 +76,10 @@
             </div>
           </div>
           <button
-            class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer"
+            type="button"
+            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
             aria-label="Tutup menu"
-            @click="menuOpen = false"
+            @click="closeMenu"
           >
             <X class="h-5 w-5" />
           </button>
@@ -99,7 +101,8 @@
               </div>
             </div>
             <button
-              class="rounded-lg p-2 text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer"
+              type="button"
+              class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 hover:text-stone-700 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
               title="Keluar"
               aria-label="Keluar dari akun admin"
               @click="auth.logout()"
@@ -108,7 +111,7 @@
             </button>
           </div>
           <div class="mt-2 text-center">
-            <NuxtLink to="/" class="text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors">
+            <NuxtLink to="/" class="inline-flex min-h-11 items-center text-[11px] font-medium text-white/60 hover:text-sidebar-primary transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400">
               ← Lihat Halaman Toko
             </NuxtLink>
           </div>
@@ -118,7 +121,7 @@
       <!-- Main Layout Body -->
       <div class="min-w-0 flex-1 flex flex-col">
         <!-- Top Bar -->
-        <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-stone-200/80 bg-white/80 px-4 sm:px-6 backdrop-blur-md">
+        <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-stone-200/80 bg-white/80 px-4 sm:px-6 backdrop-blur-md max-[320px]:h-auto max-[320px]:min-h-16 max-[320px]:flex-wrap max-[320px]:gap-2 max-[320px]:py-2">
           <div class="flex items-center gap-3">
             <NuxtLink to="/" class="md:hidden flex items-center gap-2 font-display font-bold text-sm">
               <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-white p-0.5">
@@ -138,9 +141,12 @@
               Lihat Toko
             </NuxtLink>
             <button
-              class="inline-flex h-9 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 md:hidden"
+              ref="menuButtonRef"
+              type="button"
+              class="inline-flex h-11 min-w-11 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 md:hidden"
               :aria-expanded="menuOpen"
               aria-label="Buka menu admin"
+              aria-controls="admin-menu"
               @click="menuOpen = true"
             >
               <Menu class="h-4 w-4" />
@@ -150,12 +156,12 @@
         </header>
 
         <!-- Forbidden Alert -->
-        <div v-if="route.query.forbidden" class="mx-4 sm:mx-6 mt-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-sm text-rose-800">
+        <div v-if="route.query.forbidden" role="alert" class="mx-4 sm:mx-6 mt-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-sm text-rose-800">
           Akses ditolak: halaman ini khusus untuk Owner. Anda saat ini masuk sebagai {{ auth.role }}.
         </div>
 
         <!-- Slot Content -->
-        <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full">
+        <main id="admin-main" tabindex="-1" class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700">
           <slot />
         </main>
       </div>
@@ -165,6 +171,7 @@
 
 <script setup lang="ts">
 import { LogOut, Menu, X } from '@lucide/vue'
+import { handleDialogKeydown } from '~/utils/focus'
 
 // Panel internal: jangan diindeks mesin pencari (halaman toko publik hanya / dan /chat).
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
@@ -174,6 +181,10 @@ const route = useRoute()
 
 const menuOpen = ref(false)
 const drawerRef = ref<HTMLElement | null>(null)
+const menuButtonRef = ref<HTMLButtonElement | null>(null)
+let mounted = false
+let desktopMedia: MediaQueryList | null = null
+let previousBodyOverflow: string | null = null
 
 // Nama halaman breadcrumb: satu istilah per konsep, ikut judul h1.
 const pageTitles: Record<string, string> = {
@@ -189,23 +200,53 @@ const pageTitles: Record<string, string> = {
 }
 const pageTitle = computed(() => pageTitles[route.path.split('/')[2] || ''] || 'Dashboard')
 
-// Escape menutup drawer; pindah halaman lewat nav juga menutup.
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') menuOpen.value = false
-}
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
-watch(() => route.fullPath, () => { menuOpen.value = false })
+function closeMenu() { menuOpen.value = false }
 
-// Fokus masuk ke drawer saat dibuka; kunci scroll body agar tidak bocor ke belakang.
-watch(menuOpen, async (open) => {
-  document.body.style.overflow = open ? 'hidden' : ''
-  if (open) {
-    await nextTick()
-    drawerRef.value?.focus()
-  }
+function onKeydown(event: KeyboardEvent) {
+  if (menuOpen.value && drawerRef.value) handleDialogKeydown(event, drawerRef.value, closeMenu)
+}
+
+function onDesktopChange(event: MediaQueryListEvent) {
+  if (event.matches) closeMenu()
+}
+
+function restoreBodyOverflow() {
+  if (previousBodyOverflow === null) return
+  document.body.style.overflow = previousBodyOverflow
+  previousBodyOverflow = null
+}
+
+onMounted(() => {
+  mounted = true
+  document.addEventListener('keydown', onKeydown)
+  desktopMedia = window.matchMedia('(min-width: 768px)')
+  desktopMedia.addEventListener('change', onDesktopChange)
+  if (desktopMedia.matches) closeMenu()
 })
-onUnmounted(() => { document.body.style.overflow = '' })
+onUnmounted(() => {
+  mounted = false
+  document.removeEventListener('keydown', onKeydown)
+  desktopMedia?.removeEventListener('change', onDesktopChange)
+  restoreBodyOverflow()
+})
+watch(() => route.fullPath, closeMenu)
+
+watch(menuOpen, async (open) => {
+  if (open) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    await nextTick()
+    if (mounted && menuOpen.value) drawerRef.value?.focus()
+    return
+  }
+
+  restoreBodyOverflow()
+  await nextTick()
+  if (!mounted || menuOpen.value) return
+  const opener = menuButtonRef.value
+  if (opener?.isConnected && opener.getClientRects().length && getComputedStyle(opener).visibility !== 'hidden') opener.focus()
+  else document.getElementById('admin-main')?.focus()
+})
 
 auth.hydrate()
 if (auth.token && !auth.user) await auth.fetchMe()

@@ -1,8 +1,8 @@
 <template>
   <div class="login-shell min-h-screen overflow-x-clip bg-stone-50 text-stone-900">
-    <div class="grid min-h-screen md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+    <div class="grid min-h-screen grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
       <!-- Panel identitas: navy penuh, tipografi besar, price tag sebagai jangkar -->
-      <section class="enter flex flex-col justify-between gap-10 bg-bby-dark px-6 py-8 text-white md:px-12 md:py-10">
+      <section class="enter flex min-w-0 flex-col gap-3 bg-bby-dark px-6 py-6 text-white max-[320px]:px-4 md:justify-between md:gap-10 md:px-12 md:py-10">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
             <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
@@ -14,16 +14,18 @@
         </div>
 
         <div class="max-w-xl">
-          <h1 class="font-display text-4xl font-bold leading-[1.02] tracking-tight [overflow-wrap:anywhere] sm:text-5xl lg:text-6xl">
-            Meja pemilik, bukan etalase.
+          <h1 class="font-display text-2xl font-bold leading-tight tracking-tight [overflow-wrap:anywhere] md:text-5xl md:leading-[1.02] lg:text-6xl">
+            <span class="md:hidden">Akses pemilik &amp; staf</span>
+            <span class="hidden md:inline">Meja pemilik, bukan etalase.</span>
           </h1>
-          <p class="mt-5 max-w-md text-sm leading-relaxed text-white/70 md:text-base">
+          <p class="mt-2 text-sm leading-relaxed text-white/70 md:hidden">Kelola katalog, stok, dan pesanan toko.</p>
+          <p class="mt-5 hidden max-w-md text-base leading-relaxed text-white/70 md:block">
             Katalog, stok, pesanan, promosi, dan persetujuan aksi AI — semua dikelola dari satu meja.
             Halaman toko untuk pelanggan; halaman ini untuk Anda.
           </p>
         </div>
 
-        <div class="flex flex-wrap items-end justify-between gap-6">
+        <div class="hidden flex-wrap items-end justify-between gap-6 md:flex">
           <!-- Price tag: motif Yellow Tag, murni CSS (bukan gambar) -->
           <div class="price-tag relative rotate-[-2deg] bg-bby-yellow text-stone-900 shadow-lg shadow-black/20">
             <span class="tag-hole absolute" aria-hidden="true" />
@@ -51,8 +53,8 @@
       </section>
 
       <!-- Form: langsung di kanvas, geometri slab, tanpa kartu melayang -->
-      <section class="enter enter-delay flex items-center border-stone-200 px-6 py-10 md:border-l md:px-14">
-        <form class="w-full max-w-sm" novalidate @submit.prevent="onLogin">
+      <section class="enter enter-delay flex min-w-0 items-center border-stone-200 px-6 py-6 max-[320px]:px-4 md:border-l md:px-14 md:py-10">
+        <form class="w-full min-w-0 max-w-sm" novalidate @submit.prevent="onLogin">
           <h2 class="font-display text-3xl font-bold tracking-tight">Masuk</h2>
           <p class="mt-1.5 text-sm text-stone-500">Email dan password pemilik atau staf.</p>
 
@@ -127,7 +129,7 @@
           <Button
             type="submit"
             variant="ai"
-            class="mt-6 h-11 w-full rounded-none font-semibold"
+            class="mt-6 h-11 w-full rounded-none font-semibold max-[320px]:h-auto max-[320px]:min-h-11 max-[320px]:whitespace-normal max-[320px]:px-2"
             :loading="loading"
           >
             Masuk ke Dashboard

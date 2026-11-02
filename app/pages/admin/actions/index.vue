@@ -4,8 +4,8 @@
     <p class="text-sm text-stone-500">Antrean draft aksi dari AI Action Assistant (promosi, penyesuaian stok). Approve / reject; eksekusi hanya bila validasi lolos.</p>
     <Card>
       <CardContent>
-        <div class="mb-3 flex gap-2">
-          <select v-model="fStatus" class="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm">
+        <div class="mb-3 flex flex-wrap gap-2">
+          <select v-model="fStatus" aria-label="Filter status aksi AI" class="h-9 w-full min-w-0 max-w-full rounded-md border border-stone-300 bg-white px-2 text-sm sm:w-auto">
             <option value="">Semua status</option>
             <option>DRAFT</option><option>APPROVED</option><option>REJECTED</option>
             <option>APPROVED_VALIDATION_FAILED</option><option>EXECUTED</option>
@@ -24,7 +24,14 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat antrean draft…</p>
+        <div v-else-if="loadError" role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p class="font-semibold">Gagal memuat antrean draft</p>
+          <p v-if="loadError !== 'Gagal memuat antrean draft'" class="mt-1 [overflow-wrap:anywhere]">{{ loadError }}</p>
+          <Button type="button" variant="outline" class="mt-3" @click="load()">Coba lagi</Button>
+        </div>
+        <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft. Tulis instruksi di kotak AI di atas, lalu tekan Buat Draft.</p>
+        <div v-else class="max-w-full overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr class="border-b text-left text-stone-500">
               <th class="py-2 pr-2">ID</th><th class="pr-2">Tipe</th><th class="pr-2">Status</th><th class="pr-2">Dibuat</th><th/>
@@ -35,14 +42,12 @@
                 <td class="pr-2">{{ a.action_type }}</td>
                 <td class="pr-2"><Badge :variant="statusVariant(a.status)">{{ a.status }}</Badge></td>
                 <td class="pr-2 text-xs">{{ formatWIB(a.created_at) }}</td>
-                <td><NuxtLink :to="`/admin/actions/${a.id}`"><Button size="sm" variant="outline">Buka</Button></NuxtLink></td>
+                <td><Button :to="`/admin/actions/${a.id}`" size="sm" variant="outline">Buka</Button></td>
               </tr>
             </tbody>
           </table>
-          <p v-if="loading" class="py-4 text-center text-sm text-stone-500">Memuat antrean draft…</p>
-          <p v-else-if="!items.length" class="py-4 text-center text-sm text-stone-500">Belum ada draft. Tulis instruksi di kotak AI di atas, lalu tekan Buat Draft.</p>
         </div>
-        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading" @prev="page--; load()" @next="page++; load()" />
+        <AdminPager :page="page" :count="items.length" :page-size="pageSize" :loading="loading || !!loadError" @prev="page--; load()" @next="page++; load()" />
       </CardContent>
     </Card>
   </div>
@@ -59,7 +64,8 @@ const items = ref<AIActionOut[]>([])
 const fStatus = ref('')
 const instruction = ref('')
 const creating = ref(false)
-const loading = ref(false)
+const loading = ref(true)
+const loadError = ref('')
 const page = ref(1)
 const pageSize = 10
 
@@ -84,12 +90,16 @@ async function createDraft() {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     items.value = await request<AIActionOut[]>('/ai-actions', {
       query: { status: fStatus.value || undefined, page: page.value, page_size: pageSize }
     })
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat antrean draft') }
+  catch (e: unknown) {
+    loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat antrean draft'
+    toast.fromError(e, 'Gagal memuat antrean draft')
+  }
   finally { loading.value = false }
 }
 onMounted(load)

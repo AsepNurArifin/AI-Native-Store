@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 max-[320px]:[overflow-wrap:anywhere]">
     <!-- Welcome Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -7,33 +7,19 @@
           Dashboard Operasional
         </h1>
         <p v-if="auth.user" class="mt-1 text-sm text-stone-500">
-          Selamat datang kembali, <span class="font-semibold text-stone-700">{{ auth.user.name }}</span> · Owner.
+          Selamat datang kembali, <span class="font-semibold text-stone-700">{{ auth.user.name }}</span> · {{ auth.role }}.
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" aria-label="Muat ulang data dashboard" :loading="kpiLoading" @click="loadDashboard">
           <RefreshCw class="h-4 w-4" />
         </Button>
-        <NuxtLink to="/admin/products">
-          <Button size="sm" variant="ai">
-            + Tambah Produk
-          </Button>
-        </NuxtLink>
-        <NuxtLink to="/admin/analytics">
-          <Button size="sm" variant="outline">
-            Lihat Analitik
-          </Button>
-        </NuxtLink>
+        <Button v-if="ownerOnly" to="/admin/products" size="sm" variant="ai">+ Tambah Produk</Button>
+        <Button v-if="ownerOnly" to="/admin/analytics" size="sm" variant="outline">Lihat Analitik</Button>
       </div>
     </div>
 
     <!-- 4 KPI Stat Metric Cards -->
-    <div
-      v-if="forbidden"
-      class="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4 text-sm text-amber-800"
-    >
-      Akun kamu bukan Owner — panel operasional (stok, pesanan, promosi, analitik) membutuhkan peran Owner.
-    </div>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <!-- Card 1: API & Server Health -->
       <Card class="relative overflow-hidden">
@@ -44,22 +30,22 @@
               <Activity class="h-4 w-4" />
             </div>
           </div>
-          <div class="mt-2 flex items-baseline gap-2">
+          <div class="mt-2 flex flex-wrap items-baseline gap-2">
             <span class="font-display text-2xl font-bold text-stone-900">
-              {{ health?.status === 'ok' ? 'Online' : healthFailed ? 'Gagal' : 'Memeriksa' }}
+              {{ kpiLoading || healthChecking ? 'Memuat…' : healthFailed ? 'Tidak tersedia' : health?.status === 'ok' ? 'Online' : 'Tidak tersedia' }}
             </span>
-            <Badge :variant="health?.status === 'ok' ? 'success' : 'danger'" :dot="true">
-              {{ health?.status || '...' }}
+            <Badge v-if="!kpiLoading && !healthChecking" :variant="!healthFailed && health?.status === 'ok' ? 'success' : 'danger'" :dot="true">
+              {{ healthFailed ? 'Gagal' : health?.status || 'Tidak tersedia' }}
             </Badge>
           </div>
           <p class="mt-1 truncate text-[11px] text-stone-500">API: {{ apiBase }}</p>
           <button
-            v-if="healthFailed"
+            v-if="healthFailed && !kpiLoading && !healthChecking"
             type="button"
             class="mt-1 text-[11px] font-medium text-amber-700 underline hover:text-amber-800"
             @click="checkBackend"
           >
-            Periksa ulang koneksi
+            Coba lagi
           </button>
         </CardContent>
       </Card>
@@ -73,14 +59,17 @@
               <TriangleAlert class="h-4 w-4" />
             </div>
           </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
-            <span v-else class="font-display text-2xl font-bold text-stone-900">
-              {{ low.length }}
-            </span>
-            <span class="text-xs font-medium text-stone-500">item butuh restok</span>
+          <div class="mt-2 flex flex-wrap items-baseline gap-2">
+            <span v-if="!ownerOnly" class="font-display font-semibold text-stone-600">Khusus Owner</span>
+            <Skeleton v-else-if="kpiLoading" class="h-8 w-14" />
+            <span v-else-if="lowFailed" class="font-display font-semibold text-stone-600">Tidak tersedia</span>
+            <template v-else>
+              <span class="font-display text-2xl font-bold text-stone-900">{{ low.length }}</span>
+              <span class="text-xs font-medium text-stone-500">item butuh restok</span>
+            </template>
           </div>
-          <NuxtLink to="/admin/inventory" class="mt-1 inline-block text-[11px] font-medium text-amber-700 hover:underline">
+          <Button v-if="ownerOnly && lowFailed && !kpiLoading" type="button" variant="outline" size="sm" class="mt-2" @click="loadDashboard()">Coba lagi</Button>
+          <NuxtLink v-if="ownerOnly" to="/admin/inventory" class="mt-1 inline-block text-[11px] font-medium text-amber-700 hover:underline">
             Buka inventori stok
           </NuxtLink>
         </CardContent>
@@ -95,15 +84,17 @@
               <ShoppingCart class="h-4 w-4" />
             </div>
           </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
-            <span v-else class="font-display text-2xl font-bold text-stone-900">
-              {{ orders.length }}
-            </span>
-            <!-- Jujur: yang di-fetch hanya 5 terbaru, bukan total semua order. -->
-            <span class="text-xs font-medium text-stone-500">5 order terakhir</span>
+          <div class="mt-2 flex flex-wrap items-baseline gap-2">
+            <span v-if="!ownerOnly" class="font-display font-semibold text-stone-600">Khusus Owner</span>
+            <Skeleton v-else-if="kpiLoading" class="h-8 w-14" />
+            <span v-else-if="ordersFailed" class="font-display font-semibold text-stone-600">Tidak tersedia</span>
+            <template v-else>
+              <span class="font-display text-2xl font-bold text-stone-900">{{ orders.length }}</span>
+              <span class="text-xs font-medium text-stone-500">5 order terakhir</span>
+            </template>
           </div>
-          <NuxtLink to="/admin/orders" class="mt-1 inline-block text-[11px] font-medium text-brand-700 hover:underline">
+          <Button v-if="ownerOnly && ordersFailed && !kpiLoading" type="button" variant="outline" size="sm" class="mt-2" @click="loadDashboard()">Coba lagi</Button>
+          <NuxtLink v-if="ownerOnly" to="/admin/orders" class="mt-1 inline-block text-[11px] font-medium text-brand-700 hover:underline">
             Lihat semua transaksi
           </NuxtLink>
         </CardContent>
@@ -118,15 +109,18 @@
               <ListChecks class="h-4 w-4" />
             </div>
           </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <Skeleton v-if="kpiLoading" class="h-8 w-14" />
-            <span v-else class="font-display text-2xl font-bold text-stone-900">
-              {{ pendingActionsLabel }}
-            </span>
-            <span class="text-xs font-medium text-stone-500">draft menunggu keputusan</span>
+          <div class="mt-2 flex flex-wrap items-baseline gap-2">
+            <span v-if="!ownerOnly" class="font-display font-semibold text-stone-600">Khusus Owner</span>
+            <Skeleton v-else-if="kpiLoading" class="h-8 w-14" />
+            <span v-else-if="actionsFailed" class="font-display font-semibold text-stone-600">Tidak tersedia</span>
+            <template v-else>
+              <span class="font-display text-2xl font-bold text-stone-900">{{ pendingActionsLabel }}</span>
+              <span class="text-xs font-medium text-stone-500">draft menunggu keputusan</span>
+            </template>
           </div>
-          <NuxtLink to="/admin/actions" class="mt-1 inline-block text-[11px] font-medium text-brand-700 hover:underline">
-            {{ pendingActions ? 'Buka antrean persetujuan' : 'Antrean kosong — buat draft dari Analitik' }}
+          <Button v-if="ownerOnly && actionsFailed && !kpiLoading" type="button" variant="outline" size="sm" class="mt-2" @click="loadDashboard()">Coba lagi</Button>
+          <NuxtLink v-if="ownerOnly" to="/admin/actions" class="mt-1 inline-block text-[11px] font-medium text-brand-700 hover:underline">
+            {{ !kpiLoading && !actionsFailed && !pendingActions ? 'Antrean kosong — buat draft dari Analitik' : 'Buka antrean persetujuan' }}
           </NuxtLink>
         </CardContent>
       </Card>
@@ -145,10 +139,8 @@
             • <b>Jalur 2 (Aksi Agen AI)</b>: Rekomendasi promosi & diskon dari AI wajib disetujui (Approved) oleh Owner sebelum aktif.
           </p>
         </div>
-        <div class="flex gap-2 shrink-0">
-          <NuxtLink to="/admin/actions">
-            <Button size="sm" variant="ai">Periksa Antrean AI</Button>
-          </NuxtLink>
+        <div v-if="ownerOnly" class="flex gap-2 shrink-0">
+          <Button to="/admin/actions" size="sm" variant="ai" class="max-[320px]:h-auto max-[320px]:min-h-11 max-[320px]:whitespace-normal">Periksa Antrean AI</Button>
         </div>
       </div>
     </div>
@@ -158,17 +150,25 @@
       <!-- Widget 1: Low Stock Alert -->
       <Card>
         <CardHeader>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <span class="font-display font-bold text-sm text-stone-900">Peringatan Stok Menipis</span>
             </div>
-            <NuxtLink to="/admin/inventory" class="text-xs font-semibold text-brand-700 hover:underline">
+            <NuxtLink v-if="ownerOnly" to="/admin/inventory" class="text-xs font-semibold text-brand-700 hover:underline">
               Lihat semua
             </NuxtLink>
           </div>
         </CardHeader>
         <CardContent>
-          <div v-if="low.length" class="space-y-3">
+          <div v-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
+            Ringkasan stok membutuhkan peran Owner.
+          </div>
+          <p v-else-if="kpiLoading" class="py-6 text-center text-sm text-stone-500">Memuat…</p>
+          <div v-else-if="lowFailed" class="py-6 text-center text-sm text-stone-600">
+            <p>Tidak tersedia</p>
+            <Button type="button" variant="outline" class="mt-3" @click="loadDashboard()">Coba lagi</Button>
+          </div>
+          <div v-else-if="low.length" class="space-y-3">
             <div
               v-for="p in low.slice(0, 5)"
               :key="p.product_id"
@@ -186,12 +186,6 @@
               </div>
             </div>
           </div>
-          <div v-else-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
-            Ringkasan stok membutuhkan peran Owner.
-          </div>
-          <div v-else-if="lowFailed" class="py-6 text-center text-xs text-stone-500">
-            Ringkasan stok tidak termuat. Lihat notifikasi di pojok kanan atas.
-          </div>
           <div v-else class="py-6 text-center text-xs text-stone-500">
             Semua stok berada dalam batas aman.
           </div>
@@ -201,24 +195,32 @@
       <!-- Widget 2: Recent Orders -->
       <Card>
         <CardHeader>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <span class="font-display font-bold text-sm text-stone-900">Pesanan Terkini</span>
             </div>
-            <NuxtLink to="/admin/orders" class="text-xs font-semibold text-brand-700 hover:underline">
+            <NuxtLink v-if="ownerOnly" to="/admin/orders" class="text-xs font-semibold text-brand-700 hover:underline">
               Lihat semua
             </NuxtLink>
           </div>
         </CardHeader>
         <CardContent>
-          <div v-if="orders.length" class="space-y-3">
+          <div v-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
+            Daftar pesanan membutuhkan peran Owner.
+          </div>
+          <p v-else-if="kpiLoading" class="py-6 text-center text-sm text-stone-500">Memuat…</p>
+          <div v-else-if="ordersFailed" class="py-6 text-center text-sm text-stone-600">
+            <p>Tidak tersedia</p>
+            <Button type="button" variant="outline" class="mt-3" @click="loadDashboard()">Coba lagi</Button>
+          </div>
+          <div v-else-if="orders.length" class="space-y-3">
             <div
               v-for="o in orders.slice(0, 5)"
               :key="o.id"
-              class="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/50 p-3"
+              class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-3"
             >
               <div class="space-y-0.5 min-w-0">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <span class="font-mono text-xs font-bold text-stone-800">#{{ o.id.slice(0, 8) }}</span>
                   <span
                     class="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase"
@@ -236,12 +238,6 @@
               </div>
             </div>
           </div>
-          <div v-else-if="!ownerOnly" class="py-6 text-center text-xs text-stone-500">
-            Daftar pesanan membutuhkan peran Owner.
-          </div>
-          <div v-else-if="ordersFailed" class="py-6 text-center text-xs text-stone-500">
-            Pesanan terbaru tidak termuat. Lihat notifikasi di pojok kanan atas.
-          </div>
           <div v-else class="py-6 text-center text-xs text-stone-500">
             Belum ada pesanan yang tercatat.
           </div>
@@ -258,33 +254,36 @@ import type { AIActionOut, OrderOut, StockSummaryItem } from '~/utils/api-types'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 const auth = useAuthStore()
-const route = useRoute()
 const { request } = useApi()
 const toast = useToast()
 const apiBase = useRuntimeConfig().public.apiBase as string
 const health = ref<{ status: string } | null>(null)
 const healthFailed = ref(false)
+const healthChecking = ref(false)
 const low = ref<StockSummaryItem[]>([])
 const lowFailed = ref(false)
 const orders = ref<OrderOut[]>([])
 const ordersFailed = ref(false)
 const pendingActions = ref(0)
+const actionsFailed = ref(false)
 // Non-Owner: endpoint dashboard membutuhkan Owner, jadi jangan membuang request 403.
 const ownerOnly = computed(() => auth.isOwner)
 // Antrean HITL dihitung dari halaman berukuran 100 — bila penuh, tampilkan "100+".
 const kpiLoading = ref(true)
 const pendingActionsLabel = computed(() => (pendingActions.value < 100 ? String(pendingActions.value) : '100+'))
-const forbidden = computed(() => route.query.forbidden === '1')
 
 async function checkBackend() {
-  healthFailed.value = false
+  if (healthChecking.value) return
+  healthChecking.value = true
   try {
     health.value = await request<{ status: string }>('/health', { auth: false })
+    healthFailed.value = false
   }
   catch (e: unknown) {
     healthFailed.value = true
     toast.fromError(e, 'Backend tidak terjangkau')
   }
+  finally { healthChecking.value = false }
 }
 
 async function loadDashboard() {
@@ -299,11 +298,12 @@ async function loadDashboard() {
   ])
   if (h.status === 'fulfilled') { health.value = h.value; healthFailed.value = false }
   else { healthFailed.value = true; toast.fromError(h.reason, 'Backend tidak terjangkau') }
-  if (s.status === 'fulfilled') low.value = s.value.filter(i => i.is_low_stock)
+  if (s.status === 'fulfilled') { low.value = s.value.filter(i => i.is_low_stock); lowFailed.value = false }
   else if (ownerOnly.value) { lowFailed.value = true; toast.fromError(s.reason, 'Gagal memuat ringkasan stok') }
-  if (o.status === 'fulfilled') orders.value = o.value
+  if (o.status === 'fulfilled') { orders.value = o.value; ordersFailed.value = false }
   else if (ownerOnly.value) { ordersFailed.value = true; toast.fromError(o.reason, 'Gagal memuat pesanan') }
-  if (d.status === 'fulfilled') pendingActions.value = d.value.length
+  if (d.status === 'fulfilled') { pendingActions.value = d.value.length; actionsFailed.value = false }
+  else if (ownerOnly.value) { actionsFailed.value = true; toast.fromError(d.reason, 'Gagal memuat antrean draft') }
   kpiLoading.value = false
 }
 

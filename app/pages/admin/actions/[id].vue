@@ -1,21 +1,37 @@
 <template>
   <div class="space-y-4">
     <NuxtLink to="/admin/actions" class="text-sm text-brand-700 hover:underline">← Kembali</NuxtLink>
-    <h1 class="text-2xl font-bold">Detail AI Action</h1>
-    <Card v-if="action">
+    <h1 class="text-2xl font-bold">Detail aksi AI</h1>
+    <Card v-if="loading">
+      <CardContent class="text-sm text-stone-500">Memuat detail…</CardContent>
+    </Card>
+    <Card v-else-if="notFound">
+      <CardContent class="space-y-3">
+        <p class="font-semibold">Aksi AI tidak ditemukan.</p>
+        <Button to="/admin/actions" variant="outline">Kembali ke daftar aksi AI</Button>
+      </CardContent>
+    </Card>
+    <Card v-else-if="loadError">
+      <CardContent role="alert" class="space-y-3 text-sm text-rose-800">
+        <p class="font-semibold">Gagal memuat detail aksi AI</p>
+        <p v-if="loadError !== 'Gagal memuat detail aksi AI'" class="[overflow-wrap:anywhere]">{{ loadError }}</p>
+        <Button type="button" variant="outline" @click="load()">Coba lagi</Button>
+      </CardContent>
+    </Card>
+    <Card v-else-if="action" class="min-w-0 [overflow-wrap:anywhere]">
       <CardHeader>
-        <div class="flex items-center justify-between">
-          <span>{{ actionTitle }}</span>
-          <Badge :variant="statusVariant(action.status)">{{ action.status }}</Badge>
+        <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <span class="min-w-0">{{ actionTitle }}</span>
+          <Badge :variant="statusVariant(action.status)" class="max-w-full whitespace-normal">{{ action.status }}</Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent class="min-w-0">
         <!-- Ringkasan payload: dibaca manusia, bukan JSON mentah -->
         <div v-if="isPromotion" class="mb-4 grid gap-3 sm:grid-cols-2">
-          <div class="rounded-lg border border-stone-200 p-3">
+          <div class="min-w-0 rounded-lg border border-stone-200 p-3">
             <p class="text-xs font-semibold text-stone-500">Produk</p>
-            <p class="mt-1 font-medium">{{ productName || '…' }}</p>
-            <p class="mt-0.5 font-mono text-xs text-stone-500">{{ promoPayload.product_id }}</p>
+            <p class="mt-1 font-medium">{{ productName || 'Produk tidak tersedia' }}</p>
+            <p class="mt-0.5 min-w-0 font-mono text-xs text-stone-500 [overflow-wrap:anywhere]">{{ promoPayload.product_id }}</p>
           </div>
           <div class="rounded-lg border border-stone-200 p-3">
             <p class="text-xs font-semibold text-stone-500">Diskon</p>
@@ -30,10 +46,10 @@
           </div>
         </div>
         <div v-else-if="isAdjustStock" class="mb-4 grid gap-3 sm:grid-cols-2">
-          <div class="rounded-lg border border-stone-200 p-3">
+          <div class="min-w-0 rounded-lg border border-stone-200 p-3">
             <p class="text-xs font-semibold text-stone-500">Produk</p>
-            <p class="mt-1 font-medium">{{ productName || '…' }}</p>
-            <p class="mt-0.5 font-mono text-xs text-stone-500">{{ stockPayload.product_id }}</p>
+            <p class="mt-1 font-medium">{{ productName || 'Produk tidak tersedia' }}</p>
+            <p class="mt-0.5 min-w-0 font-mono text-xs text-stone-500 [overflow-wrap:anywhere]">{{ stockPayload.product_id }}</p>
             <p v-if="productStock !== null" class="mt-1 text-sm text-stone-500">Stok saat ini: {{ productStock }}</p>
           </div>
           <div class="rounded-lg border border-stone-200 p-3">
@@ -66,11 +82,11 @@
 
         <details class="mb-3 text-xs text-stone-500">
           <summary class="cursor-pointer">Payload mentah (JSON)</summary>
-          <pre class="mt-1 overflow-x-auto rounded bg-stone-950 p-3 font-mono text-emerald-200">{{ JSON.stringify(action.payload, null, 2) }}</pre>
+          <pre class="mt-1 max-w-full overflow-x-auto rounded bg-stone-950 p-3 font-mono text-emerald-200">{{ JSON.stringify(action.payload, null, 2) }}</pre>
         </details>
       </CardContent>
       <CardFooter>
-        <div v-if="action.status === 'DRAFT'" class="flex gap-2">
+        <div v-if="action.status === 'DRAFT'" class="flex flex-wrap gap-2">
           <Button size="sm" :loading="busy" @click="approve()">Approve & Eksekusi</Button>
           <Button size="sm" variant="destructive" :loading="busy" @click="reject()">Reject</Button>
         </div>
@@ -84,6 +100,7 @@
 import { statusVariant, formatIDR, formatWIB } from '~/utils/format'
 import { discountedPrice } from '#shared/utils/pricing'
 import type { AIActionOut, ProductOut } from '~/utils/api-types'
+import { NormalizedApiError } from '~/composables/useApi'
 
 definePageMeta({ layout: 'admin', middleware: ['auth', 'owner'] })
 const route = useRoute()
@@ -91,6 +108,9 @@ const { request } = useApi()
 const toast = useToast()
 const confirmAction = useConfirm()
 const action = ref<AIActionOut | null>(null)
+const loading = ref(true)
+const loadError = ref('')
+const notFound = ref(false)
 const busy = ref(false)
 const product = ref<ProductOut | null>(null)
 
@@ -127,15 +147,28 @@ const promoPreviewPrice = computed(() => {
 })
 
 async function load() {
+  loading.value = true
+  loadError.value = ''
+  notFound.value = false
+  product.value = null
   try {
-    action.value = await request<AIActionOut>(`/ai-actions/${route.params.id}`)
-    await loadProduct()
+    action.value = await request<AIActionOut | null>(`/ai-actions/${route.params.id}`)
+    if (!action.value) notFound.value = true
+    else await loadProduct()
   }
-  catch (e: unknown) { toast.fromError(e, 'Gagal memuat detail aksi') }
+  catch (e: unknown) {
+    if (e instanceof NormalizedApiError && e.status === 404) notFound.value = true
+    else {
+      loadError.value = e instanceof Error && e.message ? e.message : 'Gagal memuat detail aksi AI'
+      toast.fromError(e, 'Gagal memuat detail aksi AI')
+    }
+  }
+  finally { loading.value = false }
 }
 /** Tampilkan nama produk (payload hanya menyimpan id). Dipisah supaya bisa
  *  dimuat ulang sendiri tanpa mengambil ulang seluruh detail aksi. */
 async function loadProduct() {
+  product.value = null
   const pid = isPromotion.value
     ? promoPayload.value.product_id
     : isAdjustStock.value ? stockPayload.value.product_id : null

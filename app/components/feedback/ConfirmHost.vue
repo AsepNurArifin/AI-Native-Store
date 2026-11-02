@@ -11,8 +11,6 @@
       aria-modal="true"
       :aria-label="state.title"
       tabindex="-1"
-      @keydown.esc.stop="cancel"
-      @keydown="trapFocus"
     >
       <div class="flex items-start gap-3">
         <span
@@ -42,20 +40,25 @@
           id="confirm-input"
           v-model="inputValue"
           :placeholder="state.input?.placeholder"
+          class="min-h-11 text-base md:text-sm"
           @keydown.enter.prevent="accept"
         />
       </div>
 
       <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" @click="cancel">{{ state.cancelLabel }}</Button>
+        <Button type="button" variant="outline" class="min-h-11" @click="cancel">{{ state.cancelLabel }}</Button>
         <Button
           v-if="state.alt"
+          type="button"
+          class="min-h-11"
           :variant="state.alt.tone === 'danger' ? 'ghostDanger' : 'secondary'"
           @click="resolveConfirm('alt')"
         >
           {{ state.alt.label }}
         </Button>
         <Button
+          type="button"
+          class="min-h-11"
           :variant="state.tone === 'danger' ? 'destructive' : 'default'"
           @click="accept"
         >
@@ -68,6 +71,7 @@
 
 <script setup lang="ts">
 import { MessageCircleQuestion, TriangleAlert } from '@lucide/vue'
+import { handleDialogKeydown } from '~/utils/focus'
 
 /**
  * Host dialog konfirmasi. Satu instance di app.vue, dipakai seluruh aplikasi
@@ -78,41 +82,40 @@ import { MessageCircleQuestion, TriangleAlert } from '@lucide/vue'
 const { state } = useConfirm()
 const dialogRef = ref<HTMLElement | null>(null)
 const inputValue = ref('')
+let opener: HTMLElement | null = null
+let mounted = false
 
-// Isi default input tiap dialog baru (mis. alasan reject yang kosong).
-watch(state, (s) => { inputValue.value = s?.input?.value ?? '' })
+watch(state, async (dialog, previous) => {
+  inputValue.value = dialog?.input?.value ?? ''
+  if (dialog) {
+    if (!previous) opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    await nextTick()
+    if (!mounted || state.value !== dialog) return
+    const input = dialogRef.value?.querySelector('input')
+    if (input instanceof HTMLInputElement) input.focus()
+    else dialogRef.value?.focus()
+    return
+  }
 
-watch(state, async (s) => {
-  if (!s) return
+  const target = opener
+  opener = null
   await nextTick()
-  // Fokuskan kolom input bila ada; kalau tidak, dialognya (bukan tombol,
-  // supaya Enter tidak mengonfirmasi secara tak sengaja).
-  const input = dialogRef.value?.querySelector('input')
-  if (input instanceof HTMLInputElement) input.focus()
-  else dialogRef.value?.focus()
+  if (!mounted || state.value) return
+  if (target?.isConnected && target.getClientRects().length && getComputedStyle(target).visibility !== 'hidden') target.focus()
+  else document.getElementById('admin-main')?.focus()
 })
 
-/**
- * Focus trap modal (a11y): Tab tidak boleh meloloskan fokus ke halaman di
- * belakang dialog — dikurung bolak-balik di dalam dialog.
- */
-function trapFocus(e: KeyboardEvent) {
-  if (!state.value) return
-  if (e.key === 'Escape') { e.preventDefault(); cancel(); return }
-  if (e.key !== 'Tab' || !dialogRef.value) return
-  const focusables = dialogRef.value.querySelectorAll<HTMLElement>(
-    'button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
-  )
-  if (!focusables.length) return
-  const first = focusables[0] as HTMLElement
-  const last = focusables[focusables.length - 1] as HTMLElement
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault(); last.focus()
-  }
-  else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault(); first.focus()
-  }
+function onKeydown(event: KeyboardEvent) {
+  if (state.value && dialogRef.value) handleDialogKeydown(event, dialogRef.value, cancel)
 }
+onMounted(() => {
+  mounted = true
+  document.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => {
+  mounted = false
+  document.removeEventListener('keydown', onKeydown)
+})
 
 function accept() {
   resolveConfirm(state.value?.mode === 'askText' ? inputValue.value : true)
