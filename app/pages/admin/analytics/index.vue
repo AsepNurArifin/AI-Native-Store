@@ -13,10 +13,6 @@
           </form>
           <div v-if="answer" class="mt-3 rounded bg-stone-50 p-3 text-sm">
             <MarkdownText :text="answer.answer" />
-            <details class="mt-2 text-xs text-stone-500">
-              <summary class="cursor-pointer">Traceability (query + data mentah)</summary>
-              <pre class="mt-1 overflow-x-auto">{{ JSON.stringify({ query_used: answer.query_used, data: answer.data }, null, 2) }}</pre>
-            </details>
             <p v-if="answer.disclaimer" class="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-800">{{ answer.disclaimer }}</p>
           </div>
         </CardContent>
