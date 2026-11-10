@@ -5,9 +5,12 @@ import { storefrontCategories } from '~/utils/storefront'
 export function useStoreCategories() {
   const config = useRuntimeConfig()
   const base = (config.public.apiBase as string) || '/api/v1'
-  return useAsyncData('layout-categories', async () => {
+  const { getCachedData } = useCache()
+  const { data, status, error, refresh } = useAsyncData('layout-categories', async () => {
     return storefrontCategories(await $fetch<string[]>(`${base}/catalog/categories`))
-  }, { default: () => [] as string[] })
+  }, { server: false, lazy: true, immediate: false, dedupe: 'defer', getCachedData, default: () => [] as string[] })
+  const pending = computed(() => status.value === 'idle' || status.value === 'pending')
+  return { data, status, pending, error, refresh }
 }
 
 /** One clock per page owner, shared by all product views and promo end dates. */

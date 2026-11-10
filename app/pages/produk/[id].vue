@@ -15,31 +15,36 @@ definePageMeta({
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 const base = (config.public.apiBase as string) || '/api/v1'
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const id = computed(() => String(route.params.id || ''))
 
 // `error` dipisah dari "tidak ditemukan": kalau API/DB sedang gangguan, kita
 // tampilkan "tidak bisa dimuat" + tombol muat ulang, BUKAN "Produk tidak ditemukan".
-const { data: product, error, refresh: refreshProduct } = await useAsyncData(`produk-${id.value}`, async () => {
-  return await $fetch<ProductOut>(`${base}/catalog/${id.value}`)
-}, { default: () => null as ProductOut | null })
+const { data: product, status: productStatus, error, refresh: refreshProduct } = useAsyncData(`produk-${id.value}`, async (_nuxtApp, { signal }) => {
+  return await $fetch<ProductOut>(`${base}/catalog/${id.value}`, { signal })
+}, { server: false, lazy: true, default: () => null as ProductOut | null })
+const productPending = computed(() => productStatus.value === 'idle' || productStatus.value === 'pending')
 
 // "Mungkin kamu juga suka": batch 8 + tombol "Muat lebih banyak".
 const RELATED_PAGE_SIZE = 8
-const relatedKey = computed(() => `produk-related-${id.value}`)
+const relatedKey = `produk-related-${id.value}`
 
-const { data: firstRelated, pending: relatedPending, error: relatedError, refresh: refreshRelated } = await useAsyncData(
+const { data: firstRelated, status: relatedStatus, error: relatedError, refresh: refreshRelated } = useAsyncData(
   relatedKey,
-  async () => {
+  async (_nuxtApp, { signal }) => {
     if (!product.value) return [] as ProductOut[]
     return await $fetch<ProductOut[]>(`${base}/catalog/search`, {
-      query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: 0, exclude: id.value }
+      query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: 0, exclude: id.value }, signal
     })
   },
-  { default: () => [] as ProductOut[] }
+  { server: false, lazy: true, immediate: false, default: () => [] as ProductOut[] }
 )
+const relatedPending = computed(() => relatedStatus.value === 'idle' || relatedStatus.value === 'pending')
+watch(() => product.value?.category, (category, previous) => {
+  if (import.meta.client && category && (relatedStatus.value === 'idle' || category !== previous)) void refreshRelated()
+}, { immediate: true })
 
 // Akumulasi related yang sudah dimuat.
 const related = ref<ProductOut[]>([])
@@ -55,8 +60,7 @@ watch(firstRelated, (v) => {
 }, { immediate: true })
 
 async function loadMoreRelated() {
-  if (loadingMoreRelated.value || !hasMoreRelated.value || !product.value) return
-  const keyAtStart = relatedKey.value
+  if (loadingMoreRelated.value || relatedPending.value || !hasMoreRelated.value || !product.value) return
   const generation = relatedGeneration
   relatedLoadError.value = ''
   loadingMoreRelated.value = true
@@ -64,11 +68,11 @@ async function loadMoreRelated() {
     const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
       query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: related.value.length, exclude: id.value }
     })
-    if (keyAtStart !== relatedKey.value || generation !== relatedGeneration) return
+    if (generation !== relatedGeneration) return
     related.value = [...related.value, ...(next ?? [])]
     hasMoreRelated.value = (next?.length ?? 0) === RELATED_PAGE_SIZE
   } catch {
-    if (keyAtStart === relatedKey.value && generation === relatedGeneration) relatedLoadError.value = 'Gagal memuat produk berikutnya. Coba lagi.'
+    if (generation === relatedGeneration) relatedLoadError.value = 'Gagal memuat produk berikutnya. Coba lagi.'
   } finally {
     loadingMoreRelated.value = false
   }
@@ -86,8 +90,10 @@ watch(error, (err) => {
 
 const observedProducts = computed(() => [...(product.value ? [product.value] : []), ...related.value])
 const { now, refreshError, refreshExpired } = useStorefrontClock(observedProducts, async () => {
-  await Promise.all([refreshProduct(), refreshRelated()])
-  if (error.value || relatedError.value) throw new Error('Harga terbaru belum bisa dimuat.')
+  await refreshProduct()
+  if (error.value) throw new Error('Harga terbaru belum bisa dimuat.')
+  if (product.value) await refreshRelated({ dedupe: 'defer' })
+  if (relatedError.value) throw new Error('Harga produk terkait belum bisa dimuat.')
 })
 const view = computed(() => product.value ? productView(product.value, now.value) : null)
 const promo = computed(() => view.value?.discount !== null && !!view.value)
@@ -167,8 +173,20 @@ useHead(() => ({
       </ol>
     </nav>
 
-    <!-- Error: server/DB lagi bermasalah — bukan berarti produk hilang -->
-    <div v-if="error && !isNotFound" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center max-[320px]:p-3" role="alert">
+    <div v-if="productPending" class="grid gap-6 lg:grid-cols-2" role="status" aria-label="Memuat detail produk" aria-busy="true">
+      <span class="sr-only">Memuat detail produk…</span>
+      <div class="store-skeleton aspect-square rounded-2xl sm:aspect-[4/3]" aria-hidden="true" />
+      <div class="min-w-0 space-y-4" aria-hidden="true">
+        <div class="store-skeleton h-4 w-24 rounded" />
+        <div class="store-skeleton h-9 w-3/4 rounded" />
+        <div class="store-skeleton h-32 rounded-xl" />
+        <div class="store-skeleton h-12 rounded-xl" />
+        <div class="store-skeleton h-40 rounded-xl" />
+      </div>
+    </div>
+
+    <!-- Error katalog bukan berarti produk hilang. -->
+    <div v-else-if="error && !isNotFound" class="rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-8 text-center max-[320px]:p-3" role="alert">
       <h1 class="font-display text-xl font-bold text-stone-900">Produk tidak bisa dimuat</h1>
       <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">Koneksi ke database toko sedang terganggu — bukan berarti produknya sudah hilang. Coba muat ulang beberapa saat lagi.</p>
       <div class="mt-5 flex justify-center gap-2 max-[320px]:flex-col max-[320px]:[&>a]:h-auto max-[320px]:[&>a]:whitespace-normal max-[320px]:[&>button]:h-auto max-[320px]:[&>button]:whitespace-normal">

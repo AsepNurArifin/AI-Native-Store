@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default' })
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 
 const config = useRuntimeConfig()
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'

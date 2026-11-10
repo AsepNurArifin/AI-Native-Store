@@ -7,7 +7,7 @@ import { productView } from '~/utils/storefront'
 import { round2 } from '#shared/utils/pricing'
 
 definePageMeta({ layout: 'default', key: route => route.fullPath })
-const { settings } = await useStoreSettings()
+const { settings, status: settingsStatus, pending: settingsPending, error: settingsError, refresh: refreshSettings } = useStoreSettings()
 useSeoMeta({ title: () => `Checkout langsung — ${settings.value.store_name}`, description: 'Pilih produk, isi data pemesan dan konfirmasi pesanan tanpa daftar akun.', robots: 'noindex, nofollow' })
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -16,15 +16,16 @@ const { request } = useApi()
 const toast = useToast()
 const itemId = typeof route.query.item === 'string' ? route.query.item : ''
 const qty = ref(Math.max(1, Math.floor(Number(route.query.qty || 1)) || 1))
-const { data: product, error: productError, refresh: refreshProduct } = await useAsyncData(`checkout-${itemId}`, async () => {
+const { data: product, status: productStatus, error: productError, refresh: refreshProduct } = useAsyncData(`checkout-${itemId}`, async () => {
   if (!itemId) return null as ProductOut | null
   return await request<ProductOut>(`/catalog/${itemId}`, { auth: false })
-}, { default: () => null as ProductOut | null })
+}, { server: false, lazy: true, immediate: !!itemId, default: () => null as ProductOut | null })
+const checkoutPending = computed(() => !!itemId && (productStatus.value === 'idle' || productStatus.value === 'pending' || settingsPending.value))
 const errorStatus = computed(() => {
   const error = productError.value as unknown as { statusCode?: number, status?: number } | null
   return error?.status ?? error?.statusCode ?? 0
 })
-const loadFailed = computed(() => !!productError.value && (errorStatus.value === 0 || errorStatus.value >= 500))
+const loadFailed = computed(() => !!productError.value && errorStatus.value !== 404)
 const observedProducts = computed(() => product.value ? [product.value] : [])
 const { now, refreshError, refreshExpired } = useStorefrontClock(observedProducts, async () => {
   await refreshProduct()
@@ -46,7 +47,7 @@ const notes = ref('')
 watch(method, value => { if (value === 'DELIVERY') paymentMethod.value = 'QRIS' })
 const qrisImageLoaded = ref(false)
 const qrisImageError = ref(false)
-const qrisAvailable = computed(() => !!settings.value.qris_image_url && !!settings.value.qris_merchant_name)
+const qrisAvailable = computed(() => settingsStatus.value === 'success' && !!settings.value.qris_image_url && !!settings.value.qris_merchant_name)
 const proofInput = ref<HTMLInputElement | null>(null)
 const proofFile = shallowRef<File | null>(null)
 const proofPreview = ref('')
@@ -146,7 +147,7 @@ const errors = computed<Record<string, string>>(() => {
   return result
 })
 async function submit() {
-  if (!hydrated.value || !sessionReady.value || submitting.value || !product.value || (!qrisDraft.value && !pendingDraft.value && !view.value?.available)) return
+  if (!hydrated.value || !sessionReady.value || settingsStatus.value !== 'success' || submitting.value || !product.value || (!qrisDraft.value && !pendingDraft.value && !view.value?.available)) return
   actionError.value = ''
   let input = qrisDraft.value || (confirmationUncertain.value ? pendingDraft.value : null)
   if (!input) {
@@ -256,8 +257,17 @@ async function copyOrderId() {
       <p class="store-muted">{{ receipt.payment_method === 'QRIS' ? 'Screenshot bukan bukti otomatis lunas; pengelola mencocokkan transaksi masuk ke merchant toko.' : 'Pembayaran Cash diverifikasi kasir saat pengambilan.' }}</p>
       <div class="store-actions"><Button to="/#katalog" variant="outline">Lanjut belanja</Button><Button to="/chat" variant="ai">Tanya melalui chat</Button></div>
     </template>
+    <div v-else-if="!itemId" class="store-panel store-state"><h2>Pilih produk untuk checkout</h2><p>Buka katalog, lalu pilih produk yang ingin dipesan.</p><Button to="/#katalog" variant="outline" class="mt-3">Pilih produk</Button></div>
+    <div v-else-if="checkoutPending" class="store-panel store-checkout-panel space-y-5" role="status" aria-label="Memuat checkout" aria-busy="true">
+      <span class="sr-only">Memuat produk dan pengaturan pembayaran…</span>
+      <div class="store-skeleton h-6 w-48 rounded" aria-hidden="true" />
+      <div class="store-skeleton h-28 rounded-xl" aria-hidden="true" />
+      <div class="store-skeleton h-12 rounded-lg" aria-hidden="true" />
+      <div class="store-skeleton h-40 rounded-xl" aria-hidden="true" />
+    </div>
     <div v-else-if="loadFailed" class="store-error" role="alert"><h2>Katalog gagal dimuat</h2><p>Koneksi ke database toko sedang terganggu — bukan berarti produknya hilang. Coba muat ulang beberapa saat lagi.</p><div class="store-actions"><Button variant="outline" @click="refreshProduct()">Muat ulang checkout</Button><Button to="/#katalog" variant="outline">Pilih produk</Button></div></div>
     <div v-else-if="!product" class="store-panel store-state"><h2>Produk tidak ditemukan</h2><p>Pilih produk dari katalog dulu, atau tanya lewat chat.</p><div class="store-actions"><Button to="/#katalog" variant="outline">Pilih produk</Button><Button to="/chat" variant="ai">Chat toko</Button></div></div>
+    <div v-else-if="settingsError" class="store-error" role="alert"><h2>Pengaturan pembayaran belum bisa dimuat</h2><p>Muat ulang pengaturan resmi toko sebelum melanjutkan checkout.</p><Button variant="outline" class="mt-3" @click="refreshSettings()">Muat ulang pengaturan pembayaran</Button></div>
     <form v-else-if="qrisDraft" class="store-form !mt-0" method="post" enctype="multipart/form-data" novalidate @submit.prevent="submit">
       <fieldset class="contents" :disabled="!hydrated || !sessionReady || submitting" aria-label="Pembayaran QRIS">
         <section id="checkout-qris" tabindex="-1" class="store-panel store-checkout-panel">

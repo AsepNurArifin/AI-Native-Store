@@ -25,16 +25,17 @@ const boxClass = computed(() => {
   return 'aspect-square rounded-t-2xl'
 })
 
-// URL yang di-load browser: gambar Supabase Storage di-resize server-side lewat
-// query param transform (tidak mengunduh file full-size untuk thumbnail 56px).
-// Ukuran mengikuti ukuran tampil: card ~480px, detail ~800px, thumb ~160px.
-// URL non-Supabase (placeholder lokal / eksternal) dilewatkan mentah.
+// Supabase transforms use the render endpoint, not the raw object endpoint.
+// Keep existing query parameters while setting the size for this view.
 const displayUrl = computed(() => {
   const url = props.imageUrl || ''
   if (!url || !url.includes('/storage/v1/object/public/')) return url || undefined
   const width = props.size === 'detail' ? 800 : props.size === 'card' ? 480 : 160
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}width=${width}&quality=70`
+  const resized = new URL(url, 'http://localhost')
+  resized.pathname = resized.pathname.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
+  resized.searchParams.set('width', String(width))
+  resized.searchParams.set('quality', '70')
+  return url.startsWith('/') ? `${resized.pathname}${resized.search}${resized.hash}` : resized.toString()
 })
 
 const imageEl = ref<HTMLImageElement | null>(null)

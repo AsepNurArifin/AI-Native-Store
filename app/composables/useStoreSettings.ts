@@ -5,11 +5,18 @@ export interface StoreSettingsOut {
   qris_image_url: string | null
 }
 
-export async function useStoreSettings() {
+export function useStoreSettings() {
   const config = useRuntimeConfig()
   const base = String(config.public.apiBase || '/api/v1')
-  const { data: settings, error, refresh } = await useAsyncData('store-settings', () => $fetch<StoreSettingsOut>(`${base}/settings`), {
+  const { getCachedData } = useCache()
+  const { data: settings, status, error, refresh } = useAsyncData('store-settings', () => $fetch<StoreSettingsOut>(`${base}/settings`), {
+    server: false,
+    lazy: true,
+    immediate: false,
+    dedupe: 'defer',
+    getCachedData,
     default: () => ({ store_name: 'Toko', owner_name: '', qris_merchant_name: '', qris_image_url: null })
   })
-  return { settings, error, refresh }
+  const pending = computed(() => status.value === 'idle' || status.value === 'pending')
+  return { settings, status, pending, error, refresh }
 }

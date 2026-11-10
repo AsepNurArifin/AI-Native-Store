@@ -4,7 +4,7 @@ import type { ProductOut } from '~/utils/api-types'
 import { activeStorefrontPromotion, categoryViews, productView } from '~/utils/storefront'
 
 definePageMeta({ layout: 'default' })
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 const config = useRuntimeConfig()
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const base = (config.public.apiBase as string) || '/api/v1'
@@ -34,17 +34,22 @@ const brands = ['Apple', 'Samsung']
 const PAGE_SIZE = 16
 const catalogKey = computed(() => `mkt-catalog:${searchQuery.value}:${activeCategory.value}:${selectedBrand.value}:${sort.value}`)
 const { getCachedData } = useCache()
-const [categoryData, promoData, catalogData] = await Promise.all([
-  useStoreCategories(),
-  useAsyncData('mkt-promos', () => $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }), { default: () => [] as ProductOut[], getCachedData }),
-  useAsyncData(catalogKey, () => $fetch<ProductOut[]>(`${base}/catalog/search`, { query: {
+const { data: categories, pending: categoriesPending, error: categoriesError, refresh: refreshCategories } = useStoreCategories()
+const { data: promos, status: promosStatus, error: promosError, refresh: refreshPromos } = useAsyncData(
+  'mkt-promos',
+  () => $fetch<ProductOut[]>(`${base}/catalog/search`, { query: { promo_only: 'true', limit: 10 } }),
+  { server: false, lazy: true, default: () => [] as ProductOut[], getCachedData }
+)
+const { data: firstPage, status: catalogStatus, error: catalogError, refresh: refreshCatalog } = useAsyncData(
+  catalogKey,
+  () => $fetch<ProductOut[]>(`${base}/catalog/search`, { query: {
     q: [searchQuery.value, selectedBrand.value].filter(Boolean).join(' ') || undefined,
     category: activeCategory.value || undefined, sort: sort.value || undefined, limit: PAGE_SIZE, offset: 0
-  } }), { default: () => [] as ProductOut[], getCachedData })
-])
-const { data: categories, pending: categoriesPending, error: categoriesError, refresh: refreshCategories } = categoryData
-const { data: promos, pending: promosPending, error: promosError, refresh: refreshPromos } = promoData
-const { data: firstPage, pending: catalogPending, error: catalogError, refresh: refreshCatalog } = catalogData
+  } }),
+  { server: false, lazy: true, default: () => [] as ProductOut[], getCachedData }
+)
+const promosPending = computed(() => promosStatus.value === 'idle' || promosStatus.value === 'pending')
+const catalogPending = computed(() => catalogStatus.value === 'idle' || catalogStatus.value === 'pending')
 const catalog = ref<ProductOut[]>([])
 const loadingMore = ref(false)
 const loadMoreError = ref('')

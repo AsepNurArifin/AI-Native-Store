@@ -7,7 +7,7 @@ defineEmits<{ retry: [] }>()
 <template>
   <section aria-labelledby="category-heading">
     <div class="store-section-heading"><div><p class="store-eyebrow">Temukan pilihanmu</p><h2 id="category-heading">Belanja per kategori</h2></div><NuxtLink to="/#katalog" class="store-link">Semua produk</NuxtLink></div>
-    <p v-if="pending" class="store-panel store-state" role="status">Memuat kategori…</p>
+    <div v-if="pending" class="store-category-grid" role="status" aria-label="Memuat kategori" aria-busy="true"><span class="sr-only">Memuat kategori…</span><div v-for="index in 6" :key="index" class="store-skeleton h-32 rounded-xl" aria-hidden="true" /></div>
     <div v-else-if="error" class="store-error" role="alert"><p>Kategori belum bisa dimuat, bukan berarti tidak tersedia.</p><Button variant="outline" class="mt-3" @click="$emit('retry')">Muat ulang kategori</Button></div>
     <div v-else-if="categories.length" class="store-category-grid">
       <NuxtLink v-for="category in categories" :key="category.name" :to="category.href" class="store-category-tile">

@@ -36,7 +36,7 @@
       </section>
 
       <section class="login-form-section enter enter-delay flex min-w-0 items-center border-stone-200 px-6 py-6 max-[320px]:px-4 lg:border-l lg:px-10 lg:py-10 xl:px-14">
-        <form class="login-form w-full min-w-0" novalidate :aria-busy="loading || restoring" @submit.prevent="onLogin">
+        <form class="login-form w-full min-w-0" method="post" novalidate :aria-busy="!hydrated || loading || restoring" @submit.prevent="onLogin">
           <p class="login-eyebrow break-words">{{ settings.store_name }} · Ruang kerja</p>
           <h2 class="font-display text-3xl font-bold tracking-tight">Masuk</h2>
           <p class="mt-1.5 text-sm text-stone-500">Email dan kata sandi pemilik atau staf.</p>
@@ -59,7 +59,7 @@
                 autocomplete="email"
                 placeholder="nama@toko.com"
                 required
-                :disabled="loading || restoring"
+                :disabled="!hydrated || loading || restoring"
                 autocapitalize="none"
                 :spellcheck="false"
                 aria-required="true"
@@ -88,7 +88,7 @@
                   autocomplete="current-password"
                   placeholder="••••••••"
                   required
-                  :disabled="loading || restoring"
+                  :disabled="!hydrated || loading || restoring"
                   aria-required="true"
                   :aria-invalid="passError ? true : undefined"
                   aria-describedby="password-help"
@@ -99,7 +99,7 @@
                   class="absolute inset-y-0 right-0 flex min-h-11 w-12 items-center justify-center rounded-lg text-stone-500 transition-colors duration-150 hover:text-stone-800 active:text-stone-950 disabled:opacity-50"
                   :aria-label="showPass ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
                   :aria-pressed="showPass"
-                  :disabled="loading || restoring"
+                  :disabled="!hydrated || loading || restoring"
                   aria-controls="password"
                   @click="showPass = !showPass"
                 >
@@ -122,7 +122,7 @@
             variant="ai"
             class="mt-6 min-h-11 w-full rounded-lg font-semibold max-[320px]:h-auto max-[320px]:whitespace-normal max-[320px]:px-2"
             :loading="loading"
-            :disabled="loading || restoring"
+            :disabled="!hydrated || loading || restoring"
           >
             {{ loading ? 'Sedang masuk…' : 'Masuk ke Dasbor' }}
           </Button>
@@ -147,7 +147,7 @@ import { toApiError } from '~/composables/useApi'
 definePageMeta({ layout: false })
 // Halaman internal: jangan diindeks.
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 useSeoMeta({ title: () => `Masuk Admin: ${settings.value.store_name}` })
 const auth = useAuthStore()
 const route = useRoute()
@@ -156,6 +156,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const showPass = ref(false)
+const hydrated = ref(false)
 const restoring = ref(false)
 const loginError = ref('')
 watch([email, password], () => { loginError.value = '' })
@@ -183,6 +184,7 @@ function targetAfterLogin() {
 
 
 onMounted(async () => {
+  hydrated.value = true
   auth.hydrate()
   // Pemulihan sesi: full reload di halaman admin me-redirect ke sini sebelum
   // hydrate client jalan. Bila token masih valid, kembalikan user ke tujuan asal.
@@ -199,7 +201,7 @@ onMounted(async () => {
 })
 
 async function onLogin() {
-  if (loading.value || restoring.value) return
+  if (!hydrated.value || loading.value || restoring.value) return
   emailTouched.value = true
   passTouched.value = true
   if (emailError.value || passError.value) return

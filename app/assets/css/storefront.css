@@ -171,6 +171,8 @@
 .storefront-shell .store-card-actions { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 12px; }
 .storefront-shell .store-card-actions :is(a, button) { min-height: 44px; height: auto; min-width: 0; padding: 7px; font-size: 11px; white-space: normal; line-height: 1.35; border-radius: 7px; }
 .storefront-shell .store-card-actions :is(a, button) > span { overflow-wrap: anywhere; }
+.storefront-shell .store-skeleton { background: #e8edf3; animation: store-pulse 1.5s ease-in-out infinite; }
+.storefront-shell .storefront-dark .store-skeleton { background: #294762; }
 .storefront-shell .store-product-skeleton { height: 350px; background: #e8edf3; border-radius: 12px; animation: store-pulse 1.5s ease-in-out infinite; }
 .storefront-shell .store-promo-section { padding: 18px 12px; border-radius: 14px; border: 1px solid #ebd9ad; background: #fcf9f1; }
 .storefront-shell .store-rail-controls { display: flex; gap: 6px; }

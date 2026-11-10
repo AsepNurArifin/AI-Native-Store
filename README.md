@@ -641,6 +641,41 @@ Storage lokal terisolasi, bukan bucket/QRIS/database transaksi toko.
 CLI interaktif juga terbukti membuat admin pada PostgreSQL disposable; masukan
 kata sandi tidak tercetak dan akun hasil CLI berhasil login (HTTP 200).
 
+### Lazy loading storefront
+
+- HTML awal menampilkan shell, navigasi, dan skeleton. Settings, kategori,
+  promo, katalog/rak, detail produk, dan checkout memakai `server: false`
+  serta `lazy: true`; katalog dan metadata produk baru tersedia setelah
+  JavaScript berjalan di browser, bukan pada HTML awal untuk crawler tanpa JS.
+- State `idle` dan `pending` menampilkan skeleton. Hasil kosong/404 baru
+  ditampilkan setelah request selesai; gangguan API memakai panel error dan retry.
+- Settings dimulai sekali oleh `app.vue` melalui `onNuxtReady`, setelah seluruh
+  shell terhidrasi. Semua konsumen berbagi key `store-settings` dan deduplikasi
+  `defer`. Simpan admin memperbarui state serta payload cache yang sama.
+- Kategori dimulai oleh layout setelah hydration. Cache navigasi hanya dipakai
+  untuk request `initial`; refresh manual/promo tetap mengambil data terbaru.
+  Revalidasi setelah admin/chat/checkout hanya menyasar data katalog publik,
+  tidak mengulang settings.
+- Produk terkait memakai `immediate: false` dan baru dimuat ketika produk utama
+  tersedia. Harga produk utama diperbarui sebelum harga produk terkait.
+- Resize gambar Supabase memakai `/storage/v1/render/image/public/`, dengan
+  lebar thumbnail 160, kartu 480, detail 800 dan quality 70. Parameter URL lain
+  dipertahankan; URL QRIS tetap menggunakan gambar merchant asli tanpa resize.
+- Form settings tidak dapat disimpan sebelum load sukses. Checkout menunggu
+  produk, settings resmi, hydration dan sesi guest. Form login menggunakan POST
+  dan kontrol nonaktif sebelum hydration, sehingga kredensial tidak masuk URL.
+
+Verifikasi lokal memakai Chromium nyata pada desktop 1440×1000 serta emulasi
+mobile 390×844 dan 320×740: shell/skeleton dengan respons ditahan, urutan produk
+utama → terkait, satu GET settings lintas navigasi, retry error/404, filter,
+sort/pagination, galeri keyboard/thumbnail/sentuh, settings dan perubahan akun,
+serta checkout Cash/QRIS dengan validasi pembeli/alamat/bukti. Lint berkas berubah
+dan typecheck lulus. Regresi `admin-settings-gallery` + `payment-delivery`
+memberikan 12 hasil lulus; smoke produksi lokal memberikan 2 hasil lulus,
+tanpa skipped test. PostgreSQL, media dan transaksi uji terisolasi; database
+produksi, bucket produksi dan deployment tidak diubah.
+
+
 
 
 

@@ -2,7 +2,7 @@
 import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'default' })
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -27,13 +27,14 @@ const rakKey = computed(() => `rak:${category.value}:${qDebounced.value}:${sort.
 // Key reaktif per kategori+filter: ganti kategori/filter = key baru = refetch
 // otomatis; balik ke rak yang sama = tampil instan dari cache. Batch pertama
 // berisi 16 produk; halaman berikutnya dimuat oleh owner yang sama.
-const { data: firstPage, pending, error: fetchError, refresh } = await useAsyncData(
+const { data: firstPage, status, error: fetchError, refresh } = useAsyncData(
   rakKey,
   () => $fetch<ProductOut[]>(`${base}/catalog/search`, {
     query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: PAGE_SIZE, offset: 0 }
   }),
-  { default: () => [] as ProductOut[], getCachedData }
+  { server: false, lazy: true, default: () => [] as ProductOut[], getCachedData }
 )
+const pending = computed(() => status.value === 'idle' || status.value === 'pending')
 
 // Akumulasi produk yang sudah dimuat (batch pertama + "Muat lebih banyak").
 const products = ref<ProductOut[]>([])

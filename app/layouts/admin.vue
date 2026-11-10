@@ -115,7 +115,7 @@ import { LogOut, Menu, X } from '@lucide/vue'
 import { handleDialogKeydown } from '~/utils/focus'
 
 // Panel internal: jangan diindeks mesin pencari (halaman toko publik hanya / dan /chat).
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 const auth = useAuthStore()

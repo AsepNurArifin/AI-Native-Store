@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MessageCircle, ShoppingBag, Truck, QrCode } from '@lucide/vue'
-const { settings } = await useStoreSettings()
+const { settings, pending: settingsPending } = useStoreSettings()
 const emit = defineEmits<{ height: [height: number] }>()
 const route = useRoute()
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -36,7 +36,7 @@ onUnmounted(() => { observer?.disconnect(); window.removeEventListener('resize',
     <div class="store-container store-masthead">
       <NuxtLink to="/" class="store-logo" :aria-label="`${settings.store_name}, beranda`">
         <img src="/logo.jpeg" alt="" width="44" height="44" >
-        <span>{{ settings.store_name }}<small>Apple &amp; Samsung</small></span>
+        <span :aria-busy="settingsPending"><span v-if="settingsPending" class="store-skeleton inline-block h-5 w-28" aria-hidden="true" /><template v-else>{{ settings.store_name }}</template><small>Apple &amp; Samsung</small></span>
       </NuxtLink>
       <div class="store-header-search">
         <SearchBar v-model="query" placeholder="Cari iPhone, iPad, Samsung Galaxy…" @submit="search" />

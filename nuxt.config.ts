@@ -10,13 +10,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
 
-  // WAJIB false: payload extraction meng-bake /produk/{id}/_payload.json?_b=<buildId>
-  // sebagai artefak statis saat build. Deployment 28 Okt (SEBELUM gambar produk
-  // di-reupload 30 Okt) membekukan snapshot data image_url: null, dan swr: 60
-  // TIDAK meng-regenerasi file itu (X-Vercel-Cache: HIT, Age ~2,8 hari tanpa
-  // berubah) — akibatnya SEMUA gambar di /produk/[id] dirender placeholder.
-  // Dengan false, data di-embed inline di HTML yang di-regenerate ISR/Vercel,
-  // sehingga edit admin (gambar/harga/stok) selalu langsung terkirim ke user.
+  // Storefront data is fetched in the browser; keep the HTML shell free of
+  // extracted catalog snapshots that could retain outdated admin edits.
   experimental: {
     payloadExtraction: false
   },
@@ -37,9 +32,8 @@ export default defineNuxtConfig({
     '/login': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
     '/checkout': { cache: false, headers: { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex, nofollow' } },
 
-    // /produk/** SENGAJA tidak di-cache: detail produk harus langsung
-    // menampilkan hasil edit admin (gambar/harga/stok). SSR fresh per request;
-    // jalurnya ringan (1 select + stok cached 3 dtk + promo batch).
+    // Detail HTML is an uncached shell; the browser fetches current product
+    // images, prices and stock from the catalog API after hydration.
   },
 
   app: {

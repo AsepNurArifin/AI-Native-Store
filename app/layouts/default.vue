@@ -1,7 +1,10 @@
 <script setup lang="ts">
 const route = useRoute()
 useHead({ meta: [{ name: 'theme-color', content: '#091a2d' }] })
-const { data: categories, pending, error, refresh } = await useStoreCategories()
+const { data: categories, status: categoriesStatus, pending, error, refresh } = useStoreCategories()
+onNuxtReady(() => {
+  if (categoriesStatus.value === 'idle') void refresh({ cause: 'initial', dedupe: 'defer' })
+})
 const headerHeight = ref<number | null>(null)
 onMounted(async () => {
   await nextTick()

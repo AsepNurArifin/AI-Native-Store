@@ -4,6 +4,9 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (import.meta.client
     && /^\/(admin|chat|checkout)\b/.test(from.path)
     && !/^\/(admin|chat|checkout)\b/.test(to.path)) {
-    void refreshNuxtData()
+    const publicKeys = Object.keys(useNuxtApp().payload.data).filter(key =>
+      key === 'layout-categories' || key === 'mkt-promos' || /^(mkt-catalog:|rak:|produk-|checkout-)/.test(key)
+    )
+    void refreshNuxtData(publicKeys)
   }
 })

@@ -43,7 +43,7 @@ onUnmounted(() => observer?.disconnect())
         <button type="button" aria-label="Promo berikutnya" :disabled="atEnd" @click="scroll(1)" @keydown.left.prevent="scroll(-1)" @keydown.right.prevent="scroll(1)"><ArrowRight aria-hidden="true" class="size-4" /></button>
       </div>
     </div>
-    <p v-if="pending" class="store-panel store-state" role="status">Memuat promo…</p>
+    <div v-if="pending" class="store-flash-rail" role="status" aria-label="Memuat promo" aria-busy="true"><span class="sr-only">Memuat promo…</span><div v-for="index in 3" :key="index" class="store-product-skeleton" aria-hidden="true" /></div>
     <div v-else-if="error" class="store-error" role="alert"><p>Promo tidak bisa dimuat. Coba periksa kembali.</p><Button variant="outline" class="mt-3" @click="$emit('retry')">Muat ulang promo</Button></div>
     <div v-else-if="products.length" ref="rail" class="store-flash-rail modern-scrollbar" data-local-scroll @scroll.passive="measure" @focusin="reveal">
       <div v-for="product in products" :key="product.id" class="store-flash-item">

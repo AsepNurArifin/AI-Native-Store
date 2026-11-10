@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MessageCircle, Truck, QrCode } from '@lucide/vue'
-const { settings } = await useStoreSettings()
+const { settings } = useStoreSettings()
 defineProps<{ categories: string[] }>()
 </script>
 

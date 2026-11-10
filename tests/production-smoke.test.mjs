@@ -4,7 +4,7 @@ import { startRuntime } from './helpers/storefront-runtime.mjs'
 import { guestClient, orderBody, errorCode } from './helpers/guest-client.mjs'
 import { paymentForm, paymentProofPng, qrisOrderBody } from './helpers/payment-fixtures.mjs'
 
-test('Production guest checkout, secure guest identity and public SSR privacy', async t => {
+test('Production guest checkout, secure guest identity and public shell privacy', async t => {
   const runtime = await startRuntime('production')
   t.after(runtime.stop)
   const { origin, sql, productIds } = runtime
@@ -40,7 +40,6 @@ test('Production guest checkout, secure guest identity and public SSR privacy', 
     assert.equal(html.includes(body.customer.contact), false, path)
     assert.equal(html.includes(body.customer.phone), false, path)
     assert.equal(html.includes(response.data.order_id), false, path)
-    if (path === `/produk/${productId}`) assert.match(html, /iPhone 15 Pro 128GB/)
   }
   const privateOrders = await guest.request('GET', '/orders')
   assert.equal(privateOrders.status, 401, privateOrders.text)

@@ -1,11 +1,11 @@
-/**
- * Cache lintas navigasi untuk useAsyncData (bagian C).
- * getCachedData: kalau key ini pernah di-fetch di sesi ini, pakai datanya —
- * navigasi pulang-pergi jadi instan, tanpa nunggu API lagi.
- */
+import type { AsyncDataOptions, NuxtApp } from '#app'
+
+/** Reuse data on navigation; explicit refreshes must still reach the API. */
 export function useCache() {
-  const nuxtApp = useNuxtApp()
   return {
-    getCachedData: (key: string) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: (key: string, nuxtApp: NuxtApp, context: Parameters<NonNullable<AsyncDataOptions<unknown>['getCachedData']>>[2]) => {
+      if (context.cause !== 'initial') return undefined
+      return nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    }
   }
 }
