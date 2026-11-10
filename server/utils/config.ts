@@ -8,8 +8,6 @@ export function serverConfig() {
     jwtSecret: (c.jwtSecret as string) || process.env.JWT_SECRET_KEY || 'change-me-64-char-random-secret',
     jwtAlgorithm: 'HS256',
     accessTokenExpireMinutes: Number(c.accessTokenExpireMinutes ?? process.env.ACCESS_TOKEN_EXPIRE_MINUTES ?? 60),
-    seedOwnerEmail: (c.seedOwnerEmail as string) || process.env.SEED_OWNER_EMAIL || 'owner@store.demo',
-    seedDefaultPassword: (c.seedDefaultPassword as string) || process.env.SEED_DEFAULT_PASSWORD || 'ChangeMe123!',
     seedOnStartup: String(c.seedOnStartup ?? process.env.SEED_ON_STARTUP ?? 'true') === 'true',
     lowStockDefault: Number(c.lowStockDefault ?? process.env.LOW_STOCK_THRESHOLD_DEFAULT ?? 5),
     stockoutRiskDays: Number(c.stockoutRiskDays ?? process.env.STOCKOUT_RISK_DAYS ?? 7),
@@ -80,7 +78,7 @@ export function assertProductionSafe(cfg: ReturnType<typeof serverConfig>) {
     }
   }
   if (!cfg.jwtSecret || cfg.jwtSecret.includes('change-me') || cfg.jwtSecret.length < 32)
-    problems.push('NUXT_JWT_SECRET_KEY wajib string acak >= 32 char (bukan default `change-me-...`)')
+    problems.push('NUXT_JWT_SECRET wajib string acak >= 32 char (bukan default `change-me-...`)')
   if (cfg.debug) problems.push('NUXT_DEBUG wajib `false`')
   if (cfg.seedOnStartup) problems.push('NUXT_SEED_ON_STARTUP wajib `false`')
   if (cfg.llmProvider === 'mock')

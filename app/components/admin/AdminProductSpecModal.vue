@@ -9,7 +9,7 @@
       <!-- Panel: boneka dialog mengikuti ConfirmHost (rounded-2xl, shadow batu) — isi beda: spec sheet -->
       <div
         ref="panelRef"
-        class="spec-panel relative flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl shadow-stone-900/20 outline-none sm:max-w-lg"
+        class="admin-dialog spec-panel relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl shadow-stone-900/20 outline-none sm:max-w-lg"
         role="dialog"
         aria-modal="true"
         :aria-label="`Spesifikasi ${product.name}`"
@@ -121,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-/* Hallmark · component: spec sheet modal · theme: Best Buy Marketplace (token stone/brand yang ada)
+/* Product specification modal · shared SHAF STORE navy/gold theme.
  * Modal sisi admin — pembaharui tampilan "Lihat spesifikasi" (details + tabel hairline) yang kaku
  * menjadi popup spec sheet ala retail: chip unggulan + chip grid, diikuti identitas produk.
  * states: trigger default/hover/focus/active · modal open/empty · esc & backdrop close
@@ -155,8 +155,8 @@ const tileIcons: Record<string, unknown> = {
 function tileIcon(key: string) { return tileIcons[key] ?? Layers }
 const tileTints = [
   'bg-brand-50 text-brand-700',
-  'bg-emerald-50 text-emerald-700',
-  'bg-amber-50 text-amber-700',
+  'bg-promo-100 text-promo-800',
+  'bg-brand-100 text-brand-800',
   'bg-stone-100 text-stone-700',
 ]
 

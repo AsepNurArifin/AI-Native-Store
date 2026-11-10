@@ -2,6 +2,7 @@ import { inventoryTransactions, products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { ensureSeeded, logAudit, num } from '../../../utils/business'
 import { firstRow } from '../../../utils/errors'
+import { rejectCoverInput, validateProductImages } from '../../../utils/product-images'
 
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE']
 
@@ -9,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const owner = await requireOwner(event)
   const db = getDb()
   await ensureSeeded(db)
-  const body = await readBody<{ name?: string, category?: string, specification?: Record<string, unknown>, price?: number, status?: string, low_stock_threshold?: number | null, initial_stock?: number, image_url?: string | null }>(event)
+  const body = await readBody<{ name?: string, category?: string, specification?: Record<string, unknown>, price?: number, status?: string, low_stock_threshold?: number | null, initial_stock?: number, image_urls?: unknown }>(event)
   if (!body?.name || !body?.category || body?.price == null) {
     throw createError({ statusCode: 422, message: 'name, category, price wajib', data: { detail: { code: 'VALIDATION', message: 'name, category, price wajib' } } })
   }
@@ -34,7 +35,8 @@ export default defineEventHandler(async (event) => {
   if (!Number.isInteger(initStock) || initStock < 0) {
     throw createError({ statusCode: 422, message: 'initial_stock harus bilangan bulat >= 0', data: { detail: { code: 'VALIDATION', message: 'initial_stock harus bilangan bulat >= 0' } } })
   }
-  const imageUrl = typeof body.image_url === 'string' && body.image_url.trim() ? body.image_url.trim().slice(0, 500) : null
+  rejectCoverInput(body)
+  const imageUrls = validateProductImages(body.image_urls === undefined ? [] : body.image_urls)
   const ins = await db.insert(products).values({
     name: body.name,
     category: body.category,
@@ -42,7 +44,7 @@ export default defineEventHandler(async (event) => {
     price: String(body.price) as never,
     status,
     lowStockThreshold: (body.low_stock_threshold ?? null) as never,
-    imageUrl: imageUrl as never
+    imageUrls
   }).returning()
   const p = firstRow(ins, 'insert products')
   if (initStock > 0) {
@@ -62,6 +64,7 @@ export default defineEventHandler(async (event) => {
     id: String(p.id), name: p.name, category: p.category, specification: p.specification || {},
     price: num(p.price), status: p.status, low_stock_threshold: p.lowStockThreshold ?? null,
     current_stock: stock, is_low_stock: stock <= Number(useRuntimeConfig().lowStockDefault ?? 5),
-    image_url: (p.imageUrl as string | null) ?? null
+    image_urls: p.imageUrls,
+    image_url: p.imageUrls[0] || null
   }
 })

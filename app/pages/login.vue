@@ -1,66 +1,51 @@
 <template>
   <div class="login-shell min-h-screen overflow-x-clip bg-stone-50 text-stone-900">
-    <div class="grid min-h-screen grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      <!-- Panel identitas: navy penuh, tipografi besar, price tag sebagai jangkar -->
-      <section class="enter flex min-w-0 flex-col gap-3 bg-bby-dark px-6 py-6 text-white max-[320px]:px-4 md:justify-between md:gap-10 md:px-12 md:py-10">
+    <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+      <!-- Same navy and gold identity as the customer storefront. -->
+      <section class="login-identity enter flex min-w-0 flex-col gap-3 bg-brand-900 px-6 py-6 text-white max-[320px]:px-4 lg:justify-between lg:gap-10 lg:px-12 lg:py-10">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 shadow-md">
-            <img src="/logo.jpeg" alt="SHAF STORE Logo" class="h-full w-full object-contain rounded-lg" >
+            <img src="/logo.jpeg" :alt="`${settings.store_name} Logo`" class="h-full w-full rounded-lg object-contain" >
           </div>
-          <div>
-            <span class="font-display text-lg font-bold tracking-tight text-white">SHAF <span class="text-bby-yellow">STORE</span></span>
+          <div class="min-w-0">
+            <span class="font-display break-words text-lg font-bold tracking-tight text-promo-300">{{ settings.store_name }}</span>
             <p class="text-[11px] font-medium text-white/60">Panel pemilik toko</p>
           </div>
         </div>
 
         <div class="max-w-xl">
-          <h1 class="font-display text-2xl font-bold leading-tight tracking-tight [overflow-wrap:anywhere] md:text-5xl md:leading-[1.02] lg:text-6xl">
-            <span class="md:hidden">Akses pemilik &amp; staf</span>
-            <span class="hidden md:inline">Meja pemilik, bukan etalase.</span>
+          <h1 class="font-display text-2xl font-bold leading-tight tracking-tight [overflow-wrap:anywhere] lg:text-5xl lg:leading-[1.02] xl:text-6xl">
+            <span class="lg:hidden">Akses pemilik &amp; staf</span>
+            <span class="hidden lg:inline">Satu toko.<br>Satu ruang kendali.</span>
           </h1>
-          <p class="mt-2 text-sm leading-relaxed text-white/70 md:hidden">Kelola katalog, stok, dan pesanan toko.</p>
-          <p class="mt-5 hidden max-w-md text-base leading-relaxed text-white/70 md:block">
+          <p class="mt-2 text-sm leading-relaxed text-white/70 lg:hidden">Kelola katalog, stok, dan pesanan toko.</p>
+          <p class="mt-5 hidden max-w-md text-base leading-relaxed text-white/70 lg:block">
             Katalog, stok, pesanan, promosi, dan persetujuan aksi AI — semua dikelola dari satu meja.
             Halaman toko untuk pelanggan; halaman ini untuk Anda.
           </p>
         </div>
 
-        <div class="hidden flex-wrap items-end justify-between gap-6 md:flex">
-          <!-- Price tag: motif Yellow Tag, murni CSS (bukan gambar) -->
-          <div class="price-tag relative rotate-[-2deg] bg-bby-yellow text-stone-900 shadow-lg shadow-black/20">
-            <span class="tag-hole absolute" aria-hidden="true" />
-            <div class="flex items-center gap-5 py-4 pl-12 pr-5">
-              <div>
-                <p class="text-[10px] font-bold uppercase tracking-[0.22em]">Akses terbatas</p>
-                <p class="whitespace-nowrap font-display text-xl font-bold leading-tight">Pemilik &amp; Staf</p>
-              </div>
-              <svg class="hidden h-9 w-16 shrink-0 min-[360px]:block" viewBox="0 0 64 36" aria-hidden="true">
-                <g fill="currentColor">
-                  <rect x="0" y="0" width="3" height="36" /><rect x="6" y="0" width="1.5" height="36" />
-                  <rect x="11" y="0" width="4" height="36" /><rect x="18" y="0" width="1.5" height="36" />
-                  <rect x="23" y="0" width="2.5" height="36" /><rect x="29" y="0" width="1" height="36" />
-                  <rect x="33" y="0" width="3.5" height="36" /><rect x="40" y="0" width="1.5" height="36" />
-                  <rect x="45" y="0" width="2" height="36" /><rect x="51" y="0" width="4" height="36" />
-                  <rect x="58" y="0" width="1.5" height="36" /><rect x="62" y="0" width="2" height="36" />
-                </g>
-              </svg>
-            </div>
+        <div class="login-access-card">
+          <ShieldCheck class="h-8 w-8 text-promo-300" aria-hidden="true" />
+          <div>
+            <p class="login-eyebrow">Akses operator</p>
+            <p class="font-display text-xl font-semibold text-white">Pemilik &amp; staf</p>
+            <p class="mt-2 text-xs leading-relaxed text-brand-200">Aktivitas penting tercatat di audit trail. Jaga akun Anda dan jangan bagikan kredensial.</p>
           </div>
-          <p class="max-w-[15rem] text-xs leading-relaxed text-white/50">
-            Aktivitas penting tercatat di audit trail. Jangan bagikan kredensial.
-          </p>
         </div>
       </section>
 
-      <!-- Form: langsung di kanvas, geometri slab, tanpa kartu melayang -->
-      <section class="enter enter-delay flex min-w-0 items-center border-stone-200 px-6 py-6 max-[320px]:px-4 md:border-l md:px-14 md:py-10">
-        <form class="w-full min-w-0 max-w-sm" novalidate @submit.prevent="onLogin">
+      <section class="login-form-section enter enter-delay flex min-w-0 items-center border-stone-200 px-6 py-6 max-[320px]:px-4 lg:border-l lg:px-10 lg:py-10 xl:px-14">
+        <form class="login-form w-full min-w-0" novalidate :aria-busy="loading || restoring" @submit.prevent="onLogin">
+          <p class="login-eyebrow break-words">{{ settings.store_name }} · Ruang kerja</p>
           <h2 class="font-display text-3xl font-bold tracking-tight">Masuk</h2>
-          <p class="mt-1.5 text-sm text-stone-500">Email dan password pemilik atau staf.</p>
+          <p class="mt-1.5 text-sm text-stone-500">Email dan kata sandi pemilik atau staf.</p>
 
-          <p v-if="restoring" class="mt-5 border-l-2 border-bby-blue bg-brand-50 px-3 py-2 text-sm text-brand-700">
+          <p v-if="restoring" role="status" class="mt-5 rounded-lg border-l-2 border-brand-700 bg-brand-50 px-3 py-2 text-sm text-brand-700">
             Memulihkan sesi Anda…
           </p>
+
+          <p v-if="loginError" role="alert" class="mt-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{{ loginError }}</p>
 
           <div class="mt-6 space-y-5">
             <div>
@@ -68,12 +53,15 @@
               <Input
                 id="email"
                 v-model="email"
-                class="login-field h-11 rounded-none border-stone-300 bg-white pr-9"
+                class="login-field h-11 rounded-lg border-stone-300 bg-white pr-9"
                 type="email"
                 name="email"
                 autocomplete="email"
                 placeholder="nama@toko.com"
                 required
+                :disabled="loading || restoring"
+                autocapitalize="none"
+                :spellcheck="false"
                 aria-required="true"
                 :aria-invalid="emailError ? true : undefined"
                 aria-describedby="email-help"
@@ -89,17 +77,18 @@
             </div>
 
             <div>
-              <label for="password" class="mb-1.5 block text-sm font-semibold text-stone-700">Password</label>
+              <label for="password" class="mb-1.5 block text-sm font-semibold text-stone-700">Kata sandi</label>
               <div class="relative">
                 <Input
                   id="password"
                   v-model="password"
-                  class="login-field h-11 rounded-none border-stone-300 bg-white pr-12"
+                  class="login-field h-11 rounded-lg border-stone-300 bg-white pr-12"
                   :type="showPass ? 'text' : 'password'"
                   name="password"
                   autocomplete="current-password"
                   placeholder="••••••••"
                   required
+                  :disabled="loading || restoring"
                   aria-required="true"
                   :aria-invalid="passError ? true : undefined"
                   aria-describedby="password-help"
@@ -107,9 +96,11 @@
                 />
                 <button
                   type="button"
-                  class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-stone-500 transition-colors duration-150 hover:text-stone-800 active:text-stone-950 disabled:opacity-50"
-                  :aria-label="showPass ? 'Sembunyikan password' : 'Tampilkan password'"
+                  class="absolute inset-y-0 right-0 flex min-h-11 w-12 items-center justify-center rounded-lg text-stone-500 transition-colors duration-150 hover:text-stone-800 active:text-stone-950 disabled:opacity-50"
+                  :aria-label="showPass ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
                   :aria-pressed="showPass"
+                  :disabled="loading || restoring"
+                  aria-controls="password"
                   @click="showPass = !showPass"
                 >
                   <EyeOff v-if="showPass" class="h-4 w-4" aria-hidden="true" />
@@ -121,7 +112,7 @@
                 class="mt-1 min-h-[1lh] text-xs"
                 :class="passError ? 'font-medium text-destructive' : 'text-stone-500'"
               >
-                {{ passError || 'Password bersifat rahasia; kami tidak pernah menampilkannya kembali.' }}
+                {{ passError || 'Jaga kerahasiaan kata sandi akun Anda.' }}
               </p>
             </div>
           </div>
@@ -129,31 +120,17 @@
           <Button
             type="submit"
             variant="ai"
-            class="mt-6 h-11 w-full rounded-none font-semibold max-[320px]:h-auto max-[320px]:min-h-11 max-[320px]:whitespace-normal max-[320px]:px-2"
+            class="mt-6 min-h-11 w-full rounded-lg font-semibold max-[320px]:h-auto max-[320px]:whitespace-normal max-[320px]:px-2"
             :loading="loading"
+            :disabled="loading || restoring"
           >
-            Masuk ke Dashboard
+            {{ loading ? 'Sedang masuk…' : 'Masuk ke Dasbor' }}
           </Button>
 
-          <!-- Kredensial demo HANYA di development — tidak pernah dibundel
-               ke produksi (import.meta.dev dieliminasi tree-shaking saat build). -->
-          <div v-if="isDev" class="mt-6 border border-dashed border-stone-300 bg-white/60 px-4 py-3">
-            <p class="text-xs font-medium text-stone-600">Akun demo seed untuk presentasi:</p>
-            <p class="mt-0.5 text-xs text-stone-500">owner@store.demo · password seed backend</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              class="mt-2 rounded-none"
-              @click="fillDemoOwner"
-            >
-              Isi otomatis
-            </Button>
-          </div>
 
           <NuxtLink
             to="/"
-            class="mt-6 inline-block text-sm font-medium text-stone-500 transition-colors duration-150 hover:text-brand-700"
+            class="mt-6 inline-flex min-h-11 items-center text-sm font-medium text-stone-600 transition-colors duration-150 hover:text-brand-700"
           >
             ← Kembali ke Halaman Toko
           </NuxtLink>
@@ -164,13 +141,14 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from '@lucide/vue'
+import { Eye, EyeOff, ShieldCheck } from '@lucide/vue'
 import { toApiError } from '~/composables/useApi'
 
 definePageMeta({ layout: false })
 // Halaman internal: jangan diindeks.
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
-useSeoMeta({ title: 'Masuk Admin: SHAF STORE' })
+const { settings } = await useStoreSettings()
+useSeoMeta({ title: () => `Masuk Admin: ${settings.value.store_name}` })
 const auth = useAuthStore()
 const route = useRoute()
 const toast = useToast()
@@ -179,8 +157,8 @@ const password = ref('')
 const loading = ref(false)
 const showPass = ref(false)
 const restoring = ref(false)
-/** Kredensial demo hanya untuk mode dev (guard produksi fail-closed). */
-const isDev = import.meta.dev
+const loginError = ref('')
+watch([email, password], () => { loginError.value = '' })
 
 // Validasi pola "touched": dicek saat blur, dihitung ulang otomatis saat diketik.
 const emailTouched = ref(false)
@@ -188,13 +166,13 @@ const passTouched = ref(false)
 const emailError = computed(() => {
   if (!emailTouched.value) return ''
   const v = email.value.trim()
-  if (!v) return 'Email wajib diisi — tanpa email kami tidak bisa memverifikasi akun.'
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Format email belum benar — contoh: nama@toko.com.'
+  if (!v) return 'Email wajib diisi.'
+  if (v.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Format email belum benar, contoh: nama@toko.com.'
   return ''
 })
 const passError = computed(() => {
   if (!passTouched.value) return ''
-  return password.value ? '' : 'Password wajib diisi — itulah kunci masuk akun ini.'
+  return password.value ? '' : 'Kata sandi wajib diisi.'
 })
 
 /** Tujuan setelah login: halaman asal (bila di-redirect dari admin) atau /admin. */
@@ -203,13 +181,6 @@ function targetAfterLogin() {
   return typeof redirect === 'string' && redirect.startsWith('/admin') ? redirect : '/admin'
 }
 
-function fillDemoOwner() {
-  // Kredensial seed backend (SEED_OWNER_EMAIL / SEED_DEFAULT_PASSWORD di backend/.env)
-  email.value = 'owner@store.demo'
-  password.value = 'ChangeMe123!'
-  emailTouched.value = false
-  passTouched.value = false
-}
 
 onMounted(async () => {
   auth.hydrate()
@@ -228,13 +199,15 @@ onMounted(async () => {
 })
 
 async function onLogin() {
-  if (loading.value) return
+  if (loading.value || restoring.value) return
   emailTouched.value = true
   passTouched.value = true
   if (emailError.value || passError.value) return
   loading.value = true
+  loginError.value = ''
   try {
     await auth.login(email.value.trim(), password.value)
+    password.value = ''
     toast.success('Tersambung. Membuka dashboard…')
     await navigateTo(targetAfterLogin())
   }
@@ -242,36 +215,63 @@ async function onLogin() {
     // 401 = kredensial salah; error lain cukup tampilkan pesan server apa adanya
     // (toApiError sudah membersihkan salam mentah ofetch, mis. 429 rate limit).
     const err = toApiError(e)
-    toast.error(err.status === 401 ? 'Email atau password salah — periksa lalu coba lagi.' : err.message)
+    loginError.value = err.status === 401 ? 'Email atau kata sandi salah. Periksa lalu coba lagi.' : err.message
   }
   finally { loading.value = false }
 }
 </script>
 
 <style scoped>
-/* Hallmark · macrostructure: Split Studio (diptych) · theme: Best Buy Marketplace (token terkunci main.css)
- * nav: none · footer: none (permintaan eksplisit) · enrichment: Tier A CSS price-tag + barcode
- * motion: entrance-rise (one-shot) · button-press — 2 primitif · focus ring instan
- * states: default · hover · focus · active · disabled · loading · error · success
- * Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4
- * Token: warna & font hanya dari tema terkunci (main.css) lewat utility Tailwind.
- */
 .login-shell {
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-/* Price tag: segi lima ujung kiri + lubang tali (CSS art). */
-.price-tag {
-  clip-path: polygon(0 50%, 20px 0, 100% 0, 100% 100%, 20px 100%);
+.login-identity {
+  position: relative;
+  background: radial-gradient(ellipse at 85% 75%, #29476280, transparent 65%), var(--color-brand-900);
 }
-.tag-hole {
-  left: 26px;
-  top: 50%;
-  height: 12px;
-  width: 12px;
-  border-radius: 9999px;
-  background-color: var(--color-bby-dark);
-  transform: translateY(-50%);
+.login-identity h1 { color: white; }
+.login-access-card {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 24px;
+  border: 1px solid var(--color-brand-600);
+  border-radius: 14px;
+  background: #06111f45;
+  max-width: 430px;
+}
+.login-access-card > svg { flex: none; }
+.login-eyebrow {
+  color: var(--color-promo-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+.login-access-card .login-eyebrow { color: var(--color-promo-300); }
+.login-form-section { justify-content: center; }
+.login-form {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px #091a2d08;
+  padding: 28px;
+  max-width: 440px;
+}
+.login-shell :is(a, button, input):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.login-identity :is(a, button):focus-visible { outline-color: var(--color-promo-300); }
+@media (max-width: 1023px) {
+  .login-access-card { display: none; }
+  .login-form { padding: 20px; }
+  .login-form-section { align-items: flex-start; }
+  .login-shell input { font-size: 16px; }
+}
+@media (max-width: 359px) {
+  .login-form { padding: 16px; }
 }
 
 /* Input: lebar border konstan antar state (tanpa layout shift); hover hanya pointer halus. */

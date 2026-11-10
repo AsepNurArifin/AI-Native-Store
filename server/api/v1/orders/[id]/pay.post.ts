@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
-import { orders } from '../../../../database/schema'
+import { orderPaymentProofs, orders } from '../../../../database/schema'
 import { requireOwner } from '../../../../utils/auth'
 import { ensureSeeded, logAudit, orderOut } from '../../../../utils/business'
 import { isUuid } from '../../../../utils/errors'
@@ -7,10 +7,8 @@ import { isUuid } from '../../../../utils/errors'
 /**
  * POST /orders/:id/pay — konfirmasi pembayaran manual oleh kasir.
  *
- * QRIS di app/utils/qris.ts adalah SIMULASI (merchant ID contoh, tidak bisa
- * dibayar di app sungguhan), jadi tidak ada webhook payment gateway. unpaid ->
- * paid adalah keputusan manusia, dan itu disengaja (prinsip README: "Mutasi data
- * hanya lewat jalur manusia/konfirmasi").
+ * QRIS dibayar lewat gambar merchant yang dikonfigurasi (demo diberi label).
+ * Bukti diunggah pembeli tidak otomatis membuat PAID: keputusan tetap admin.
  *
  * Idempoten: pays ulang order yang sudah PAID -> 200, tidak error, tidak
  * mengubah paid_at (timestamp asli pembayaran tetap jujur).
@@ -34,19 +32,24 @@ export default defineEventHandler(async (event) => {
         data: { detail: { code: 'INVALID_STATE', message: `Order berstatus ${o.status} tidak bisa dibayar` } }
       })
     }
-    // Sudah dibayar -> early return, paid_at tidak ditimpa.
+    if (o.paymentMethod === 'QRIS') {
+      const proof = (await tx.select({ orderId: orderPaymentProofs.orderId }).from(orderPaymentProofs).where(eq(orderPaymentProofs.orderId, o.id)).limit(1))[0]
+      if (!proof) throw createError({ statusCode: 422, message: 'Bukti pembayaran QRIS wajib tersedia.', data: { detail: { code: 'PAYMENT_PROOF_REQUIRED', message: 'Bukti pembayaran QRIS wajib tersedia.' } } })
+      if (o.paymentReview !== 'PENDING' && !(o.paymentStatus === 'PAID' && o.paymentReview === 'VERIFIED')) throw createError({ statusCode: 409, message: 'Bukti pembayaran tidak menunggu verifikasi.', data: { detail: { code: 'INVALID_STATE', message: 'Bukti pembayaran tidak menunggu verifikasi.' } } })
+    }
+    // Sudah dibayar -> replay tidak menimpa paid_at atau review timestamp.
     if (o.paymentStatus === 'PAID') return
-    // Jangan izinkan bayar order yang sudah lewat TTL tapi belum di-expire.
+    // CASH/legacy memiliki deadline; bukti QRIS menunggu review tanpa expiry.
     const exp = o.expiresAt ? new Date(o.expiresAt as unknown as string) : null
-    if (exp && exp < new Date()) {
+    if (o.paymentMethod !== 'QRIS' && exp && exp < new Date()) {
       throw createError({
         statusCode: 409,
         message: 'Order sudah kedaluwarsa (lewat batas pembayaran). Batalkan lalu buat pesanan baru.',
         data: { detail: { code: 'ORDER_EXPIRED', message: 'Order sudah kedaluwarsa (lewat batas pembayaran). Batalkan lalu buat pesanan baru.' } }
       })
     }
-    await tx.update(orders).set({ paymentStatus: 'PAID', paidAt: new Date() as never }).where(eq(orders.id, o.id))
-    await logAudit(tx, 'ORDER_PAID', 'USER', { actorId: owner.id, detail: { order_id: id, amount: String(o.totalAmount) } })
+    await tx.update(orders).set({ paymentStatus: 'PAID', paidAt: new Date(), ...(o.paymentMethod === 'QRIS' ? { paymentReview: 'VERIFIED', paymentReviewNote: null, expiresAt: null } : {}) }).where(eq(orders.id, o.id))
+    await logAudit(tx, 'ORDER_PAID', 'USER', { actorId: owner.id, detail: { order_id: id, amount: String(o.totalAmount), payment_method: o.paymentMethod, payment_review: o.paymentMethod === 'QRIS' ? 'VERIFIED' : null } })
   })
   return await orderOut(db, id)
 })

@@ -24,23 +24,22 @@ function onSubmit() {
 </script>
 
 <template>
-  <form role="search" class="flex w-full items-center gap-2 max-[320px]:flex-col max-[320px]:items-stretch" @submit.prevent="onSubmit">
+  <form role="search" class="store-search-form flex w-full min-w-0 items-center gap-2" @submit.prevent="onSubmit">
     <div class="relative min-w-0 flex-1">
-      <Search class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+      <Search aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
       <input
         v-model="inner"
         type="search"
         :placeholder="placeholder"
         :autofocus="autofocus"
         aria-label="Cari produk"
-        class="h-11 w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 text-base md:text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/30 focus:outline-hidden"
+        class="h-11 w-full min-w-0 rounded-lg border border-stone-300 bg-white pl-9 pr-2 text-base text-stone-900 placeholder:text-stone-500 md:text-sm"
         @input="onInput"
       >
     </div>
-    <!-- Best Buy Yellow Submit Button -->
     <button
       type="submit"
-      class="flex h-11 shrink-0 items-center justify-center rounded-xl bg-promo-400 px-5 text-sm font-black text-stone-950 shadow-sm transition-all duration-150 hover:bg-promo-500"
+      class="flex h-11 shrink-0 items-center justify-center rounded-lg bg-promo-400 px-4 text-sm font-bold text-brand-950 transition-colors hover:bg-promo-300"
     >
       Cari
     </button>

@@ -1,12 +1,15 @@
+import { createHash } from 'node:crypto'
 import { and, eq, gt, inArray, lt, sql } from 'drizzle-orm'
 import {
-  auditLogs, customers, idempotencyKeys, inventoryTransactions, orderItems, orders, products,
-  promotions, users
+  auditLogs, customers, idempotencyKeys, inventoryTransactions, orderItems, orderPaymentProofs, orders, products,
+  promotions
 } from '../database/schema'
 import { discountedPrice, quoteLine, round2 } from '../../shared/utils/pricing'
 import { OrderError, firstRow, isUuid } from './errors'
 import type { OrderSummary } from './summary'
 import type { DbLike } from './db'
+import { validatePaymentProof, type PaymentProofInput } from './payment-proof'
+import { readStoreSettings } from './store-settings'
 
 export const num = (v: unknown): number => Number((v as string | number) ?? 0)
 
@@ -77,7 +80,8 @@ export async function stockSummary(db: DbLike, lowDefault: number) {
       product_id: String(p.id), name: p.name, category: p.category, price: num(p.price),
       status: p.status,
       current_stock: stock, low_stock_threshold: p.lowStockThreshold ?? null, is_low_stock: stock <= thr,
-      image_url: (p.imageUrl as string | null) ?? null
+      image_urls: p.imageUrls,
+      image_url: p.imageUrls[0] || null
     }
   })
 }
@@ -116,7 +120,8 @@ export function catalogOut(
     id: String(p.id), name: p.name, category: p.category, specification: p.specification || {},
     price: num(p.price), status: p.status, low_stock_threshold: p.lowStockThreshold ?? null,
     current_stock: stock, is_low_stock: stock <= thr,
-    image_url: (p.imageUrl as string | null) ?? null,
+    image_urls: p.imageUrls,
+    image_url: p.imageUrls[0] || null,
     discount_percentage: discount,
     discounted_price: discount > 0 ? discountedPrice(num(p.price), discount) : null,
     promotion: promo ? {
@@ -189,9 +194,34 @@ export interface CreateOrderInput {
   customerIdentity: { channel: string, identifier: string, name?: string | null, contact?: string | null }
   items: Array<{ product_id: string, quantity: number }>
   idempotencyKey?: string | null
+  payment?: { method: 'CASH' | 'QRIS' }
+  buyerPhone?: string | null
+  paymentProof?: PaymentProofInput
+  expectedTotal?: number
   fulfillment?: Record<string, unknown> | null
   /** Ringkasan yang dilihat & dikonfirmasi customer (price lock). */
   expected?: OrderSummary | null
+}
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalValue(item)]))
+  return value
+}
+
+function orderRequestHash(input: CreateOrderInput): string | null {
+  if (!input.payment) return null
+  return createHash('sha256').update(JSON.stringify(canonicalValue({
+    customer: input.customerIdentity, phone: input.buyerPhone ?? null,
+    items: [...input.items].sort((a, b) => a.product_id.localeCompare(b.product_id)),
+    fulfillment: input.fulfillment ?? null, payment: input.payment,
+    expected_total: input.expectedTotal ?? null,
+    proof: input.paymentProof ? { mime: input.paymentProof.mime, sha256: createHash('sha256').update(input.paymentProof.data).digest('hex') } : null
+  }))).digest('hex')
+}
+
+export function isDeliveryOrder(order: { fulfillment: unknown }): boolean {
+  return !!order.fulfillment && typeof order.fulfillment === 'object' && (order.fulfillment as Record<string, unknown>).method === 'DELIVERY'
 }
 
 export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput) {
@@ -207,6 +237,7 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
   // Urut per product_id -> kunci FOR UPDATE tidak pernah deadlock antar order.
   const items = [...input.items].sort((a, b) => a.product_id.localeCompare(b.product_id))
   const orderTtlMinutes = Number(useRuntimeConfig().orderTtlMinutes ?? 120)
+  const requestHash = orderRequestHash(input)
 
   return await db.transaction(async (tx) => {
     // Idempotency atomik (UC-02 E5): key diklaim di AWAL transaksi dengan
@@ -214,24 +245,44 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
     if (input.idempotencyKey) {
       const ttlMs = Number(useRuntimeConfig().idempotencyTtlMinutes ?? 30) * 60_000
       const claimed = await tx.insert(idempotencyKeys)
-        .values({ key: input.idempotencyKey, orderId: null as never })
+        .values({ key: input.idempotencyKey, orderId: null as never, requestHash })
         .onConflictDoNothing().returning()
       if (!claimed.length) {
         const row = (await tx.select().from(idempotencyKeys).where(eq(idempotencyKeys.key, input.idempotencyKey)).limit(1))[0]
         if (row?.orderId) {
+          const existing = (await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1))[0]
+          const customer = existing ? (await tx.select().from(customers).where(eq(customers.id, existing.customerId)).limit(1))[0] : null
+          if (existing && (!customer || customer.channel !== input.customerIdentity.channel || customer.identifier !== input.customerIdentity.identifier || (requestHash && row.requestHash !== requestHash) || (!requestHash && row.requestHash))) {
+            throw new OrderError('IDEMPOTENCY_CONFLICT', 'Idempotency key sudah dipakai untuk pesanan atau pembeli berbeda.')
+          }
           const age = Date.now() - new Date(row.createdAt as unknown as string).getTime()
-          if (age <= ttlMs) {
-            const o = await tx.select().from(orders).where(eq(orders.id, row.orderId as never)).limit(1)
-            if (o[0]) return { order: o[0], replayed: true }
+          // Direct checkout replay is durable: paid proof may be retried after prices/TTL change.
+          if (requestHash || age <= ttlMs) {
+            if (existing) return { order: existing, replayed: true }
           }
           // Key kedaluwarsa -> diperlakukan sebagai key baru.
           await tx.delete(idempotencyKeys).where(eq(idempotencyKeys.key, input.idempotencyKey))
-          await tx.insert(idempotencyKeys).values({ key: input.idempotencyKey, orderId: null as never })
+          await tx.insert(idempotencyKeys).values({ key: input.idempotencyKey, orderId: null as never, requestHash })
         }
         else {
           throw new OrderError('IN_PROGRESS', 'Permintaan serupa sedang diproses. Coba lagi sebentar.')
         }
       }
+    }
+
+    // Validate only after committed replay lookup, before reserving any stock.
+    if (input.payment?.method === 'QRIS') {
+      const paymentSettings = await readStoreSettings(tx)
+      if (!paymentSettings.qris_image_url || !paymentSettings.qris_merchant_name) {
+        throw new OrderError('QRIS_UNAVAILABLE', 'Pembayaran QRIS belum dikonfigurasi. Hubungi toko.')
+      }
+      if (!input.paymentProof) throw new OrderError('PAYMENT_PROOF_REQUIRED', 'Bukti pembayaran QRIS wajib diunggah.')
+      if (input.expectedTotal === undefined || !Number.isFinite(input.expectedTotal) || input.expectedTotal < 0) throw new OrderError('EXPECTED_TOTAL_REQUIRED', 'expected_total pembayaran QRIS wajib berupa jumlah yang telah dibayar.')
+      await validatePaymentProof(input.paymentProof)
+    }
+    else if (input.paymentProof) throw new OrderError('INVALID_PAYMENT_METHOD', 'Bukti pembayaran hanya boleh dilampirkan untuk QRIS.')
+    if (input.payment && isDeliveryOrder({ fulfillment: input.fulfillment }) && input.payment.method !== 'QRIS') {
+      throw new OrderError('INVALID_PAYMENT_METHOD', 'Pesanan antar hanya menerima pembayaran QRIS.')
     }
 
     // Customer channel-specific
@@ -256,12 +307,16 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
     const created = await tx.insert(orders).values({
       customerId: customerId as never,
       status: 'CONFIRMED',
-      // Order baru SELALU belum dibayar (migrasi 0004). Stok sudah dikurangi di
-      // bawah, jadi order ini "reserve" stok sampai expires_at -> bayar (PAID)
-      // atau cancel/expire (stok kembali). Jangan set PAID di sini: tidak ada
-      // payment gateway, konfirmasi bayar dilakukan kasir via POST /orders/:id/pay.
+      // Reservasi stok tidak otomatis berarti dibayar: CASH menunggu deadline,
+      // QRIS menunggu review bukti tanpa expiry. PAID hanya lewat admin /pay.
       paymentStatus: 'UNPAID',
-      expiresAt: new Date(Date.now() + orderTtlMinutes * 60_000) as never,
+      buyerName: input.customerIdentity.name ?? found[0]?.name ?? 'Tamu',
+      buyerContact: input.customerIdentity.contact ?? (input.payment ? null : found[0]?.contact) ?? null,
+      buyerPhone: input.buyerPhone ?? null,
+      paymentMethod: input.payment?.method ?? null,
+      paymentReview: input.payment?.method === 'QRIS' ? 'PENDING' : null,
+      deliveryStatus: input.payment && isDeliveryOrder({ fulfillment: input.fulfillment }) ? 'NOT_SHIPPED' : null,
+      expiresAt: input.payment?.method === 'QRIS' ? null : new Date(Date.now() + orderTtlMinutes * 60_000),
       conversationId: (input.conversationId || null) as never,
       channelOrigin: input.channel,
       totalAmount: '0' as never,
@@ -336,6 +391,12 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
       throw new OrderError('PRICE_CHANGED', 'Isi ringkasan pesanan berubah. Ulangi pesanan untuk harga terbaru.')
     }
     const rounded = round2(total)
+    if (input.payment?.method === 'QRIS' && rounded !== input.expectedTotal) {
+      throw new OrderError('PRICE_CHANGED', 'Total pesanan berubah dari jumlah QRIS yang dibayar. Hubungi toko sebelum mengirim ulang bukti.', { expected_total: input.expectedTotal, current_total: rounded })
+    }
+    if (input.paymentProof) {
+      await tx.insert(orderPaymentProofs).values({ orderId: order.id, mime: input.paymentProof.mime, size: input.paymentProof.data.length, data: input.paymentProof.data })
+    }
     await tx.update(orders).set({ totalAmount: String(rounded) as never, promotionSnapshot: (Object.keys(snapshot).length ? snapshot : null) as never }).where(eq(orders.id, order.id))
     if (input.idempotencyKey) {
       await tx.update(idempotencyKeys).set({ orderId: order.id }).where(eq(idempotencyKeys.key, input.idempotencyKey))
@@ -350,27 +411,48 @@ export async function createOrderFromSummary(db: DbLike, input: CreateOrderInput
 
 // ---------- Order lifecycle (payment state machine, migrasi 0004) ----------
 
-/**
- * Proyeksi order untuk API (sumber tunggal — sebelumnya mapping ini diduplikasi
- * di 4 file handler dan `GET /orders/:id` tertinggal tidak punya payment_status).
- */
-export async function orderOut(db: DbLike, id: string) {
-  const o = (await db.select().from(orders).where(eq(orders.id, id as never)).limit(1))[0]
-  if (!o) return null
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id as never))
-  return {
-    id: String(o.id), customer_id: String(o.customerId), status: o.status,
-    payment_status: o.paymentStatus,
-    paid_at: o.paidAt ? new Date(o.paidAt as unknown as Date).toISOString() : null,
-    expires_at: o.expiresAt ? new Date(o.expiresAt as unknown as Date).toISOString() : null,
-    conversation_id: o.conversationId ? String(o.conversationId) : null,
-    channel_origin: o.channelOrigin, total_amount: num(o.totalAmount),
-    promotion_snapshot: o.promotionSnapshot || null, fulfillment: o.fulfillment || null,
-    created_at: new Date(o.createdAt as unknown as Date).toISOString(),
-    completed_at: o.completedAt ? new Date(o.completedAt as unknown as Date).toISOString() : null,
-    cancelled_at: o.cancelledAt ? new Date(o.cancelledAt as unknown as Date).toISOString() : null,
-    items: items.map(i => ({ id: String(i.id), product_id: String(i.productId), quantity: i.quantity, price_at_order: num(i.priceAtOrder), line_total: num(i.lineTotal) }))
+/** Batch projection: full buyer/delivery state without ever selecting proof bytes. */
+export async function ordersOut(db: DbLike, rows: Array<typeof orders.$inferSelect>) {
+  if (!rows.length) return []
+  const ids = rows.map(order => order.id)
+  const items = await db.select({ item: orderItems, name: products.name }).from(orderItems)
+    .innerJoin(products, eq(products.id, orderItems.productId)).where(inArray(orderItems.orderId, ids))
+  const buyers = await db.select().from(customers).where(inArray(customers.id, [...new Set(rows.map(order => order.customerId))]))
+  const proofs = await db.select({ orderId: orderPaymentProofs.orderId, mime: orderPaymentProofs.mime, size: orderPaymentProofs.size, submittedAt: orderPaymentProofs.submittedAt })
+    .from(orderPaymentProofs).where(inArray(orderPaymentProofs.orderId, ids))
+  const buyerById = new Map(buyers.map(buyer => [buyer.id, buyer]))
+  const proofByOrder = new Map(proofs.map(proof => [proof.orderId, proof]))
+  const itemsByOrder = new Map<string, Array<(typeof items)[number]>>()
+  for (const item of items) {
+    const group = itemsByOrder.get(item.item.orderId) ?? []
+    group.push(item)
+    itemsByOrder.set(item.item.orderId, group)
   }
+  return rows.map(o => {
+    const buyer = buyerById.get(o.customerId)
+    const proof = proofByOrder.get(o.id)
+    const fulfillment = o.fulfillment as Record<string, unknown> | null
+    return {
+      id: String(o.id), customer_id: String(o.customerId), status: o.status,
+      buyer: { name: o.buyerName ?? buyer?.name ?? 'Tamu', contact: o.buyerName !== null ? o.buyerContact : buyer?.contact ?? null, phone: o.buyerPhone ?? (typeof fulfillment?.phone === 'string' ? fulfillment.phone : null) },
+      payment_status: o.paymentStatus, payment_method: o.paymentMethod,
+      payment_review: o.paymentReview, payment_review_note: o.paymentReviewNote,
+      payment_proof: proof ? { mime: proof.mime, size: proof.size, submitted_at: proof.submittedAt.toISOString() } : null,
+      delivery_status: o.deliveryStatus,
+      shipped_at: o.shippedAt?.toISOString() ?? null, delivered_at: o.deliveredAt?.toISOString() ?? null,
+      paid_at: o.paidAt?.toISOString() ?? null, expires_at: o.expiresAt?.toISOString() ?? null,
+      conversation_id: o.conversationId ? String(o.conversationId) : null,
+      channel_origin: o.channelOrigin, total_amount: num(o.totalAmount),
+      promotion_snapshot: o.promotionSnapshot || null, fulfillment: o.fulfillment || null,
+      created_at: o.createdAt.toISOString(), completed_at: o.completedAt?.toISOString() ?? null, cancelled_at: o.cancelledAt?.toISOString() ?? null,
+      items: (itemsByOrder.get(o.id) ?? []).map(({ item: i, name }) => ({ id: String(i.id), product_id: String(i.productId), name, quantity: i.quantity, price_at_order: num(i.priceAtOrder), line_total: num(i.lineTotal) }))
+    }
+  })
+}
+
+export async function orderOut(db: DbLike, id: string) {
+  const rows = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
+  return (await ordersOut(db, rows))[0] ?? null
 }
 
 /**
@@ -392,7 +474,10 @@ export async function cancelOrderTx(
   const o = rows[0]
   if (!o) throw new OrderError('ORDER_NOT_FOUND', 'Order tidak ditemukan.')
   if (o.status !== 'CONFIRMED') return { cancelled: false, order: o, restocked: 0 }
+  if (o.deliveryStatus === 'SHIPPING' || o.deliveryStatus === 'DELIVERED') throw new OrderError('SHIPMENT_STARTED', 'Pesanan sudah dikirim; pembatalan dan pengembalian stok tidak diizinkan.')
+  if (opts.reason === 'expired_unpaid' && (o.paymentStatus !== 'UNPAID' || !o.expiresAt || o.expiresAt > new Date() || (o.paymentMethod === 'QRIS' && o.paymentReview === 'PENDING'))) return { cancelled: false, order: o, restocked: 0 }
 
+  if (o.paymentMethod === 'QRIS' && o.paymentReview === 'PENDING' && (!opts.reason?.trim() || opts.reason === 'manual')) throw new OrderError('VALIDATION', 'Alasan penolakan bukti QRIS wajib diisi.')
   const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id))
   for (const it of items) {
     await tx.insert(inventoryTransactions).values({
@@ -401,7 +486,10 @@ export async function cancelOrderTx(
       actorId: (opts.actorId || null) as never
     })
   }
-  await tx.update(orders).set({ status: 'CANCELLED', cancelledAt: new Date() as never }).where(eq(orders.id, o.id))
+  const rejected = o.paymentMethod === 'QRIS' && o.paymentReview === 'PENDING'
+  const reason = opts.reason?.trim() || 'manual'
+  await tx.update(orders).set({ status: 'CANCELLED', cancelledAt: new Date(), ...(rejected ? { paymentReview: 'REJECTED', paymentReviewNote: reason } : {}) }).where(eq(orders.id, o.id))
+  if (rejected) await logAudit(tx, 'REVIEW_REJECTED', opts.actorType || 'USER', { actorId: opts.actorId || null, detail: { order_id: orderId, reason, payment_review: 'REJECTED' } })
   await logAudit(tx, 'ORDER_CANCELLED', opts.actorType || 'USER', {
     actorId: opts.actorId || null,
     detail: { order_id: orderId, restocked_lines: items.length, reason: opts.reason || 'manual' }
@@ -409,20 +497,16 @@ export async function cancelOrderTx(
   return { cancelled: true, order: o, restocked: items.length }
 }
 
-// Pembersihan idempotency key kedaluwarsa — pindahan dari webhook Telegram
-// (dulu DELETE full-scan TANPA index dijalankan per pesan masuk; tabel juga
-// tumbuh tanpa batas karena key `chat:`/web checkout tak pernah dibersihkan).
-// Sekarang: dipanggil dari jalur baca via expireStaleOrders(), throttle 1x
-// per menit per instance, dan index ix_idem_created (migrasi 0005) membuat
-// DELETE-nya murah. Retensi 24 jam — TTL efektif key hanya 30 menit
-// (idempotencyTtlMinutes), jadi 24 jam sangat konservatif.
+// Key chat legacy mempunyai TTL dan dibersihkan setelah 24 jam (throttle/indeks).
+// Key checkout request_hash dipertahankan: retry bukti pembayaran berhari-hari
+// kemudian tetap mengembalikan order awal, bukan reservasi stok/pembayaran baru.
 let _lastIdemCleanup = 0
 export async function cleanupIdempotencyKeys(db: DbLike) {
   const now = Date.now()
   if (now - _lastIdemCleanup < 60_000) return
   _lastIdemCleanup = now
   try {
-    await db.execute(sql`DELETE FROM idempotency_keys WHERE created_at < now() - interval '24 hours'`)
+    await db.execute(sql`DELETE FROM idempotency_keys WHERE created_at < now() - interval '24 hours' AND request_hash IS NULL`)
   }
   catch {
     // Tabel/index belum siap -> coba lagi di siklus berikutnya.
@@ -488,32 +572,16 @@ export async function ensureSeeded(db: DbLike) {
     _seeded = true
     return
   }
-  const existing = await db.select({ id: users.id }).from(users).limit(1)
+  const existing = await db.select({ id: products.id }).from(products).limit(1)
   if (existing.length) {
     _seeded = true
     return
   }
-  const { hashPassword } = await import('./auth')
-  const email = (cfg.seedOwnerEmail as string) || process.env.SEED_OWNER_EMAIL || 'owner@store.demo'
-  const pass = (cfg.seedDefaultPassword as string) || process.env.SEED_DEFAULT_PASSWORD || 'ChangeMe123!'
-  // PERBAIKAN race multi-instance: di serverless beberapa cold start bisa jalan
-  // bersamaan dan semua melihat users kosong. Sebelumnya INSERT biasa →
-  // instance kedua gagal UNIQUE(email) → HTTP 500 untuk request itu.
-  // Sekarang dikunci advisory lock (aman lintas instance) + ON CONFLICT DO NOTHING.
-  const owner = await db.transaction(async (tx) => {
+  // Satu transaksi dan lock lintas instance mencegah katalog ganda/seed parsial.
+  await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(72701)`)
-    const still = await tx.select({ id: users.id }).from(users).limit(1)
-    if (still.length) {
-      _seeded = true
-      return [] as Array<{ id: string }>
-    }
-    return await tx.insert(users).values({
-      name: 'Owner Demo', email, passwordHash: await hashPassword(pass), role: 'OWNER', status: 'ACTIVE'
-    }).onConflictDoNothing({ target: users.email })
-      .returning({ id: users.id })
-  })
-  if (!owner.length) return
-  const ownerId = String(firstRow(owner, 'insert owner seed').id)
+    const still = await tx.select({ id: products.id }).from(products).limit(1)
+    if (still.length) return
   // Katalog demo 12 SKU — hanya Apple (tanpa MacBook) & Samsung Galaxy flagship.
   const demo: Array<{ name: string, category: string, price: number, spec: Record<string, unknown>, stock: number }> = [
     { name: 'iPhone 15 Pro 128GB', category: 'Smartphone', price: 18999000, spec: { brand: 'Apple', ram_gb: 8, storage_gb: 128 }, stock: 12 },
@@ -529,13 +597,14 @@ export async function ensureSeeded(db: DbLike) {
     { name: 'Samsung Galaxy Watch 6 44mm', category: 'Wearable', price: 4299000, spec: { brand: 'Samsung' }, stock: 8 },
     { name: 'Casing Spigen iPhone 15 Pro', category: 'Aksesori', price: 249000, spec: { brand: 'Spigen' }, stock: 40 }
   ]
-  for (const d of demo) {
-    const pins = await db.insert(products).values({
-      name: d.name, category: d.category, specification: d.spec as never, price: String(d.price) as never, status: 'ACTIVE'
-    }).returning({ id: products.id })
-    await db.insert(inventoryTransactions).values({
-      productId: firstRow(pins, `insert seed produk "${d.name}"`).id, type: 'IN', movement: 'IN', referenceType: 'MANUAL', quantity: d.stock, actorId: ownerId as never
-    })
-  }
+    for (const d of demo) {
+      const pins = await tx.insert(products).values({
+        name: d.name, category: d.category, specification: d.spec as never, price: String(d.price) as never, status: 'ACTIVE'
+      }).returning({ id: products.id })
+      await tx.insert(inventoryTransactions).values({
+        productId: firstRow(pins, `insert seed produk "${d.name}"`).id, type: 'IN', movement: 'IN', referenceType: 'MANUAL', quantity: d.stock
+      })
+    }
+  })
   _seeded = true
 }

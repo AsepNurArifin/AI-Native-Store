@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia'
-import type { UserOut } from '~/utils/api-types'
+import type { LoginResponse, UserOut } from '~/utils/api-types'
 
 const TOKEN_KEY = 'ai_store_token'
+
+interface AccountInput {
+  name?: string
+  email?: string
+  current_password?: string
+  new_password?: string
+}
 
 /** Store auth: token di localStorage, user + role di memori. */
 export const useAuthStore = defineStore('auth', {
@@ -25,20 +32,35 @@ export const useAuthStore = defineStore('auth', {
       }
       catch { this.token = null }
     },
+    replaceSession(response: LoginResponse) {
+      this.token = response.access_token
+      this.user = response.user
+      this._hydrated = true
+      if (import.meta.client) {
+        try { localStorage.setItem(TOKEN_KEY, response.access_token) }
+        catch { /* Sesi tetap tersedia di memori bila penyimpanan diblokir. */ }
+      }
+    },
     async login(email: string, password: string) {
       const config = useRuntimeConfig()
       const base = (config.public.apiBase as string) || '/api/v1'
-      const res = await $fetch<{ access_token: string, user: UserOut }>(`${base}/auth/login`, {
+      const res = await $fetch<LoginResponse>(`${base}/auth/login`, {
         method: 'POST',
         body: { email, password }
       })
-      this.token = res.access_token
-      this.user = res.user
-      if (import.meta.client) {
-        try { localStorage.setItem(TOKEN_KEY, res.access_token) }
-        catch { /* abaikan */ }
-      }
+      this.replaceSession(res)
       return res.user
+    },
+    async updateAccount(input: AccountInput) {
+      const config = useRuntimeConfig()
+      const base = (config.public.apiBase as string) || '/api/v1'
+      const response = await $fetch<LoginResponse>(`${base}/auth/account`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${this.token}` },
+        body: input
+      })
+      this.replaceSession(response)
+      return response.user
     },
     async fetchMe() {
       if (!this.token) return null

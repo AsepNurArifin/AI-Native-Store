@@ -3,6 +3,7 @@ import { products } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
 import { currentStock, ensureSeeded, logAudit, num } from '../../../utils/business'
 import { isUuid, firstRow } from '../../../utils/errors'
+import { rejectCoverInput, validateProductImages } from '../../../utils/product-images'
 
 export default defineEventHandler(async (event) => {
   const owner = await requireOwner(event)
@@ -14,6 +15,7 @@ export default defineEventHandler(async (event) => {
   const p = rows[0]
   if (!p) throw createError({ statusCode: 404, message: 'Produk tidak ditemukan', data: { detail: 'Produk tidak ditemukan' } })
   const body = await readBody<Record<string, unknown>>(event)
+  rejectCoverInput(body)
   const patch: Record<string, unknown> = {}
   if (body.name !== undefined) {
     if (!String(body.name).trim() || String(body.name).trim().length > 200) throw createError({ statusCode: 422, message: 'name wajib, maks 200 karakter', data: { detail: { code: 'VALIDATION', message: 'name wajib, maks 200 karakter' } } })
@@ -24,7 +26,7 @@ export default defineEventHandler(async (event) => {
     patch.category = String(body.category)
   }
   if (body.specification !== undefined) patch.specification = body.specification
-  if (body.image_url !== undefined) patch.imageUrl = (typeof body.image_url === 'string' && (body.image_url as string).trim() ? (body.image_url as string).trim().slice(0, 500) : null) as never
+  if (body.image_urls !== undefined) patch.imageUrls = validateProductImages(body.image_urls)
   if (body.price !== undefined) {
     if (!Number.isFinite(Number(body.price)) || Number(body.price) <= 0) throw createError({ statusCode: 422, message: 'Harga tidak valid: harus angka lebih dari 0', data: { detail: { code: 'VALIDATION', message: 'Harga tidak valid: harus angka lebih dari 0' } } })
     patch.price = String(body.price)
@@ -49,6 +51,7 @@ export default defineEventHandler(async (event) => {
     id: String(fresh.id), name: fresh.name, category: fresh.category, specification: fresh.specification || {},
     price: num(fresh.price), status: fresh.status, low_stock_threshold: fresh.lowStockThreshold ?? null,
     current_stock: stock, is_low_stock: stock <= Number(useRuntimeConfig().lowStockDefault ?? 5),
-    image_url: (fresh.imageUrl as string | null) ?? null
+    image_urls: fresh.imageUrls,
+    image_url: fresh.imageUrls[0] || null
   }
 })

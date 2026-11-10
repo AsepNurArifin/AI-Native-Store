@@ -30,6 +30,7 @@ export interface ProductOut {
    * Endpoint admin produk mengirimnya; katalog publik tidak, jadi opsional.
    */
   order_count?: number
+  image_urls: string[]
   image_url: string | null
   discount_percentage?: number
   discounted_price?: number | null
@@ -49,6 +50,7 @@ export interface PromotionOut {
 export interface OrderItemOut {
   id: string
   product_id: string
+  name?: string
   quantity: number
   price_at_order: number
   line_total: number
@@ -68,6 +70,14 @@ export interface OrderOut {
   total_amount: number
   promotion_snapshot: Record<string, unknown> | null
   fulfillment: FulfillmentInfo | null
+  buyer: { name: string, contact: string | null, phone: string | null }
+  payment_method: 'CASH' | 'QRIS' | null
+  payment_review: 'PENDING' | 'VERIFIED' | 'REJECTED' | null
+  payment_review_note: string | null
+  payment_proof: { mime: string, size: number, submitted_at: string } | null
+  delivery_status: 'NOT_SHIPPED' | 'SHIPPING' | 'DELIVERED' | null
+  shipped_at: string | null
+  delivered_at: string | null
   created_at: string
   completed_at: string | null
   cancelled_at: string | null
@@ -178,6 +188,9 @@ export interface ConfirmOrderResponse {
   order_id: string
   status: string
   total: number
+  payment_method?: 'CASH' | 'QRIS' | null
+  payment_review?: 'PENDING' | 'VERIFIED' | 'REJECTED' | null
+  delivery_status?: 'NOT_SHIPPED' | 'SHIPPING' | 'DELIVERED' | null
   /** Batas bayar (ISO) dari server — sumber tunggal, bukan konvensi client. */
   expires_at: string | null
   items: Array<Record<string, unknown>>

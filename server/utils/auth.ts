@@ -4,6 +4,7 @@ import bcryptPkg from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { eq } from 'drizzle-orm'
 import { users } from '../database/schema'
+import type { H3Event } from 'h3'
 
 const { compare, genSalt, hash } = bcryptPkg
 
@@ -21,23 +22,45 @@ export async function verifyPassword(plain: string, hashed: string): Promise<boo
   }
 }
 
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+export function isValidEmail(email: string): boolean {
+  return email.length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+export function isValidNewPassword(password: string): boolean {
+  return Array.from(password).length >= 12 && new TextEncoder().encode(password).byteLength <= 72
+}
+
 function secretKey(): Uint8Array {
   const s = (useRuntimeConfig().jwtSecret as string) || process.env.JWT_SECRET_KEY || 'change-me-64-char-random-secret'
   return new TextEncoder().encode(s)
 }
 
-export async function signAccessToken(sub: string, role: string): Promise<string> {
+export interface AccessTokenClaims {
+  sub: string
+  role: string
+  authVersion: number
+}
+
+export async function signAccessToken(sub: string, role: string, authVersion: number): Promise<string> {
   const minutes = Number(useRuntimeConfig().accessTokenExpireMinutes ?? process.env.ACCESS_TOKEN_EXPIRE_MINUTES ?? 60)
-  return new SignJWT({ sub, role })
+  return new SignJWT({ sub, role, authVersion })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${minutes}m`)
     .sign(secretKey())
 }
 
-export async function verifyAccessToken(token: string): Promise<{ sub: string, role: string }> {
+export async function verifyAccessToken(token: string): Promise<AccessTokenClaims> {
   const { payload } = await jwtVerify(token, secretKey(), { algorithms: ['HS256'] })
-  return { sub: String(payload.sub), role: String((payload as Record<string, unknown>).role || '') }
+  if (typeof payload.sub !== 'string' || typeof payload.role !== 'string'
+    || typeof payload.authVersion !== 'number' || !Number.isSafeInteger(payload.authVersion) || payload.authVersion < 0) {
+    throw new Error('Klaim token tidak valid')
+  }
+  return { sub: payload.sub, role: payload.role, authVersion: payload.authVersion }
 }
 
 export interface AuthUser {
@@ -47,18 +70,16 @@ export interface AuthUser {
   role: string
   status: string
   createdAt: string
+  authVersion: number
 }
 
-export async function getCurrentUser(event: Parameters<typeof getRequestHeader>[0] extends never ? never : import('h3').H3Event): Promise<AuthUser> {
+export async function getCurrentUser(event: H3Event): Promise<AuthUser> {
   const header = getRequestHeader(event, 'authorization') || ''
   if (!header.startsWith('Bearer ')) {
     throw createError({ statusCode: 401, message: 'Token tidak ada', data: { detail: 'Token tidak ada' } })
   }
   const token = header.slice(7)
-  const cached = userCacheGet(token)
-  if (cached) return cached
-
-  let claims: { sub: string, role: string }
+  let claims: AccessTokenClaims
   try {
     claims = await verifyAccessToken(token)
   }
@@ -68,45 +89,22 @@ export async function getCurrentUser(event: Parameters<typeof getRequestHeader>[
   const db = getDb()
   const rows = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1)
   const u = rows[0]
-  if (!u || u.status !== 'ACTIVE') {
-    throw createError({ statusCode: 401, message: 'User tidak aktif', data: { detail: 'User tidak aktif' } })
+  if (!u || u.status !== 'ACTIVE' || u.authVersion !== claims.authVersion || u.role !== claims.role) {
+    throw createError({ statusCode: 401, message: 'Sesi tidak berlaku. Silakan masuk kembali.', data: { detail: 'Sesi tidak berlaku. Silakan masuk kembali.' } })
   }
-  return userCacheSet(token, {
+  return {
     id: String(u.id),
     name: String(u.name),
     email: String(u.email),
     role: String(u.role),
     status: String(u.status),
-    createdAt: (u.createdAt as Date)?.toISOString?.() || String(u.createdAt)
-  })
-}
-
-// ---------- Cache user per token ----------
-// PERBAIKAN latensi: setiap request admin memanggil getCurrentUser -> 1 query
-// ke DB, dan query itu bayar RTT penuh ke Supabase (50-200ms tergantung jarak).
-// Cache per token memotong 1 round trip di SEMUA endpoint admin.
-// Trade-off: perubahan status/role user baru terlihat setelah TTL habis.
-const USER_CACHE_TTL_MS = 60_000
-const USER_CACHE_MAX = 500
-const userCache = new Map<string, { user: AuthUser, until: number }>()
-
-function userCacheGet(token: string): AuthUser | null {
-  const hit = userCache.get(token)
-  if (!hit) return null
-  if (hit.until < Date.now()) {
-    userCache.delete(token)
-    return null
+    createdAt: (u.createdAt as Date)?.toISOString?.() || String(u.createdAt),
+    authVersion: u.authVersion
   }
-  return hit.user
 }
 
-function userCacheSet(token: string, user: AuthUser): AuthUser {
-  if (userCache.size >= USER_CACHE_MAX) userCache.clear()
-  userCache.set(token, { user, until: Date.now() + USER_CACHE_TTL_MS })
-  return user
-}
 
-export async function requireOwner(event: import('h3').H3Event): Promise<AuthUser> {
+export async function requireOwner(event: H3Event): Promise<AuthUser> {
   const u = await getCurrentUser(event)
   if (u.role !== 'OWNER') {
     throw createError({ statusCode: 403, message: 'Hanya Owner', data: { detail: { code: 'FORBIDDEN', message: 'Hanya Owner yang boleh mengakses' } } })

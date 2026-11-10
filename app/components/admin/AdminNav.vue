@@ -1,15 +1,15 @@
 <template>
   <!-- Navigasi admin, dipakai sidebar desktop dan drawer mobile (satu sumber). -->
-  <div class="space-y-6">
+  <div class="admin-navigation">
     <div>
-      <p class="px-3 mb-2 text-[11px] font-semibold text-white/60">
+      <p class="admin-nav-label">
         Operasional toko
       </p>
-      <nav class="space-y-1">
+      <nav class="admin-nav-group" aria-label="Operasional toko">
         <NuxtLink
           to="/admin"
-          exact-active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          exact-active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <LayoutDashboard class="h-4 w-4 shrink-0" />
           <span>Dashboard</span>
@@ -20,8 +20,8 @@
         <template v-if="auth.isOwner">
         <NuxtLink
           to="/admin/products"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <Package class="h-4 w-4 shrink-0" />
           <span>Katalog Produk</span>
@@ -29,8 +29,8 @@
 
         <NuxtLink
           to="/admin/inventory"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <ArrowLeftRight class="h-4 w-4 shrink-0" />
           <span>Inventori &amp; Stok</span>
@@ -38,8 +38,8 @@
 
         <NuxtLink
           to="/admin/orders"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <ShoppingCart class="h-4 w-4 shrink-0" />
           <span>Pesanan</span>
@@ -47,26 +47,30 @@
 
         <NuxtLink
           to="/admin/promotions"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <Ticket class="h-4 w-4 shrink-0" />
           <span>Promosi &amp; Kupon</span>
+        </NuxtLink>
+        <NuxtLink to="/admin/settings" active-class="admin-nav-active" class="admin-nav-link">
+          <Settings class="h-4 w-4 shrink-0" />
+          <span>Pengaturan toko &amp; akun</span>
         </NuxtLink>
         </template>
       </nav>
     </div>
 
-    <div>
-      <p class="px-3 mb-2 text-[11px] font-semibold text-white/60">
+    <div v-if="auth.isOwner">
+      <p class="admin-nav-label">
         Pelanggan &amp; AI
       </p>
-      <nav class="space-y-1">
+      <nav class="admin-nav-group" aria-label="Pelanggan dan AI">
         <template v-if="auth.isOwner">
         <NuxtLink
           to="/admin/conversations"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <MessagesSquare class="h-4 w-4 shrink-0" />
           <span>Percakapan Chat</span>
@@ -74,8 +78,8 @@
 
         <NuxtLink
           to="/admin/customers"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <Users class="h-4 w-4 shrink-0" />
           <span>Pelanggan</span>
@@ -83,8 +87,8 @@
 
         <NuxtLink
           to="/admin/analytics"
-          active-class="bg-sidebar-accent text-white font-semibold"
-          class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+          active-class="admin-nav-active"
+          class="admin-nav-link"
         >
           <ChartColumn class="h-4 w-4 shrink-0" />
           <span>Analitik &amp; Metrik</span>
@@ -93,20 +97,20 @@
         <template v-if="auth.isOwner">
           <NuxtLink
             to="/admin/actions"
-            active-class="bg-sidebar-accent text-white font-semibold"
-            class="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+            active-class="admin-nav-active"
+            class="admin-nav-link"
           >
             <span class="flex items-center gap-3">
               <ListChecks class="h-4 w-4 shrink-0" />
               <span>Aksi AI</span>
             </span>
-            <span class="rounded-full bg-white/15 px-1.5 py-0.5 text-xs font-bold text-white">HITL</span>
+            <span class="admin-nav-chip">HITL</span>
           </NuxtLink>
 
           <NuxtLink
             to="/admin/audit"
-            active-class="bg-sidebar-accent text-white font-semibold"
-            class="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-sidebar-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-promo-400"
+            active-class="admin-nav-active"
+            class="admin-nav-link"
           >
             <Shield class="h-4 w-4 shrink-0" />
             <span>Audit Trail</span>
@@ -126,6 +130,7 @@ import {
   MessagesSquare,
   Package,
   Shield,
+  Settings,
   ShoppingCart,
   Ticket,
   Users

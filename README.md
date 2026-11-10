@@ -52,30 +52,36 @@ Tiga jalur:
    Untuk membeli, pelanggan diarahkan ke `/checkout`.
 2. **Bot Telegram** — percakapan penuh sampai *Order Summary*, lalu konfirmasi pesanan
    langsung dari chat.
-3. **Checkout langsung (`/checkout`)** — pilih produk, tentukan cara menerima barang,
-   bayar. **Tanpa daftar akun.**
+3. **Checkout web (`/checkout?item=<id>`)** — pilih produk, isi nama/telepon,
+   tentukan penerimaan dan pembayaran, lalu konfirmasi tanpa daftar akun.
 
-Semua jalur berujung pada **konfirmasi eksplisit** — tidak ada pesanan yang tercipta
-tanpa persetujuan pelanggan. Total yang dibayar selalu persis seperti yang tampil saat
-konfirmasi.
+Ambil di toko mendukung Cash atau QRIS; pengiriman wajib QRIS. Untuk QRIS,
+pembeli membayar nominal yang ditampilkan dan melampirkan screenshot transaksi
+berhasil sebelum konfirmasi. Server menolak jika total berubah; jangan membayar
+kedua kali, hubungi pengelola dengan bukti. Ringkasan chat mempertahankan price lock.
 
 ## A.4 Pembayaran
 
-| Metode | Keterangan |
-|---|---|
-| **QRIS** | Pembayaran non-tunai. |
-| **Transfer bank** | Transfer ke rekening toko. |
-| **Tunai** | Saat mengambil barang di toko fisik. |
+| Penerimaan | Pembayaran | Konfirmasi |
+|---|---|---|
+| Ambil di toko | Cash | Pesan dahulu, kasir menandai lunas setelah menerima uang |
+| Ambil di toko | QRIS | Screenshot wajib sebelum konfirmasi; admin memverifikasi dana |
+| Antar ke alamat | QRIS saja | Screenshot wajib; pengiriman baru setelah pembayaran terverifikasi |
 
-**Alur pembayaran di sistem:** pesanan dibuat → **stok ditahan** untuk pelanggan tersebut →
-pelanggan membayar → kasir mengonfirmasi (**Tandai Lunas**) → pesanan selesai.
+Screenshot **tidak otomatis membuat lunas**. Bukti masuk ke detail transaksi admin
+dengan nominal, data pembeli, tanggal unggah dan status PENDING. Pengelola mencocokkan
+merchant, nominal, waktu serta dana masuk, lalu memilih verifikasi atau penolakan
+dengan alasan. Bukti tersimpan privat di PostgreSQL, bukan URL publik.
 
-Pesanan yang **belum dibayar** otomatis dibatalkan setelah batas waktu (default 120 menit),
-dan stok kembali tersedia untuk pembeli lain.
+Cash/legacy yang belum dibayar mengikuti batas pembayaran default 120 menit.
+QRIS dengan bukti PENDING tidak otomatis kedaluwarsa saat menunggu pemeriksaan.
 
-> **Catatan implementasi:** QRIS di aplikasi ini masih **simulasi** (payload EMV contoh,
-> tanpa payment gateway) — pembayaran dikonfirmasi manual oleh kasir. Sambungan ke
-> payment gateway adalah rencana pengembangan.
+**QRIS resmi:** buka **Admin → Pengaturan toko & akun** (`/admin/settings`),
+isi nama merchant sesuai aplikasi pembayaran dan unggah gambar QRIS resmi toko
+(atau isi URL gambar). Pengaturan tersimpan di PostgreSQL, bukan `.env`.
+Tanpa gambar atau nama merchant, checkout QRIS ditolak di semua environment;
+Cash untuk ambil di toko tetap tersedia. Tidak ada simulasi QR, payment gateway,
+atau verifikasi bank otomatis.
 
 ## A.5 Pengiriman & Pengambilan
 
@@ -83,6 +89,14 @@ dan stok kembali tersedia untuk pembeli lain.
 |---|---|
 | **Ambil di toko** | Siap diambil **kurang dari 1 jam**. Tunjukkan ID pesanan ke kasir. |
 | **Kurir instan** | GoSend/Grab/dst, **dalam kota saja**. **Ongkir ditanggung pembeli.** |
+
+Pengelola memperbarui **Belum dikirim → Dalam pengiriman → Diterima pelanggan**.
+Tandai Dalam pengiriman setelah seluruh barang diserahkan ke kurir; tandai Diterima
+hanya berdasarkan konfirmasi kurir/pembeli. Sistem tidak menebak penerimaan dari
+waktu. Pesanan antar baru dapat diselesaikan setelah PAID dan DELIVERED. Setelah
+pengiriman dimulai, pembatalan yang mengembalikan stok ditolak; retur/refund perlu
+ditangani terpisah, bukan membatalkan barang yang masih berada di kurir.
+
 
 ## A.6 Harga
 
@@ -126,7 +140,7 @@ refund, dan batas waktu komplain.
 ## A.9 Status Proyek
 
 Proyek **capstone** yang dirancang untuk **dipakai operasional toko**. Sebagian integrasi
-masih menyusul: payment gateway (QRIS masih simulasi) dan kanal WhatsApp.
+masih menyusul: payment gateway otomatis dan kanal WhatsApp. QRIS merchant dengan verifikasi bukti manual didukung.
 
 ---
 
@@ -162,32 +176,28 @@ masih menyusul: payment gateway (QRIS masih simulasi) dan kanal WhatsApp.
 
 **Prinsip keras:**
 
-- **Tanpa Cart/CartItem** — order dibuat langsung dari Order Summary saat konfirmasi eksplisit.
-- **Dua jalur order resmi** — (a) web: checkout langsung `/checkout` → `POST /orders`;
-  (b) conversational Telegram: Order Summary → `CONFIRM:<summary_ref>`.
-  Chat web widget = tanya-jawab (QA), pembelian tetap lewat checkout.
+- **Checkout langsung tanpa akun** — pilih produk dan jumlah, isi data pemesan,
+  lalu `POST /orders`. Chat/Telegram memakai Order Summary → konfirmasi eksplisit.
 - **Stok tidak pernah kolom mutable** — selalu `SUM(inventory_transactions)` (view `v_product_stock`),
   pengecekan & pengurangan atomik dengan lock baris (`FOR UPDATE`) anti-oversell.
 - **Satu rumus harga** — semua perhitungan harga/diskon (katalog, chat, checkout, admin) melewati
   `shared/utils/pricing.ts`: `discount_per_unit = round2(price × pct / 100)`,
   `unit_effective = max(round2(price − discount_per_unit), 0)`, `line_total = round2(unit_effective × qty)`.
   `price_at_order` = harga efektif per unit (net).
-- **Price lock** — order yang dikonfirmasi ditagih persis seperti total pada `OrderSummary` yang
-  ditampilkan; bila harga/promo berubah di antaranya, order ditolak `409 PRICE_CHANGED`.
-  Yang dibandingkan bukan hanya total, tapi juga `unit_price` + `discount_per_unit` — supaya
-  perubahan komposisi harga yang kebetulan menghasilkan total sama tetap terdeteksi.
-- **Idempotency key wajib** — `POST /orders` wajib menerima `idempotency_key` dari client (tanpa
-  fallback random); retry dengan key sama = replay order lama, tidak dobel. Pada jalur konfirmasi
-  chat/Telegram key **selalu** diturunkan server dari `summary_ref` (`chat:<ref>` / `tg:<ref>`) —
-  client tidak boleh meng-override, kalau tidak FE yang mengirim key acak tiap retry akan
-  membuat order dobel.
-- **Payment state terpisah dari order state** — order lahir `status=CONFIRMED` +
-  `payment_status=UNPAID` (stok di-reserve) → `PAID` (kasir konfirmasi) → `COMPLETED`.
-  Order `UNPAID` yang lewat `ORDER_TTL_MINUTES` **otomatis dibatalkan dan stok dikembalikan**
-  (lazy expiry di endpoint baca, aman untuk serverless tanpa cron).
+- **Price lock chat** — order ditagih sesuai `OrderSummary`; perubahan harga/promo
+  ditolak `409 PRICE_CHANGED`, termasuk komposisi harga yang menghasilkan total sama.
+  Checkout QRIS juga memeriksa nominal yang telah dibayar (`expected_total`);
+  mismatch ditolak atomik sebelum menyimpan order/bukti atau reservasi stok.
+- **Idempotency** — checkout web menyimpan digest rincian dan UUID, tanpa data
+  pribadi, di sessionStorage. Server mengikat key ke pembeli/rincian/bukti dan
+  mempertahankan replay transaksi direct; key bertabrakan ditolak. Key chat/Telegram
+  tetap mengikuti TTL legacy. Retry tidak membuat bukti atau reservasi kedua.
+- **Payment state terpisah** — order dibuat CONFIRMED/UNPAID. QRIS juga PENDING,
+  baru VERIFIED/PAID setelah admin mengonfirmasi. Cash/legacy unpaid melewati deadline
+  dibatalkan lazy; QRIS PENDING tidak otomatis dibatalkan selama pemeriksaan.
   **Hanya order `PAID` yang dihitung sebagai pendapatan** di analitik.
-- **Identitas customer web = session id server** — cookie httpOnly `shaf_sid`, bukan
-  `${nama}|${kontak}` (yang menyatukan semua pembeli anonim ke satu baris `Tamu|guest`).
+- **Identitas pembeli web = cookie guest server** — `shaf_sid` memisahkan pembeli
+  anonim tanpa akun pelanggan; akses operator tetap memakai JWT terpisah.
 - **Guard produksi fail-closed** — `server/plugins/00-assert-production.ts` menolak boot bila
   JWT secret default, `DEBUG=true`, `SEED_ON_STARTUP=true`, atau LLM/Telegram provider `mock`.
 - **AI tidak pernah mengakses DB langsung** — hanya lewat tool → service layer.
@@ -269,6 +279,10 @@ psql "$DATABASE_URL" -f server/database/migrations/0002_product_image_url.sql
 psql "$DATABASE_URL" -f server/database/migrations/0003_order_summaries.sql  # order_summaries (store ringkasan, TTL)
 psql "$DATABASE_URL" -f server/database/migrations/0004_order_payment_state.sql  # payment_status/paid_at/expires_at
 psql "$DATABASE_URL" -f server/database/migrations/0005_performance_indexes.sql  # index performa list admin & cleanup idempotency
+psql "$DATABASE_URL" -f server/database/migrations/0006_payment_delivery.sql  # snapshot pembeli, bukti privat, review dan pengiriman
+psql "$DATABASE_URL" -f server/database/migrations/0007_store_settings.sql  # identitas toko dan QRIS
+psql "$DATABASE_URL" -f server/database/migrations/0008_product_gallery.sql  # backfill gambar lama ke galeri
+psql "$DATABASE_URL" -f server/database/migrations/0009_admin_credentials.sql  # versi sesi admin
 ```
 
 > **Tidak pakai `psql` (Windows tanpa client)?** Migrasi juga bisa dijalankan dari Node
@@ -281,17 +295,45 @@ Untuk Supabase yang sudah berisi tabel dari versi sebelumnya, jalankan hanya fil
 migrasi yang belum diterapkan. Jangan `drizzle-kit push` (bisa mengubah DDBB di
 luar migrations).
 
-### 5.3 Seed
+### 5.3 Akun admin & katalog development
 
-Seed otomatis berjalan saat startup **jika tabel `users` kosong** dan
-`SEED_ON_STARTUP=true` → 1 akun Owner demo + katalog demo **12 SKU**
-(Smartphone, Audio, Tablet, Wearable, Aksesori) beserta stok awal. Tidak ada data historis,
-order, pelanggan, atau promo buatan seed — semuanya terbentuk dari pemakaian nyata.
-Seed tidak mengganti data toko yang sudah terisi.
+Akun admin disimpan di tabel `users`; kata sandi di-hash dengan bcrypt.
+Tidak ada email/kata sandi default atau kredensial admin dalam `.env`.
+Untuk instalasi baru, terapkan migrasi lalu jalankan dari terminal interaktif:
 
-**Kredensial demo (development):** lihat `SEED_OWNER_EMAIL` / `SEED_DEFAULT_PASSWORD`
-di `.env` (default `owner@store.demo` / `ChangeMe123!`).
-`SEED_ON_STARTUP` **wajib `false` di produksi** (dicek `assertProductionSafe`).
+```bash
+npm run admin:create
+```
+
+Masukkan email, nama admin, dan kata sandi (minimal 12 karakter, maksimal
+72 byte UTF-8). Masukan kata sandi disembunyikan. CLI membaca koneksi database
+dari `DATABASE_URL` / `NUXT_DATABASE_URL`; akun lama tidak diubah atau ditimpa.
+Admin yang sudah ada tetap memakai kredensial database sebelumnya.
+
+Setelah masuk, buka **Pengaturan toko & akun** untuk mengubah nama toko,
+nama pemilik, gambar/nama merchant QRIS, serta email/kata sandi akun sendiri.
+Nama pemilik di etalase terpisah dari nama profil admin. Perubahan email/kata
+sandi wajib diverifikasi dengan kata sandi saat ini. Perubahan akun mencabut
+sesi lama di semua perangkat; perangkat penyimpan mendapatkan sesi pengganti.
+Token sebelum migrasi versi sesi tidak berlaku; masuk kembali setelah deployment.
+
+`SEED_ON_STARTUP=true` hanya mengisi katalog demo **12 SKU** beserta stok
+awal jika tabel produk kosong. Seed tidak membuat admin, pesanan, pelanggan,
+atau promosi. `SEED_ON_STARTUP` wajib `false` di produksi.
+
+### 5.3.1 Galeri gambar produk
+
+Di **Admin → Katalog Produk**, tambah/ubah produk dan pilih beberapa gambar
+sekaligus: maksimal **10 gambar**, JPG/PNG/WebP/GIF, **2 MB per gambar**.
+Tentukan sampul, pindahkan urutan, atau hapus gambar lalu simpan produk.
+Gambar pertama menjadi sampul katalog. Pembeli dapat menggeser galeri detail,
+memakai tombol sebelumnya/berikutnya, thumbnail, atau keyboard ←/→/Home/End.
+Gambar spesifikasi tampil utuh (object-contain), bukan dipotong.
+
+API mutasi memakai `image_urls: string[]` berurutan. `image_url` pada response
+adalah proyeksi sampul hanya-baca. Migrasi 0008 mempertahankan gambar produk
+lama ke daftar baru sebelum menghapus kolom `image_url` yang lama.
+
 
 ### 5.4 Koneksi DB di serverless — transaction pooler, bukan session pooler
 
@@ -349,7 +391,7 @@ npm run build                 # produksi (node-server; dipakai Vercel via preset
 - **Vercel**: deploy repo root; set env di Environment Variables Vercel. **WAJIB
   pakai awalan `NUXT_`** — `NUXT_APP_ENV`, `NUXT_DEBUG`, `NUXT_SEED_ON_STARTUP`,
   `NUXT_DATABASE_URL`, `NUXT_SUPABASE_URL`, `NUXT_SUPABASE_SERVICE_ROLE_KEY`,
-  `NUXT_JWT_SECRET_KEY`, `NUXT_LLM_PROVIDER=groq` + `NUXT_GROQ_API_KEY`,
+  `NUXT_JWT_SECRET`, `NUXT_LLM_PROVIDER=groq` + `NUXT_GROQ_API_KEY`,
   `NUXT_TELEGRAM_PROVIDER=bot` + `NUXT_TELEGRAM_BOT_TOKEN` +
   `NUXT_TELEGRAM_WEBHOOK_SECRET`, `NUXT_PUBLIC_SITE_URL`. Daftar lengkap ada di
   `.env.example`. `NUXT_PUBLIC_API_BASE=/api/v1` (default).
@@ -462,16 +504,16 @@ approve (EXECUTED) / reject. Plus: adjustment `quantity: -5` → 422 (bukan 500)
 
 ### Penyempurnaan UI pelanggan dan admin
 
-- Identitas biru–kuning dipertahankan. Header sticky hanya memuat masthead dan
-  pencarian mobile; offset anchor mengikuti tinggi header terukur. Kategori
-  navigasi dideduplikasi tanpa mengubah data kategori di database.
+- Storefront dan admin memakai navy–emas dari logo dengan canvas off-white yang sama.
+  Header sticky hanya memuat masthead dan pencarian; offset anchor mengikuti tinggi
+  terukur. Kategori navigasi dideduplikasi tanpa mengubah data database.
 - Kartu produk memakai spesifikasi terstruktur yang sama dengan detail produk.
   Gambar yang kosong atau gagal dimuat memiliki fallback berlabel; CTA produk
   dan receipt memiliki target sentuh minimal 44 px. Tampilan ekstra sempit
   beralih ke susunan satu kolom agar teks dan kontrol tetap dapat dijangkau.
 - Checkout memakai label, radio penerimaan native, error per-field dan fokus ke
   field pertama yang salah. Kontak yang ditolak validasi tidak mengirim pesanan.
-  Harga, batas stok, idempotency dan payload transaksi tetap memakai alur lama.
+  Checkout Cash mengirim JSON; QRIS mengirim multipart input JSON + screenshot privat.
 - Chat mobile mendahulukan satu widget percakapan. Transcript memakai live log;
   status sedang mengirim terpisah dan jawaban tidak mengambil fokus input.
 - Drawer/dialog admin menangani Tab, Shift+Tab, Escape dan pengembalian fokus;
@@ -480,7 +522,7 @@ approve (EXECUTED) / reject. Plus: adjustment `quantity: -5` → 422 (bukan 500)
 - Daftar/detail admin membedakan loading, gagal, kosong dan data; retry memakai
   pemuat yang sama. Append audit yang gagal mempertahankan kejadian sebelumnya.
   Dashboard role non-Owner menampilkan pembatasan, bukan angka nol palsu.
-- QRIS tetap **simulasi yang tidak dapat dibayar**; pembayaran dikonfirmasi kasir.
+- QRIS merchant dikonfigurasi toko; demo berlabel. Screenshot diverifikasi manual oleh pengelola.
 
 Verifikasi UI dilakukan pada aplikasi Nuxt aktual dengan fixture API in-memory
 terpisah: viewport 320×740, 390×844, 768×1024 dan 1440×1000, navigasi keyboard,
@@ -495,10 +537,13 @@ UI, bukan integrasi pembayaran, SQL atau transaksi database produksi.
 | Area | Endpoint (prefix `/api/v1`) | Auth |
 |---|---|---|
 | Auth | `POST /auth/login`, `GET /auth/me` | publik / JWT |
+| Akun admin | `PATCH /auth/account` | Owner; kata sandi saat ini untuk perubahan kredensial |
+| Pengaturan toko/QRIS | `GET /settings`, `PATCH /settings` | publik / Owner |
 | Katalog | `GET /catalog/search`, `/catalog/products`, `/catalog/categories`, `/catalog/:id` | publik |
-| Checkout web | `POST /orders` (`items`, `customer`, `idempotency_key` **wajib**) | publik |
-| Order (manage) | `GET /orders`, `GET /orders/:id`, `POST /orders/:id/pay`, `POST /orders/:id/cancel`, `POST /orders/:id/complete` | Owner (JWT) |
-| Chat / Sales | `POST /chat/start`, `POST /chat/:id/messages` (web QA), `POST /chat/:id/confirm` (konfirmasi ringkasan percakapan) | publik (customer) |
+| Checkout web | `GET /checkout/session`; `POST /orders` (JSON Cash / multipart QRIS) | publik (cookie guest server) |
+| Order (manage) | `GET /orders`, `GET /orders/:id`, `POST /orders/:id/pay`, `…/cancel`, `…/complete`, `…/delivery` | Owner (JWT) |
+| Bukti pembayaran | `GET /orders/:id/payment-proof` (binary private/no-store) | Owner (JWT), tidak menerima token pada URL |
+| Chat / Sales | `POST /chat/start`, `POST /chat/:id/messages`, `POST /chat/:id/confirm` | publik (customer) |
 | Analyst | `POST /chat/analyst/ask` | Owner (JWT) |
 | AI Action | `GET /ai-actions`, `GET /ai-actions/:id`, `POST /ai-actions/draft`, `…/approve`, `…/reject` | Owner (JWT) |
 | Produk | `GET/POST /products`, `GET/PATCH/DELETE /products/:id` | Owner (JWT) |
@@ -535,29 +580,88 @@ Lewat batas → `429` + header `Retry-After`.
 
 **Konfirmasi order** — dua jalur resmi:
 
-- **Web:** checkout langsung di `/checkout` → `POST /orders` (`idempotency_key` wajib).
-  Chat web widget hanya tanya-jawab (QA) — pembelian tetap lewat checkout.
-- **Telegram (conversational):** bot menampilkan isi + total Order Summary sebelum
-  order dibuat → konfirmasi lewat tombol / teks `CONFIRM:<summary_ref>` (jalur Telegram).
-  `POST /chat/:id/confirm` = padanan REST jalur conversational ini.
+- **Cash web:** JSON `{items,customer:{name,contact,phone},fulfillment:{method:'PICKUP'},payment:{method:'CASH'},idempotency_key}`.
+- **QRIS web:** multipart `input` berisi JSON yang sama dengan `payment.method='QRIS'`
+  serta `expected_total`, dan satu file `proof` JPG/PNG/WebP maksimal 2 MiB/20MP.
+  Gambar diperiksa signature dan decode pixel penuh. Pengiriman wajib recipient,
+  phone, address. Rincian pembeli disnapshot per pesanan, bukan membaca nama lama.
+- **Admin:** `/pay` memverifikasi bukti; `/cancel {reason}` menolak bukti pending
+  dengan alasan dan mengembalikan stok. `/delivery {status:'SHIPPING'|'DELIVERED'}`
+  memajukan status dengan timestamp dan audit; tidak ada transisi mundur/lompat.
+- **Chat/Telegram:** ringkasan dan konfirmasi kanal tetap memakai kontrak legacy.
 
-Order hanya tercipta dari konfirmasi eksplisit + idempotency key. Saat konfirmasi,
-isi & total `OrderSummary` dikunci: perubahan harga/promo menghasilkan `409 PRICE_CHANGED`.
+### Storefront terkini dengan logika checkout langsung
+
+- Desain navy–emas, header sticky, katalog, filter, kategori dan promo tetap.
+- Tombol Pesan/Beli sekarang membuka checkout langsung tanpa daftar akun.
+  Akun pelanggan, keranjang dan quote tersimpan tidak lagi menjadi bagian aplikasi.
+- Form checkout dinonaktifkan sampai hydration; data pribadi tidak dikirim
+  melalui native GET saat JavaScript belum siap. Operator tetap masuk lewat `/login`.
+- Sebelum deploy, terapkan migrasi yang belum dijalankan hingga **0009** secara berurutan. Akun dan gambar lama dipertahankan. Migrasi live tidak berjalan otomatis.
+
+Pengujian menggunakan PostgreSQL disposable dan provider lokal, bukan `.env` toko:
+
+```bash
+docker desktop start --detach
+docker pull postgres:17-alpine
+node tests/helpers/storefront-runtime.mjs build
+npm test
+node tests/helpers/storefront-runtime.mjs development
+```
+
+Harness memakai port loopback dinamis dan mencetak URL lokal setelah siap.
+Ketik `stop` atau Ctrl+C untuk menghentikan preview dan menghapus container miliknya.
+Mode `production` memakai build dan guard produksi. Harness memakai direktori
+build sementara terpisah agar tidak mengganggu server development yang sedang aktif.
+
+Regression API/SQL mencakup reservasi unpaid, replay/concurrency, rollback,
+persaingan stok, harga/promo terbaru, identitas guest, pembayaran/pembatalan/expiry,
+konfirmasi ringkasan chat dan ownership Telegram. Smoke produksi memeriksa cookie
+Secure dan kebocoran data pribadi pada SSR publik melalui transport HTTP loopback;
+ini bukan bukti roundtrip cookie pada browser HTTPS produksi.
+Verifikasi pembayaran/pengiriman (10 November 2026): lint, typecheck dan build
+lulus; **24/24 pengujian** lulus tanpa skipped test. PostgreSQL disposable dipakai
+untuk privasi bukti, validasi gambar, replay, nominal, rollback dan state pengiriman.
+Browser aktual membuktikan DELIVERY hanya QRIS, bukti wajib/fokus validasi, gambar
+bukti dan telepon sinkron ke admin, verifikasi manual, SHIPPING → DELIVERED →
+COMPLETED, serta Cash pickup. Detail admin/checkout dan drawer pada 320 px tidak
+overflow horizontal. Verifikasi historis tersebut memakai QRIS demo; versi terkini
+menggunakan gambar merchant dari panel admin. Database transaksi toko tidak
+dimigrasikan otomatis; sebelum deploy terapkan migrasi hingga 0009.
+
+Verifikasi pengaturan/galeri: lint dan typecheck lulus; build deployment lulus.
+Regresi `admin-settings-gallery` lulus (4 hasil), `payment-delivery` lulus
+(8 hasil), dan smoke produksi lulus (2 hasil), tanpa skipped test. Migrasi
+0008 terbukti mempertahankan gambar lama dan aman dijalankan kembali.
+Browser aktual membuktikan login desktop/320 px, perubahan email/kata sandi,
+unggah QRIS hingga terlihat di checkout, multi-file upload dan penggantian sampul,
+tombol/thumbnail/keyboard serta gestur sentuh galeri. Panel pengaturan, login,
+checkout, dan galeri ponsel tidak overflow horizontal. Media uji memakai provider
+Storage lokal terisolasi, bukan bucket/QRIS/database transaksi toko.
+CLI interaktif juga terbukti membuat admin pada PostgreSQL disposable; masukan
+kata sandi tidak tercetak dan akun hasil CLI berhasil login (HTTP 200).
+
+
+
+
+
+
 
 ### Lifecycle order & pembayaran
 
-`orders.status` dan `orders.payment_status` sengaja dipisah karena QRIS hanya
-**simulasi** (merchant ID contoh, tidak ada payment gateway) — jadi "order dibuat"
-tidak sama dengan "sudah dibayar".
+`orders.status`, `payment_status`, `payment_review` dan `delivery_status` berbeda:
 
-```
-konfirmasi (web / telegram)
-   └─> status=CONFIRMED, payment_status=UNPAID, expires_at=now+ORDER_TTL_MINUTES
-         stok DIKURANGI (atomik, FOR UPDATE) — ini "reserve", bukan pembayaran
-         ├─ POST /orders/:id/pay       -> payment_status=PAID, paid_at=now   (kasir)
-         ├─ POST /orders/:id/cancel    -> CANCELLED + stok KEMBALI
-         ├─ lewat expires_at           -> CANCELLED + stok KEMBALI (otomatis)
-         └─ POST /orders/:id/complete  -> COMPLETED  (butuh sudah PAID)
+```mermaid
+flowchart TD
+  CASH[Cash pickup: CONFIRMED / UNPAID] --> PAY[Kasir menerima uang: PAID]
+  QR[Bukti QRIS: CONFIRMED / UNPAID / PENDING] --> VERIFY[Admin verifikasi: PAID / VERIFIED]
+  QR --> REJECT[Admin tolak + alasan: CANCELLED / REJECTED]
+  VERIFY --> PICKUP[Serah terima pickup]
+  PAY --> PICKUP
+  VERIFY --> SHIP[Kurir menerima: SHIPPING]
+  SHIP --> DELIVER[Pelanggan menerima: DELIVERED]
+  DELIVER --> COMPLETE[Admin selesaikan: COMPLETED]
+  PICKUP --> COMPLETE
 ```
 
 - **Expire lazy, bukan cron.** `expireStaleOrders()` dipanggil di awal `GET /orders`,
@@ -583,9 +687,8 @@ konfirmasi (web / telegram)
 | Code | HTTP | Arti |
 |---|---|---|
 | `VALIDATION` | 422 | Input tidak valid (field wajib, format, range) |
-| `IDEMPOTENCY_KEY_REQUIRED` | 422 | `idempotency_key` kosong di `POST /orders` |
 | `INVALID_QTY` | 422 | Quantity bukan bilangan bulat positif |
-| `PRODUCT_NOT_FOUND` | 422 | `product_id` tidak ada di katalog |
+| `PRODUCT_NOT_FOUND` | 404 | `product_id` tidak ada di katalog |
 | `EMPTY_ORDER` | 409 | Tidak ada item untuk dipesan |
 | `PRODUCT_INACTIVE` | 409 | Produk sudah nonaktif |
 | `INSUFFICIENT_STOCK` | 409 | Stok kurang (`detail.available` = sisa stok) |
@@ -596,6 +699,13 @@ konfirmasi (web / telegram)
 | `INVALID_STATE` | 409 | Transisi status order tidak sah (mis. cancel order COMPLETED) |
 | `NOT_PAID` | 409 | `complete` order yang `payment_status` masih UNPAID |
 | `ORDER_EXPIRED` | 409 | `pay` order yang lewat `ORDER_TTL_MINUTES` (belum di-expire) |
+| `QRIS_UNAVAILABLE` | 503 | Gambar QRIS merchant belum dikonfigurasi di produksi |
+| `PAYMENT_PROOF_REQUIRED` / `INVALID_PAYMENT_PROOF` | 422 | Bukti wajib atau gambar tidak valid |
+| `PAYMENT_PROOF_TOO_LARGE` | 422 | Bukti melebihi 2 MiB |
+| `EXPECTED_TOTAL_REQUIRED` | 422 | Nominal QRIS yang dibayar wajib dicantumkan |
+| `IDEMPOTENCY_CONFLICT` | 409 | Key dipakai untuk pembeli/rincian/bukti berbeda |
+| `DELIVERY_NOT_DELIVERED` | 409 | Barang antar belum dikonfirmasi diterima |
+| `SHIPMENT_STARTED` | 409 | Pembatalan/restock setelah pengiriman dimulai ditolak |
 | `PROMO_OVERLAP` | 409 | Promo aktif overlap untuk produk yang sama |
 | `PRODUCT_IN_USE` | 409 | Produk dipakai order — nonaktifkan, jangan hapus |
 
@@ -613,7 +723,7 @@ konfirmasi (web / telegram)
 | Bot Telegram tidak membalas | webhook belum diset / tunnel mati | jalankan tunnel lalu `setWebhook` ulang (lihat §6 Deployment) |
 | Konfirmasi chat ditolak `PRICE_CHANGED` | harga/promo berubah sejak ringkasan dibuat | desain begitu: ulangi pesanan untuk harga baru — 0 order tercipta, stok utuh |
 | `SUMMARY_EXPIRED` saat konfirmasi | ringkasan > 30 menit (TTL `order_summaries`) | buat ringkasan baru lewat chat |
-| Retry checkout membuat error | `idempotency_key` wajib | kirim ulang dengan **key yang sama** untuk replay, key baru untuk order baru |
+| Retry checkout | Hasil konfirmasi belum diketahui | kirim ulang **idempotency_key yang sama**; jangan mengganti produk/jumlah sebelum hasilnya diketahui |
 | Server tidak mau boot setelah deploy | guard produksi menolak start | set `APP_ENV=production`, `JWT_SECRET_KEY` acak ≥32 char, `DEBUG=false`, `SEED_ON_STARTUP=false`, provider bukan `mock` — di Vercel pakai awalan `NUXT_` (lihat §6) |
 | Telegram membalas `401` | `TELEGRAM_PROVIDER=mock` (webhook fail-closed) | pakai `POST /dev/mock-tg` untuk dev, atau set `bot` + `TELEGRAM_WEBHOOK_SECRET` |
 | Login `429` | kena rate limit 5×/15 mnt per (IP+email) | tunggu 15 menit; counter direset otomatis setelah login sukses |
@@ -656,5 +766,5 @@ konfirmasi (web / telegram)
   server — client tidak bisa memilih `identifier` sehingga tidak bisa sengaja
   menyatukan order dengan session orang lain.
 - Endpoint `/api/v1/dev/*` hanya aktif saat `DEBUG=true` — wajib `false` di produksi.
-- QRIS yang tampil di checkout adalah **simulasi** (payload EMV contoh) — pembayaran
-  dikonfirmasi manual oleh kasir, bukan webhook payment gateway.
+- Bukti pembayaran hanya dibaca lewat JWT Owner dengan `private, no-store`,
+  tanpa URL publik. Gambar QRIS resmi dikonfigurasi merchant; bank tidak diverifikasi otomatis.

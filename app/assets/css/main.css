@@ -1,57 +1,46 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/*
- * Hallmark · Best Buy Marketplace Theme
- * Royal Blue (#0046BE), Yellow Tag (#FFF200), Off-White Canvas (#F4F6F9)
- */
+/* SHAF STORE · shared storefront and operator identity: navy, gold, off-white. */
 
 @theme {
-  /* Best Buy Palette Tokens */
-  --color-bby-blue: #0046be;
-  --color-bby-dark: #001e60;
-  --color-bby-subnav: #003899;
-  --color-bby-yellow: #fff200;
-  --color-bby-yellow-hover: #ffe600;
-  --color-bby-red: #c41230;
+  /* Navy brand ramp */
+  --color-brand-50: #f0f4f8;
+  --color-brand-100: #dce5ef;
+  --color-brand-200: #bfcede;
+  --color-brand-300: #93acc6;
+  --color-brand-400: #6c8aa8;
+  --color-brand-500: #4e6b89;
+  --color-brand-600: #294762;
+  --color-brand-700: #18344f;
+  --color-brand-800: #122b44;
+  --color-brand-900: #091a2d;
+  --color-brand-950: #06111f;
 
-  /* Ramp aksen brand — Royal Blue Best Buy */
-  --color-brand-50: #eff5ff;
-  --color-brand-100: #dbe8fe;
-  --color-brand-200: #bfd5fe;
-  --color-brand-300: #93b9fd;
-  --color-brand-400: #6093fb;
-  --color-brand-500: #3b6ef6;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #0046be; /* Primary Best Buy Royal Blue */
-  --color-brand-800: #003899;
-  --color-brand-900: #001e60;
-  --color-brand-950: #001138;
+  /* Gold accents, separate from semantic success and danger colors */
+  --color-promo-50: #fcf9f1;
+  --color-promo-100: #f6edd8;
+  --color-promo-200: #ebd9ad;
+  --color-promo-300: #d8bd82;
+  --color-promo-400: #c2a364;
+  --color-promo-500: #b08f4d;
+  --color-promo-600: #806326;
+  --color-promo-700: #70551e;
+  --color-promo-800: #594319;
+  --color-promo-900: #423113;
 
-  /* Ramp aksen promo — Best Buy Red & Yellow Tag */
-  --color-promo-50: #fffdf0;
-  --color-promo-100: #fffbcf;
-  --color-promo-200: #fff594;
-  --color-promo-300: #ffea4c;
-  --color-promo-400: #fff200; /* Best Buy Yellow Tag Accent */
-  --color-promo-500: #e6ce00;
-  --color-promo-600: #c41230; /* Best Buy Promo Red */
-  --color-promo-700: #b00a26;
-  --color-promo-800: #8c0c22;
-  --color-promo-900: #740f20;
-
-  /* Canvas Neutral Best Buy (Off-white #f4f6f9) */
-  --color-stone-50: #f4f6f9;
+  /* Off-white canvas and cool neutrals */
+  --color-stone-50: #f4f6f8;
   --color-stone-100: #eef2f6;
-  --color-stone-200: #e0e6ef; /* Best Buy Card Border */
-  --color-stone-300: #c8d3e2;
-  --color-stone-400: #93a3b8;
-  --color-stone-500: #64748b;
-  --color-stone-600: #475569;
-  --color-stone-700: #334155;
-  --color-stone-800: #1e293b;
-  --color-stone-900: #040c13; /* Best Buy Charcoal Text */
-  --color-stone-950: #02060a;
+  --color-stone-200: #dce3eb;
+  --color-stone-300: #bfccd9;
+  --color-stone-400: #718096;
+  --color-stone-500: #607186;
+  --color-stone-600: #526277;
+  --color-stone-700: #34465c;
+  --color-stone-800: #18344f;
+  --color-stone-900: #091a2d;
+  --color-stone-950: #06111f;
 
   --color-white: #ffffff;
 }
@@ -85,16 +74,16 @@
   background: transparent;
 }
 .modern-scrollbar::-webkit-scrollbar-thumb {
-  background: #c8d3e2;
+  background: var(--color-stone-300);
   border-radius: 9999px;
 }
 .modern-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #93a3b8;
+  background: var(--color-stone-400);
 }
 
 .soft-card {
   background: #ffffff;
-  border: 1px solid #e0e6ef;
+  border: 1px solid var(--border);
 }
 
 @theme inline {
@@ -138,37 +127,37 @@
 
 :root {
   --radius: 0.75rem;
-  --background: #f4f6f9;
-  --foreground: #040c13;
+  --background: #f4f6f8;
+  --foreground: #091a2d;
   --card: #ffffff;
-  --card-foreground: #040c13;
+  --card-foreground: #091a2d;
   --popover: #ffffff;
-  --popover-foreground: #040c13;
-  --primary: #0046be;
+  --popover-foreground: #091a2d;
+  --primary: #091a2d;
   --primary-foreground: #ffffff;
   --secondary: #eef2f6;
-  --secondary-foreground: #040c13;
+  --secondary-foreground: #091a2d;
   --muted: #eef2f6;
-  --muted-foreground: #64748b;
-  --accent: #eff5ff;
-  --accent-foreground: #0046be;
+  --muted-foreground: #607186;
+  --accent: #f6edd8;
+  --accent-foreground: #594319;
   --destructive: #c41230;
-  --border: #e0e6ef;
-  --input: #e0e6ef;
-  --ring: #0046be;
-  --chart-1: #0046be;
-  --chart-2: #fff200;
+  --border: #dce3eb;
+  --input: #bfccd9;
+  --ring: #091a2d;
+  --chart-1: #18344f;
+  --chart-2: #c2a364;
   --chart-3: #c41230;
-  --chart-4: #64748b;
-  --chart-5: #1e293b;
-  --sidebar: #001e60;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #fff200;
-  --sidebar-primary-foreground: #040c13;
-  --sidebar-accent: #003899;
+  --chart-4: #607186;
+  --chart-5: #294762;
+  --sidebar: #091a2d;
+  --sidebar-foreground: #dce5ef;
+  --sidebar-primary: #d8bd82;
+  --sidebar-primary-foreground: #091a2d;
+  --sidebar-accent: #18344f;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #003899;
-  --sidebar-ring: #fff200;
+  --sidebar-border: #294762;
+  --sidebar-ring: #c2a364;
 }
 
 @layer base {

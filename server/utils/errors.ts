@@ -1,9 +1,11 @@
-export function apiError(statusCode: number, code: string, message: string, extra: Record<string, unknown> = {}) {
+export function apiError(statusCode: number, code: string, message: string, extra: Record<string, unknown> = {}): never {
   throw createError({ statusCode, message, data: { detail: { code, message, ...extra } } })
 }
 
 export function toOrderHttpCode(code: string): number {
   if (code === 'NOT_FOUND' || code === 'PRODUCT_NOT_FOUND' || code === 'ORDER_NOT_FOUND') return 404
+  if (code === 'QRIS_UNAVAILABLE') return 503
+  if (code === 'IDEMPOTENCY_CONFLICT' || code === 'DELIVERY_NOT_DELIVERED' || code === 'SHIPMENT_STARTED') return 409
   if (code === 'INSUFFICIENT_STOCK' || code === 'PRODUCT_INACTIVE' || code === 'EMPTY_ORDER' || code === 'INVALID_STATE' || code === 'PRICE_CHANGED' || code === 'IN_PROGRESS' || code === 'NOT_PAID' || code === 'ORDER_EXPIRED') return 409
   return 422
 }

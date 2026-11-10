@@ -35,3 +35,23 @@ _session.json
 # Python legacy (arsip di git history)
 .venv
 __pycache__/
+
+.pi
+.playwright-mcp
+.references
+omp-session-2026-11-02T09-10-54-036Z_01a19b86-a154-76d6-a86e-b1f013f1731f.html
+omp-session-2026-11-02T12-46-11-405Z_01a19c4b-bbcc-7765-92f1-f06b662807a8.html
+omp-session-2026-11-02T15-22-44-320Z_01a19cdb-0ee0-7372-acd6-6da55e99b774.html
+omp-session-2026-11-02T17-51-35-688Z_01a19d63-5707-71f8-b4c9-09c70ca641d0.html
+omp-session-2026-11-10T07-37-43-883Z_01a1c464-34cb-7361-a1c4-9d627e5c2965.html
+home-check.png
+console-errors.txt
+audit-final-default.png
+audit-5-expanded.png
+audit-4-default.png
+audit-2-expanded.png
+audit-1-default.png
+AGENT.md
+
+progres.pdf
+Tugas Project Capstone.pdf

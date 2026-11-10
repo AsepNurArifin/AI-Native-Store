@@ -9,7 +9,7 @@
  * multi-instance) ini deterrent, bukan jaminan. Untuk limit ketat, pindahkan ke
  * tabel DB/Redis.
  */
-type Bucket = { hits: number[], lastSeen: number }
+type Bucket = { hits: number[], lastSeen: number, windowMs: number }
 
 const buckets = new Map<string, Bucket>()
 let lastSweep = 0
@@ -19,8 +19,8 @@ function sweep(now: number) {
   if (now - lastSweep < SWEEP_MS) return
   lastSweep = now
   for (const [k, b] of buckets) {
-    if (now - b.lastSeen > 15 * 60_000) buckets.delete(k)
-    else b.hits = b.hits.filter(t => now - t < 15 * 60_000)
+    if (now - b.lastSeen > b.windowMs) buckets.delete(k)
+    else b.hits = b.hits.filter(t => now - t < b.windowMs)
   }
 }
 
@@ -28,7 +28,8 @@ function sweep(now: number) {
 export function rateLimit(key: string, max: number, windowMs: number): boolean {
   const now = Date.now()
   sweep(now)
-  const b = buckets.get(key) ?? { hits: [], lastSeen: now }
+  const b = buckets.get(key) ?? { hits: [], lastSeen: now, windowMs }
+  b.windowMs = windowMs
   b.hits = b.hits.filter(t => now - t < windowMs)
   b.lastSeen = now
   if (b.hits.length >= max) {

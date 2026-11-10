@@ -56,7 +56,8 @@ export default defineEventHandler(async (event) => {
       price: num(p.price), status: p.status, low_stock_threshold: p.lowStockThreshold ?? null,
       current_stock: stock, is_low_stock: stock <= thr,
       order_count: orderCounts.get(String(p.id)) ?? 0,
-      image_url: (p.imageUrl as string | null) ?? null
+      image_urls: p.imageUrls,
+      image_url: p.imageUrls[0] || null
     }
   })
 })

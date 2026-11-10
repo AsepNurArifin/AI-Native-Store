@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
-import { customers, orderItems, orders } from '../../../database/schema'
+import { customers, orders } from '../../../database/schema'
 import { requireOwner } from '../../../utils/auth'
-import { ensureSeeded, expireStaleOrders, num } from '../../../utils/business'
+import { ensureSeeded, expireStaleOrders, ordersOut } from '../../../utils/business'
 
 export default defineEventHandler(async (event) => {
   await requireOwner(event)
@@ -19,12 +19,16 @@ export default defineEventHandler(async (event) => {
   if (q.status) conds.push(eq(orders.status, String(q.status)))
   if (q.channel) conds.push(eq(orders.channelOrigin, String(q.channel)))
   if (q.payment_status) conds.push(eq(orders.paymentStatus, String(q.payment_status)))
+  if (q.payment_method) conds.push(eq(orders.paymentMethod, String(q.payment_method)))
+  if (q.payment_review) conds.push(eq(orders.paymentReview, String(q.payment_review)))
+  if (q.delivery_status) conds.push(eq(orders.deliveryStatus, String(q.delivery_status)))
   if (q.q) {
     // `q` = potongan ID order ATAU nama/kontak/identifier pelanggan (1 query,
     // escape wildcard LIKE seperti di catalog/search).
     const like = `%${String(q.q).trim().replace(/[\\%_]/g, '\\$&')}%`
     const searchable = or(
       sql`cast(${orders.id} as text) ilike ${like}`,
+      ilike(orders.buyerName, like), ilike(orders.buyerContact, like), ilike(orders.buyerPhone, like),
       inArray(orders.customerId, db.select({ id: customers.id }).from(customers)
         .where(or(ilike(customers.name, like), ilike(customers.contact, like), ilike(customers.identifier, like))))
     )
@@ -36,30 +40,5 @@ export default defineEventHandler(async (event) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize)
 
-  // Batch ambil item seluruh order halaman ini dalam 1 query (tanpa N+1).
-  const itemsByOrder = new Map<string, Array<typeof orderItems.$inferSelect>>()
-  if (slice.length) {
-    const items = await db.select().from(orderItems)
-      .where(inArray(orderItems.orderId, slice.map(o => o.id) as never))
-    for (const it of items) {
-      const key = String(it.orderId)
-      const arr = itemsByOrder.get(key) ?? []
-      arr.push(it)
-      itemsByOrder.set(key, arr)
-    }
-  }
-
-  return slice.map(o => ({
-    id: String(o.id), customer_id: String(o.customerId), status: o.status,
-    payment_status: o.paymentStatus,
-    paid_at: o.paidAt ? (o.paidAt as Date).toISOString() : null,
-    expires_at: o.expiresAt ? (o.expiresAt as Date).toISOString() : null,
-    conversation_id: o.conversationId ? String(o.conversationId) : null,
-    channel_origin: o.channelOrigin, total_amount: num(o.totalAmount),
-    promotion_snapshot: o.promotionSnapshot || null, fulfillment: o.fulfillment || null,
-    created_at: (o.createdAt as Date).toISOString(),
-    completed_at: o.completedAt ? (o.completedAt as Date).toISOString() : null,
-    cancelled_at: o.cancelledAt ? (o.cancelledAt as Date).toISOString() : null,
-    items: (itemsByOrder.get(String(o.id)) || []).map(i => ({ id: String(i.id), product_id: String(i.productId), quantity: i.quantity, price_at_order: num(i.priceAtOrder), line_total: num(i.lineTotal) }))
-  }))
+  return await ordersOut(db, slice)
 })

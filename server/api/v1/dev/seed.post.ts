@@ -1,7 +1,7 @@
 import { ensureSeeded } from '../../../utils/business'
 
 /**
- * Seed manual (owner demo + 12 SKU) untuk setup/reset DB.
+ * Seed manual katalog 12 SKU untuk development; tidak membuat akun admin.
  * Pengganti auto-seed di jalur katalog yang sudah dihapus demi latency.
  * Contoh: curl -X POST https://host/api/v1/dev/seed
  */

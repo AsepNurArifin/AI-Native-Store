@@ -39,7 +39,7 @@
         <div class="space-y-2 border-t border-dashed border-stone-300 pt-5">
           <p class="text-sm leading-relaxed text-stone-600">
             <span class="font-semibold text-stone-800">Cara belinya:</span>
-            Tekan Pesan di kartu produk atau Beli sekarang di halaman produk, lalu isi data pemesan. QRIS pada demo adalah simulasi; pembayaran dikonfirmasi kasir.
+            Tekan Pesan atau Beli sekarang, isi nama dan telepon. Ambil di toko bisa Cash/QRIS; pengiriman wajib QRIS dan screenshot berhasil sebelum konfirmasi. Admin memeriksa pembayaran.
           </p>
         </div>
       </div>
@@ -49,15 +49,16 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default' })
+const { settings } = await useStoreSettings()
 
 const config = useRuntimeConfig()
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 
 useSeoMeta({
-  title: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
+  title: () => `Chat ${settings.value.store_name}: Tanya Stok, Spesifikasi & Rekomendasi`,
   description:
     'Tanya stok, spesifikasi, dan harga produk Apple & Samsung Galaxy flagship lewat chat. Asisten mencocokkan pertanyaanmu dengan katalog toko; beli langsung lewat checkout tanpa chat.',
-  ogTitle: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
+  ogTitle: () => `Chat ${settings.value.store_name}: Tanya Stok, Spesifikasi & Rekomendasi`,
   ogDescription:
     'Tanya stok, spesifikasi, dan harga produk Apple & Samsung Galaxy flagship lewat chat; beli langsung lewat checkout.',
   ogType: 'website',
@@ -65,9 +66,9 @@ useSeoMeta({
   ogImage: `${siteUrl}/og-image.png`,
   ogImageWidth: 1200,
   ogImageHeight: 630,
-  ogImageAlt: 'Papan nama SHAF STORE: spesialis iPhone & Samsung Galaxy flagship yang buka lewat chat',
+  ogImageAlt: () => `Papan nama ${settings.value.store_name}: spesialis iPhone & Samsung Galaxy flagship yang buka lewat chat`,
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Chat SHAF STORE: Tanya Stok, Spesifikasi & Rekomendasi',
+  twitterTitle: () => `Chat ${settings.value.store_name}: Tanya Stok, Spesifikasi & Rekomendasi`,
   twitterDescription: 'Tanya stok, spesifikasi, dan harga produk Apple & Samsung Galaxy flagship lewat chat.',
   twitterImage: `${siteUrl}/og-image.png`
 })

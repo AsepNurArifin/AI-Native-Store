@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6 max-[320px]:[overflow-wrap:anywhere]">
     <!-- Welcome Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="admin-dashboard-welcome flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <h1 class="font-display text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
           Dashboard Operasional
@@ -16,11 +16,12 @@
         </Button>
         <Button v-if="ownerOnly" to="/admin/products" size="sm" variant="ai">+ Tambah Produk</Button>
         <Button v-if="ownerOnly" to="/admin/analytics" size="sm" variant="outline">Lihat Analitik</Button>
+        <Button v-if="ownerOnly" to="/admin/settings" size="sm" variant="outline">Pengaturan toko &amp; akun</Button>
       </div>
     </div>
 
     <!-- 4 KPI Stat Metric Cards -->
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="admin-dashboard-metrics grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <!-- Card 1: API & Server Health -->
       <Card class="relative overflow-hidden">
         <CardContent>
@@ -135,7 +136,7 @@
             <h3 class="font-display font-bold text-stone-900 text-sm">Prinsip Arsitektur: Dua Jalur Data Terisolasi</h3>
           </div>
           <p class="text-xs text-stone-600 max-w-2xl leading-relaxed">
-            • <b>Jalur 1 (Customer Order)</b>: Transaksi customer berjalan atomik tanpa membutuhkan persetujuan manual.<br>
+            • <b>Jalur 1 (Pesanan pelanggan)</b>: Pesanan dan reservasi stok atomik. Bukti QRIS diverifikasi manual oleh pengelola sebelum pembayaran ditandai lunas.<br>
             • <b>Jalur 2 (Aksi Agen AI)</b>: Rekomendasi promosi & diskon dari AI wajib disetujui (Approved) oleh Owner sebelum aktif.
           </p>
         </div>

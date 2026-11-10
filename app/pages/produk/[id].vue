@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { MessageCircle, ShieldCheck, ShoppingCart, Truck } from '@lucide/vue'
+import { MessageCircle, ShieldCheck, Truck } from '@lucide/vue'
 import type { ProductOut } from '~/utils/api-types'
 import { formatIDR } from '~/utils/format'
-import { effectivePrice, hasPromo, keySpecs } from '~/utils/product'
+import { keySpecs } from '~/utils/product'
+import { productView } from '~/utils/storefront'
 
 definePageMeta({
   layout: 'default',
@@ -14,6 +15,7 @@ definePageMeta({
 
 const route = useRoute()
 const config = useRuntimeConfig()
+const { settings } = await useStoreSettings()
 const base = (config.public.apiBase as string) || '/api/v1'
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 const id = computed(() => String(route.params.id || ''))
@@ -28,7 +30,7 @@ const { data: product, error, refresh: refreshProduct } = await useAsyncData(`pr
 const RELATED_PAGE_SIZE = 8
 const relatedKey = computed(() => `produk-related-${id.value}`)
 
-const { data: firstRelated } = await useAsyncData(
+const { data: firstRelated, pending: relatedPending, error: relatedError, refresh: refreshRelated } = await useAsyncData(
   relatedKey,
   async () => {
     if (!product.value) return [] as ProductOut[]
@@ -43,8 +45,11 @@ const { data: firstRelated } = await useAsyncData(
 const related = ref<ProductOut[]>([])
 const loadingMoreRelated = ref(false)
 const hasMoreRelated = ref(false)
+const relatedLoadError = ref('')
+let relatedGeneration = 0
 
 watch(firstRelated, (v) => {
+  relatedGeneration++
   related.value = v ?? []
   hasMoreRelated.value = (v?.length ?? 0) === RELATED_PAGE_SIZE
 }, { immediate: true })
@@ -52,16 +57,18 @@ watch(firstRelated, (v) => {
 async function loadMoreRelated() {
   if (loadingMoreRelated.value || !hasMoreRelated.value || !product.value) return
   const keyAtStart = relatedKey.value
+  const generation = relatedGeneration
+  relatedLoadError.value = ''
   loadingMoreRelated.value = true
   try {
     const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
       query: { category: product.value.category, limit: RELATED_PAGE_SIZE, offset: related.value.length, exclude: id.value }
     })
-    if (keyAtStart !== relatedKey.value) return
+    if (keyAtStart !== relatedKey.value || generation !== relatedGeneration) return
     related.value = [...related.value, ...(next ?? [])]
     hasMoreRelated.value = (next?.length ?? 0) === RELATED_PAGE_SIZE
   } catch {
-    toast.error('Gagal memuat produk berikutnya. Coba lagi.')
+    if (keyAtStart === relatedKey.value && generation === relatedGeneration) relatedLoadError.value = 'Gagal memuat produk berikutnya. Coba lagi.'
   } finally {
     loadingMoreRelated.value = false
   }
@@ -77,13 +84,19 @@ watch(error, (err) => {
   if (err && err.statusCode !== 404) toast.error('Produk tidak bisa dimuat. Koneksi ke database toko sedang terganggu.')
 })
 
-const promo = computed(() => product.value ? hasPromo(product.value) : false)
-const finalPrice = computed(() => product.value ? effectivePrice(product.value) : 0)
-const soldOut = computed(() => (product.value?.current_stock ?? 0) <= 0)
+const observedProducts = computed(() => [...(product.value ? [product.value] : []), ...related.value])
+const { now, refreshError, refreshExpired } = useStorefrontClock(observedProducts, async () => {
+  await Promise.all([refreshProduct(), refreshRelated()])
+  if (error.value || relatedError.value) throw new Error('Harga terbaru belum bisa dimuat.')
+})
+const view = computed(() => product.value ? productView(product.value, now.value) : null)
+const promo = computed(() => view.value?.discount !== null && !!view.value)
+const finalPrice = computed(() => view.value?.price ?? 0)
+const soldOut = computed(() => !view.value?.available)
 const chatLink = computed(() => `/chat?tanya=${encodeURIComponent(product.value ? `Apakah ${product.value.name} masih ada stok?` : '')}`)
 const topSpecs = computed(() => product.value ? keySpecs(product.value.specification) : [])
 
-const pageTitle = computed(() => product.value ? `${product.value.name}: Harga & Spesifikasi` : 'Produk: SHAF STORE')
+const pageTitle = computed(() => product.value ? `${product.value.name}: Harga & Spesifikasi` : `Produk: ${settings.value.store_name}`)
 const canonicalUrl = computed(() => `${siteUrl}/produk/${id.value}`)
 /** OG absolut: URL eksternal dibiarkan apa adanya, path lokal diprefiks siteUrl. */
 const ogProductImage = computed(() => {
@@ -97,8 +110,8 @@ useSeoMeta({
   title: pageTitle,
   description: () => product.value
     ? `${product.value.name} (${product.value.category}) — ${formatIDR(finalPrice.value)}. Stok ${product.value.current_stock}; checkout langsung tanpa daftar akun.`
-    : 'Produk di katalog SHAF STORE.',
-  ogTitle: () => product.value ? `${product.value.name} — ${formatIDR(finalPrice.value)}` : 'SHAF STORE',
+    : `Produk di katalog ${settings.value.store_name}.`,
+  ogTitle: () => product.value ? `${product.value.name} — ${formatIDR(finalPrice.value)}` : settings.value.store_name,
   ogDescription: () => product.value ? `${product.value.name} (${product.value.category}). Stok ${product.value.current_stock}, checkout langsung.` : '',
   ogType: 'website',
   ogUrl: canonicalUrl,
@@ -114,7 +127,7 @@ useHead(() => ({
       innerHTML: JSON.stringify({
         '@context': 'https://schema.org', '@type': 'Product',
         name: product.value.name, category: product.value.category,
-        image: product.value.image_url || undefined,
+        image: product.value.image_urls.length ? product.value.image_urls : undefined,
         offers: {
           '@type': 'Offer', url: canonicalUrl.value,
           priceCurrency: 'IDR', price: finalPrice.value,
@@ -174,12 +187,11 @@ useHead(() => ({
     </div>
 
     <div v-else class="grid gap-6 lg:grid-cols-2 max-[320px]:grid-cols-1">
-      <div class="relative">
-        <ProductImage :image-url="product.image_url" :name="product.name" :category="product.category" size="detail" eager />
+      <ProductGallery :image-urls="product.image_urls" :name="product.name" :category="product.category">
         <span v-if="promo" class="absolute left-3 top-3 rounded-md bg-promo-700 px-2.5 py-1 text-xs font-bold text-white">
-          -{{ Math.round(product.discount_percentage || 0) }}%
+          -{{ view?.discount }}%
         </span>
-      </div>
+      </ProductGallery>
 
       <div class="space-y-4 max-[320px]:min-w-0">
         <div>
@@ -189,14 +201,14 @@ useHead(() => ({
 
         <!-- Blok harga: hierarki marketplace -->
         <div class="rounded-xl border border-stone-200 bg-white p-4">
-          <p v-if="promo" class="text-sm text-stone-400 line-through">{{ formatIDR(product.price) }}</p>
-          <p class="font-display text-3xl font-extrabold tabular-nums" :class="promo ? 'text-promo-700' : 'text-stone-900'">{{ formatIDR(finalPrice) }}</p>
+          <p v-if="promo" class="text-sm text-stone-500 line-through">{{ formatIDR(view?.compareAt) }}</p>
+          <p class="font-display text-3xl font-extrabold tabular-nums [overflow-wrap:anywhere]" :class="promo ? 'text-promo-700' : 'text-stone-900'">{{ formatIDR(finalPrice) }}</p>
           <p v-if="promo && product.promotion" class="mt-1 text-xs text-stone-500">
             Promo s.d. {{ new Date(product.promotion.end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
           </p>
           <p class="mt-2 text-sm font-medium" :class="soldOut ? 'text-rose-600' : product.is_low_stock ? 'text-amber-700' : 'text-emerald-600'">
             <template v-if="soldOut">Stok habis — tanya restock lewat chat</template>
-            <template v-else-if="product.is_low_stock">Sisa {{ product.current_stock }} unit — siapa cepat</template>
+            <template v-else-if="product.is_low_stock">Sisa {{ product.current_stock }} unit</template>
             <template v-else>Stok tersedia: {{ product.current_stock }} unit</template>
           </p>
         </div>
@@ -209,20 +221,19 @@ useHead(() => ({
           </div>
         </div>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
-          <Button v-if="!soldOut" :to="`/checkout?item=${product.id}`" variant="ai" size="lg" class="w-full min-h-11 justify-center sm:w-auto sm:flex-1 max-[320px]:h-auto max-[320px]:flex-wrap max-[320px]:whitespace-normal">
-            <ShoppingCart class="h-4 w-4" />
+        <div class="grid gap-2 sm:grid-cols-2">
+          <Button v-if="!soldOut" :to="`/checkout?item=${product.id}`" variant="ai" size="lg" class="min-h-11 h-auto whitespace-normal">
             Beli sekarang
           </Button>
-          <Button :to="chatLink" :variant="soldOut ? 'ai' : 'outline'" size="lg" class="w-full min-h-11 sm:w-auto max-[320px]:h-auto max-[320px]:flex-wrap max-[320px]:whitespace-normal" :class="soldOut ? 'sm:flex-1 justify-center' : ''">
-            <MessageCircle class="h-4 w-4" />
-            {{ soldOut ? 'Tanya restock' : 'Tanya via chat' }}
+          <Button :to="chatLink" :variant="soldOut ? 'ai' : 'outline'" size="lg" class="min-h-11 h-auto whitespace-normal">
+            <MessageCircle aria-hidden="true" class="h-4 w-4" /> {{ soldOut ? 'Tanya stok' : 'Tanya via chat' }}
           </Button>
         </div>
+        <div v-if="refreshError" role="alert" class="store-error"><p>{{ refreshError }}</p><Button variant="outline" class="mt-3" @click="refreshExpired">Muat ulang harga</Button></div>
 
         <ul class="space-y-1.5 rounded-xl border border-stone-200 bg-white p-4 text-xs text-stone-600">
-          <li class="inline-flex items-center gap-1.5"><ShieldCheck class="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Harga dan stok dicek kembali saat pesanan dibuat.</li>
-          <li class="flex items-center gap-1.5"><Truck class="h-3.5 w-3.5 shrink-0 text-stone-500" /> Ambil di toko atau diantar · QRIS simulasi</li>
+          <li class="inline-flex items-center gap-1.5"><ShieldCheck aria-hidden="true" class="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Checkout tanpa daftar akun. Isi data, lalu konfirmasi pesanan.</li>
+          <li class="flex items-center gap-1.5"><Truck class="h-3.5 w-3.5 shrink-0 text-stone-500" /> Ambil: Cash / QRIS · Antar: QRIS dengan bukti pembayaran</li>
         </ul>
 
         <div class="rounded-xl border border-stone-200 bg-white p-4">
@@ -232,22 +243,16 @@ useHead(() => ({
       </div>
     </div>
 
-    <section v-if="related?.length">
-      <h2 class="font-display text-lg font-bold text-stone-900">Mungkin kamu juga suka</h2>
-      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
-        <ProductCard v-for="p in related" :key="p.id" :product="p" />
-      </div>
-      <div class="mt-4 flex justify-center">
-        <Button
-          v-if="hasMoreRelated"
-          variant="outline"
-          :disabled="loadingMoreRelated"
-          class="px-6 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal"
-          @click="loadMoreRelated()"
-        >
-          {{ loadingMoreRelated ? 'Memuat…' : 'Muat lebih banyak' }}
-        </Button>
-      </div>
+    <section v-if="product">
+      <h2 class="mb-4 font-display text-xl font-bold text-stone-900">Produk di kategori yang sama</h2>
+      <ProductGrid :products="related" :now="now" :pending="relatedPending" :error="!!relatedError" empty-title="Belum ada produk terkait" empty-message="Lihat kategori lainnya di katalog toko." @retry="refreshRelated()">
+        <template #load-more>
+          <div v-if="hasMoreRelated" class="store-load-more">
+            <p v-if="relatedLoadError" role="alert" class="store-field-error">{{ relatedLoadError }}</p>
+            <Button variant="outline" :loading="loadingMoreRelated" @click="loadMoreRelated">{{ relatedLoadError ? 'Coba lagi muat produk' : 'Muat lebih banyak' }}</Button>
+          </div>
+        </template>
+      </ProductGrid>
     </section>
   </div>
 </template>

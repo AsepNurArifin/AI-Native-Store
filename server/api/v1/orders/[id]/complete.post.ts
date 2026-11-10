@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { orders } from '../../../../database/schema'
 import { requireOwner } from '../../../../utils/auth'
-import { ensureSeeded, logAudit, orderOut } from '../../../../utils/business'
+import { ensureSeeded, isDeliveryOrder, logAudit, orderOut } from '../../../../utils/business'
 import { isUuid } from '../../../../utils/errors'
 
 export default defineEventHandler(async (event) => {
@@ -19,9 +19,7 @@ export default defineEventHandler(async (event) => {
     if (o.status !== 'CONFIRMED') {
       throw createError({ statusCode: 409, message: `Order berstatus ${o.status} tidak bisa diselesaikan`, data: { detail: { code: 'INVALID_STATE', message: `Order berstatus ${o.status} tidak bisa diselesaikan` } } })
     }
-    // PERBAIKAN (migrasi 0004): order hanya boleh COMPLETED kalau SUDAH dibayar.
-    // QRIS hanya simulasi jadi tidak ada webhook; tanpa gate ini kasir bisa
-    // "complete" order yang tak pernah dibayar dan analitik menghitungnya revenue.
+    // Bukti QRIS wajib diverifikasi manual; UNPAID tidak boleh selesai.
     if (o.paymentStatus !== 'PAID') {
       throw createError({
         statusCode: 409,
@@ -29,6 +27,8 @@ export default defineEventHandler(async (event) => {
         data: { detail: { code: 'NOT_PAID', message: 'Order belum dibayar — konfirmasi pembayaran dulu (Mark Paid).' } }
       })
     }
+    if (o.paymentMethod === 'QRIS' && o.paymentReview !== 'VERIFIED') throw createError({ statusCode: 409, message: 'Bukti QRIS belum diverifikasi.', data: { detail: { code: 'NOT_PAID', message: 'Bukti QRIS belum diverifikasi.' } } })
+    if (isDeliveryOrder(o) && (o.paymentMethod !== null || o.deliveryStatus !== null) && o.deliveryStatus !== 'DELIVERED') throw createError({ statusCode: 409, message: 'Konfirmasi barang diterima sebelum menyelesaikan pesanan antar.', data: { detail: { code: 'DELIVERY_NOT_DELIVERED', message: 'Konfirmasi barang diterima sebelum menyelesaikan pesanan antar.' } } })
     await tx.update(orders).set({ status: 'COMPLETED', completedAt: new Date() as never }).where(eq(orders.id, o.id))
     await logAudit(tx, 'ORDER_COMPLETED', 'USER', { actorId: owner.id, detail: { order_id: id } })
   })

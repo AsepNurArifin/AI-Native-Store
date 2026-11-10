@@ -60,7 +60,8 @@ onMounted(() => {
       :loading="eager ? 'eager' : 'lazy'"
       :fetchpriority="eager ? 'high' : 'auto'"
       decoding="async"
-      class="h-full w-full object-cover"
+      class="h-full w-full"
+      :class="size === 'detail' ? 'object-contain' : 'object-cover'"
       @error="imageFailed = true"
     >
     <div

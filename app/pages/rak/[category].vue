@@ -2,13 +2,14 @@
 import type { ProductOut } from '~/utils/api-types'
 
 definePageMeta({ layout: 'default' })
+const { settings } = await useStoreSettings()
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const base = (config.public.apiBase as string) || '/api/v1'
 const siteUrl = (config.public.siteUrl as string) || 'http://localhost:3000'
 
-const category = computed(() => decodeURIComponent(String(route.params.category || '')))
+const category = computed(() => String(route.params.category || ''))
 const categoryPath = computed(() => `/rak/${encodeURIComponent(category.value)}`)
 const toast = useToast()
 const q = ref('')
@@ -25,7 +26,7 @@ const rakKey = computed(() => `rak:${category.value}:${qDebounced.value}:${sort.
 // Tanpa try/catch: error diteruskan ke `fetchError` (bukan "rak kosong" palsu).
 // Key reaktif per kategori+filter: ganti kategori/filter = key baru = refetch
 // otomatis; balik ke rak yang sama = tampil instan dari cache. Batch pertama
-// saja (limit 8); sisanya dimuat via tombol "Muat lebih banyak".
+// berisi 16 produk; halaman berikutnya dimuat oleh owner yang sama.
 const { data: firstPage, pending, error: fetchError, refresh } = await useAsyncData(
   rakKey,
   () => $fetch<ProductOut[]>(`${base}/catalog/search`, {
@@ -38,8 +39,12 @@ const { data: firstPage, pending, error: fetchError, refresh } = await useAsyncD
 const products = ref<ProductOut[]>([])
 const loadingMore = ref(false)
 const hasMore = ref(false)
+const loadMoreError = ref('')
+let loadGeneration = 0
+watch(rakKey, () => { loadGeneration++; loadMoreError.value = '' })
 
 watch(firstPage, (v) => {
+  loadGeneration++
   products.value = v ?? []
   hasMore.value = (v?.length ?? 0) === PAGE_SIZE
 }, { immediate: true })
@@ -47,34 +52,41 @@ watch(firstPage, (v) => {
 async function loadMore() {
   if (loadingMore.value || !hasMore.value || pending.value) return
   const keyAtStart = rakKey.value
+  const generation = loadGeneration
+  loadMoreError.value = ''
   loadingMore.value = true
   try {
     const next = await $fetch<ProductOut[]>(`${base}/catalog/search`, {
       query: { category: category.value, q: qDebounced.value || undefined, sort: sort.value || undefined, promo_only: promoOnly.value ? 'true' : undefined, limit: PAGE_SIZE, offset: products.value.length }
     })
-    if (keyAtStart !== rakKey.value) return
+    if (keyAtStart !== rakKey.value || generation !== loadGeneration) return
     products.value = [...products.value, ...(next ?? [])]
     hasMore.value = (next?.length ?? 0) === PAGE_SIZE
   } catch {
-    toast.error('Gagal memuat produk berikutnya. Coba lagi.')
+    if (keyAtStart === rakKey.value && generation === loadGeneration) loadMoreError.value = 'Gagal memuat produk berikutnya. Coba lagi.'
   } finally {
     loadingMore.value = false
   }
 }
 
 // Debounce ketikan -> key baru -> refetch otomatis.
-let debounce: ReturnType<typeof setTimeout> | null = null
+let debounce: ReturnType<typeof setTimeout> | undefined
 watch(q, () => {
-  if (debounce) clearTimeout(debounce)
+  clearTimeout(debounce)
   debounce = setTimeout(() => { qDebounced.value = q.value }, 350)
+})
+onUnmounted(() => { clearTimeout(debounce) })
+const { now, refreshError, refreshExpired } = useStorefrontClock(products, async () => {
+  await refresh()
+  if (fetchError.value) throw new Error('Harga terbaru belum bisa dimuat.')
 })
 
 const pageTitle = computed(() => `${category.value}: Harga & Stok`)
 useSeoMeta({
   title: pageTitle,
-  description: () => `Daftar ${category.value} di SHAF STORE: harga, promo, dan stok terbaru. Pesan lewat chat tanpa daftar akun.`,
+  description: () => `Daftar ${category.value} di ${settings.value.store_name}: harga, promo, dan stok terbaru. Pilih produk dan checkout langsung tanpa daftar akun.`,
   ogTitle: pageTitle,
-  ogDescription: () => `${category.value} di SHAF STORE — harga jelas, pesan lewat chat.`,
+  ogDescription: () => `${category.value} di ${settings.value.store_name} — harga jelas dan checkout langsung tanpa akun.`,
   ogType: 'website',
   ogUrl: () => `${siteUrl}${categoryPath.value}`,
   ogLocale: 'id_ID',
@@ -120,7 +132,7 @@ watch(fetchError, (err) => {
       </h1>
       <p class="max-w-xl text-sm leading-relaxed text-stone-600 sm:text-base">
         <template v-if="pending">Memuat produk…</template>
-        <template v-else-if="!fetchError">Menampilkan {{ products.length }} produk. Klik kartu untuk detail atau tanya lewat chat.</template>
+        <template v-else-if="!fetchError">Menampilkan {{ products.length }} produk. Buka detail atau pesan langsung dari katalog.</template>
       </p>
     </div>
 
@@ -131,15 +143,15 @@ watch(fetchError, (err) => {
           type="search"
           placeholder="Cari di rak ini…"
           aria-label="Cari di rak ini"
-          class="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm placeholder:text-stone-500 focus:border-brand-500 focus:outline-2 focus:outline-brand-600 max-[320px]:min-w-0"
+          class="h-11 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-3 text-base placeholder:text-stone-500 sm:text-sm"
         >
       </div>
       <div class="flex items-center gap-2 max-[320px]:flex-wrap">
-        <label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
+        <label class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-600">
           <input v-model="promoOnly" type="checkbox" class="h-4 w-4 accent-brand-700" >
           Promo saja
         </label>
-        <select v-model="sort" aria-label="Urutkan" class="h-10 rounded-lg border border-stone-300 bg-white px-2 text-xs font-medium text-stone-700 max-[320px]:min-w-0 max-[320px]:max-w-full">
+        <select v-model="sort" aria-label="Urutkan" class="store-sort">
           <option value="">Paling relevan</option>
           <option value="termurah">Termurah</option>
           <option value="termahal">Termahal</option>
@@ -148,40 +160,22 @@ watch(fetchError, (err) => {
       </div>
     </div>
 
-    <div v-if="fetchError" class="space-y-3 text-center">
-      <p class="text-sm text-stone-600">Rak ini gagal dimuat — mungkin koneksi ke server sedang bermasalah, bukan raknya kosong.</p>
-      <Button size="sm" variant="outline" class="max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal" @click="() => refresh()">Coba lagi muat rak</Button>
-    </div>
-
-    <div v-else-if="pending" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
-      <div v-for="i in 8" :key="i" class="h-64 animate-pulse rounded-xl bg-stone-100" aria-label="Memuat produk" />
-    </div>
-
-    <div v-else-if="!products?.length" class="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-8 text-center max-[320px]:p-3">
-      <h2 class="font-display font-bold text-stone-800">{{ q || promoOnly ? 'Tidak ada yang cocok dengan filter' : 'Rak ini sedang kosong' }}</h2>
-      <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-stone-600">
-        {{ q || promoOnly
-          ? 'Belum ada produk yang memenuhi kata kunci / filter "Promo saja" ini. Coba ubah pilihan atau tanya langsung di chat.'
-          : 'Belum ada produk di rak ini saat ini. Tanya lewat chat — mungkin stoknya baru saja habis.' }}
-      </p>
-      <Button to="/chat" variant="ai" class="mt-5 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal">Tanya lewat chat</Button>
-    </div>
-
-    <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-[320px]:grid-cols-1">
-      <ProductCard v-for="p in products" :key="p.id" :product="p" />
-    </div>
-
-    <!-- Muat lebih banyak (16 per batch) -->
-    <div v-if="products?.length && !pending" class="mt-6 flex justify-center">
-      <Button
-        v-if="hasMore"
-        variant="outline"
-        :disabled="loadingMore"
-        class="px-6 max-[320px]:h-auto max-[320px]:max-w-full max-[320px]:whitespace-normal"
-        @click="loadMore()"
-      >
-        {{ loadingMore ? 'Memuat…' : 'Muat lebih banyak' }}
-      </Button>
-    </div>
+    <div v-if="refreshError" class="store-error" role="alert"><p>{{ refreshError }}</p><Button variant="outline" class="mt-3" @click="refreshExpired">Muat ulang harga</Button></div>
+    <ProductGrid
+      :products="products"
+      :now="now"
+      :pending="pending"
+      :error="!!fetchError"
+      :empty-title="q || promoOnly ? 'Tidak ada yang cocok dengan filter' : 'Rak ini sedang kosong'"
+      :empty-message="q || promoOnly ? 'Coba ubah kata kunci atau filter promo, atau tanyakan lewat chat.' : 'Belum ada produk di rak ini. Jelajahi katalog lainnya atau tanya stok melalui chat.'"
+      @retry="refresh()"
+    >
+      <template #load-more>
+        <div v-if="products.length && hasMore" class="store-load-more">
+          <p v-if="loadMoreError" role="alert" class="store-field-error">{{ loadMoreError }}</p>
+          <Button variant="outline" :loading="loadingMore" @click="loadMore">{{ loadMoreError ? 'Coba lagi muat produk' : 'Muat lebih banyak' }}</Button>
+        </div>
+      </template>
+    </ProductGrid>
   </div>
 </template>

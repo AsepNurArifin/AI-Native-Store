@@ -107,7 +107,7 @@ export async function handleTelegramWebhook(db: ReturnType<typeof getDb>, payloa
       return { status: 'ok', reply: 'expired' }
     }
     // Scoping: summary hanya bisa dikonfirmasi dari percakapan pemiliknya.
-    // PERBAIKAN: null dianggap tidak dimiliki (lihat chat/[id]/confirm.post.ts).
+    // Ringkasan tanpa conversation_id bukan milik percakapan ini.
     if (summary.conversation_id !== convId) {
       await sendTelegramMessage(parsed.chatId!, 'Ringkasan pesanan ini bukan milik percakapan ini. Ulangi pencarian produk.')
       return { status: 'ok', reply: 'mismatch' }

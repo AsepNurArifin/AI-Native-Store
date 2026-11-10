@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { customType, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
 // Mirror dari server/database/migrations/*.sql — DDL yang berlaku di DB adalah
 // file SQL (FK, CHECK, trigger). Drizzle dipakai untuk query + typing; jangan
@@ -8,15 +8,28 @@ import { integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid, v
 
 const uuidPk = () => uuid('id').primaryKey().$defaultFn(() => randomUUID())
 const nowColumn = (name: string) => timestamp(name, { withTimezone: true }).notNull().$defaultFn(() => new Date())
+const bytea = customType<{ data: Buffer, driverData: Buffer }>({
+  dataType: () => 'bytea'
+})
 
 export const users = pgTable('users', {
   id: uuidPk(),
   name: varchar('name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  authVersion: integer('auth_version').notNull().default(0),
   role: varchar('role', { length: 10 }).notNull().default('OWNER'),
   status: varchar('status', { length: 10 }).notNull().default('ACTIVE'),
   createdAt: nowColumn('created_at')
+})
+
+export const storeSettings = pgTable('store_settings', {
+  id: integer('id').primaryKey().default(1),
+  storeName: varchar('store_name', { length: 100 }).notNull().default('SHAF STORE'),
+  ownerName: varchar('owner_name', { length: 100 }).notNull().default('Pemilik Toko'),
+  qrisMerchantName: varchar('qris_merchant_name', { length: 100 }).notNull().default(''),
+  qrisImageUrl: varchar('qris_image_url', { length: 500 }),
+  updatedAt: nowColumn('updated_at')
 })
 
 export const customers = pgTable('customers', {
@@ -38,7 +51,7 @@ export const products = pgTable('products', {
   price: numeric('price', { precision: 14, scale: 2 }).notNull(),
   status: varchar('status', { length: 10 }).notNull().default('ACTIVE'),
   lowStockThreshold: integer('low_stock_threshold'),
-  imageUrl: varchar('image_url', { length: 500 }),
+  imageUrls: jsonb('image_urls').$type<string[]>().notNull().default([]),
   createdAt: nowColumn('created_at'),
   updatedAt: nowColumn('updated_at')
 })
@@ -73,6 +86,15 @@ export const orders = pgTable('orders', {
   // Pemisahan "order dibuat" vs "sudah dibayar" (migrasi 0004).
   // UNPAID -> stok di-reserve s/d expires_at; PAID -> boleh COMPLETED.
   paymentStatus: varchar('payment_status', { length: 12 }).notNull().default('UNPAID'),
+  buyerName: varchar('buyer_name', { length: 100 }),
+  buyerContact: varchar('buyer_contact', { length: 100 }),
+  buyerPhone: varchar('buyer_phone', { length: 30 }),
+  paymentMethod: varchar('payment_method', { length: 4 }),
+  paymentReview: varchar('payment_review', { length: 8 }),
+  paymentReviewNote: text('payment_review_note'),
+  deliveryStatus: varchar('delivery_status', { length: 12 }),
+  shippedAt: timestamp('shipped_at', { withTimezone: true }),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   // Deadline pembayaran; lewat ini order auto-CANCELLED dan stok kembali.
   expiresAt: timestamp('expires_at', { withTimezone: true }),
@@ -84,6 +106,15 @@ export const orders = pgTable('orders', {
   createdAt: nowColumn('created_at'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   cancelledAt: timestamp('cancelled_at', { withTimezone: true })
+})
+
+/** Bukti pembayaran privat; byte gambar tidak pernah masuk proyeksi order API. */
+export const orderPaymentProofs = pgTable('order_payment_proofs', {
+  orderId: uuid('order_id').primaryKey().references(() => orders.id, { onDelete: 'cascade' }),
+  mime: varchar('mime', { length: 10 }).notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
+  submittedAt: nowColumn('submitted_at')
 })
 
 export const orderItems = pgTable('order_items', {
@@ -160,6 +191,7 @@ export const auditLogs = pgTable('audit_logs', {
 export const idempotencyKeys = pgTable('idempotency_keys', {
   key: varchar('key', { length: 64 }).primaryKey(),
   orderId: uuid('order_id').references(() => orders.id),
+  requestHash: varchar('request_hash', { length: 64 }),
   createdAt: nowColumn('created_at')
 })
 

@@ -38,16 +38,16 @@
   {
     "model_name": "gpt-6.1-sol",
     "quota_type": 0,
-    "model_ratio": 2,
+    "model_ratio": 1,
     "model_price": 0,
     "owner_by": "",
     "completion_ratio": 5,
     "enable_groups": [
+      "svip",
+      "test",
       "core",
       "default",
-      "probation",
-      "svip",
-      "test"
+      "probation"
     ],
     "supported_endpoint_types": [
       "openai"
